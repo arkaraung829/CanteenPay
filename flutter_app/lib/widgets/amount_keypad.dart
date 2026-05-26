@@ -4,6 +4,7 @@ import 'package:canteen_common/canteen_common.dart';
 import '../services/haptic_service.dart';
 
 /// Custom numeric keypad for entering payment amounts.
+/// Designed for canteen sellers — large buttons, clear display, fast input.
 class AmountKeypad extends StatelessWidget {
   final String currentAmount;
   final ValueChanged<String> onAmountChanged;
@@ -13,15 +14,14 @@ class AmountKeypad extends StatelessWidget {
     super.key,
     required this.currentAmount,
     required this.onAmountChanged,
-    this.quickAmounts = const [500, 1000, 1500, 2000, 3000],
+    this.quickAmounts = const [500, 1000, 1500, 2000, 3000, 5000],
   });
 
   void _onDigit(String digit) {
-    HapticService.selection();
+    HapticService.medium();
     if (currentAmount == '0') {
       onAmountChanged(digit);
     } else {
-      // Limit to reasonable amount (prevent overflow)
       final newAmount = currentAmount + digit;
       if (newAmount.length <= 7) {
         onAmountChanged(newAmount);
@@ -39,12 +39,12 @@ class AmountKeypad extends StatelessWidget {
   }
 
   void _onClear() {
-    HapticService.light();
+    HapticService.medium();
     onAmountChanged('0');
   }
 
   void _onQuickAmount(int amount) {
-    HapticService.selection();
+    HapticService.heavy();
     onAmountChanged(amount.toString());
   }
 
@@ -54,32 +54,37 @@ class AmountKeypad extends StatelessWidget {
 
     return Column(
       children: [
-        // Display area
+        // Display area — large and prominent
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
           margin: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[300]!),
+            color: amount > 0 ? AppTheme.primary.withValues(alpha: 0.05) : Colors.grey[100],
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: amount > 0 ? AppTheme.primary.withValues(alpha: 0.3) : Colors.grey[300]!,
+              width: amount > 0 ? 2 : 1,
+            ),
           ),
           child: Column(
             children: [
-              const Text(
-                'Amount',
+              Text(
+                amount > 0 ? 'Amount to charge' : 'Enter amount',
                 style: TextStyle(
-                  fontSize: 14,
-                  color: AppTheme.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: amount > 0 ? AppTheme.primary : AppTheme.textHint,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 CurrencyFormatter.formatMMK(amount),
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
+                style: TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w800,
+                  color: amount > 0 ? AppTheme.primary : AppTheme.textHint,
+                  letterSpacing: -1,
                 ),
               ),
             ],
@@ -88,39 +93,49 @@ class AmountKeypad extends StatelessWidget {
 
         const SizedBox(height: 12),
 
-        // Quick amount chips
+        // Quick amount buttons — 3 per row, large touch targets
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: quickAmounts.map((amt) {
-              final isSelected = amount == amt;
-              return ActionChip(
-                label: Text(
-                  CurrencyFormatter.formatMMK(amt),
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : AppTheme.primary,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
-                backgroundColor: isSelected
-                    ? AppTheme.primary
-                    : AppTheme.primary.withValues(alpha: 0.1),
-                side: BorderSide.none,
-                onPressed: () => _onQuickAmount(amt),
-              );
-            }).toList(),
+          child: Column(
+            children: [
+              Row(
+                children: quickAmounts.take(3).map((amt) {
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(3),
+                      child: _QuickAmountButton(
+                        amount: amt,
+                        isSelected: amount == amt,
+                        onTap: () => _onQuickAmount(amt),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+              Row(
+                children: quickAmounts.skip(3).take(3).map((amt) {
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(3),
+                      child: _QuickAmountButton(
+                        amount: amt,
+                        isSelected: amount == amt,
+                        onTap: () => _onQuickAmount(amt),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
           ),
         ),
 
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
 
-        // Numeric keypad grid
+        // Numeric keypad — big buttons for fast tapping
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
             child: Column(
               children: [
                 _buildKeypadRow(['1', '2', '3']),
@@ -162,6 +177,48 @@ class AmountKeypad extends StatelessWidget {
   }
 }
 
+class _QuickAmountButton extends StatelessWidget {
+  final int amount;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _QuickAmountButton({
+    required this.amount,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isSelected ? AppTheme.primary : Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: 44,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? AppTheme.primary : Colors.grey[300]!,
+            ),
+          ),
+          child: Text(
+            CurrencyFormatter.formatMMK(amount),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: isSelected ? Colors.white : AppTheme.primary,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _KeypadButton extends StatefulWidget {
   final String label;
   final VoidCallback onPressed;
@@ -184,10 +241,10 @@ class _KeypadButtonState extends State<_KeypadButton>
   void initState() {
     super.initState();
     _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 100),
+      duration: const Duration(milliseconds: 80),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.9).animate(
       CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
     );
   }
@@ -199,38 +256,49 @@ class _KeypadButtonState extends State<_KeypadButton>
   }
 
   void _handleTap() {
-    _scaleController.forward().then((_) {
-      _scaleController.reverse();
-    });
+    _scaleController.forward().then((_) => _scaleController.reverse());
     widget.onPressed();
   }
 
   @override
   Widget build(BuildContext context) {
     final isAction = widget.label == 'C' || widget.label == '<';
+    final isClear = widget.label == 'C';
 
     return ScaleTransition(
       scale: _scaleAnimation,
       child: Material(
-        color: isAction ? Colors.grey[200] : Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        color: isClear
+            ? Colors.red[50]
+            : isAction
+                ? Colors.grey[200]
+                : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        elevation: isAction ? 0 : 1,
+        shadowColor: Colors.black.withValues(alpha: 0.1),
         child: InkWell(
           onTap: _handleTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(14),
           child: Container(
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[300]!),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isClear
+                    ? Colors.red[200]!
+                    : isAction
+                        ? Colors.grey[300]!
+                        : Colors.grey[200]!,
+              ),
             ),
             child: widget.label == '<'
-                ? const Icon(Icons.backspace_outlined, size: 24)
+                ? Icon(Icons.backspace_rounded, size: 28, color: Colors.grey[700])
                 : Text(
                     widget.label,
                     style: TextStyle(
-                      fontSize: isAction ? 18 : 24,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
+                      fontSize: isAction ? 20 : 32,
+                      fontWeight: FontWeight.w700,
+                      color: isClear ? Colors.red[600] : AppTheme.textPrimary,
                     ),
                   ),
           ),

@@ -314,6 +314,7 @@ class _LoginScreenState extends State<LoginScreen>
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 100;
               return SingleChildScrollView(
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -323,10 +324,10 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 24),
+                        SizedBox(height: keyboardVisible ? 8 : 24),
 
-                  // Logo
-                  TweenAnimationBuilder<double>(
+                  // Logo — shrinks when keyboard is visible
+                  if (!keyboardVisible) TweenAnimationBuilder<double>(
                     tween: Tween(begin: 0.0, end: 1.0),
                     duration: const Duration(milliseconds: 600),
                     curve: Curves.easeOutBack,
@@ -368,7 +369,7 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
 
-                  const SizedBox(height: 36),
+                  SizedBox(height: keyboardVisible ? 12 : 36),
 
                   // Form card
                   AnimatedBuilder(
@@ -393,6 +394,7 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
 
+                  if (!keyboardVisible) ...[
                   const SizedBox(height: 24),
 
                   // Info section
@@ -418,6 +420,7 @@ class _LoginScreenState extends State<LoginScreen>
                     'Contact your school admin for access',
                     style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
                   ),
+                  ],
                         const SizedBox(height: 24),
                       ],
                     ),
