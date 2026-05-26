@@ -13,6 +13,7 @@ import 'providers/children_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/student_provider.dart';
 import 'router.dart';
+import 'screens/auth/onboarding_screen.dart';
 import 'widgets/session_wrapper.dart';
 
 // ---------------------------------------------------------------------------
@@ -115,12 +116,16 @@ void main() async {
   PaintingBinding.instance.imageCache.maximumSize = 100;
   PaintingBinding.instance.imageCache.maximumSizeBytes = 100 << 20;
 
-  // 11. Run app (same zone as ensureInitialized — no runZonedGuarded)
-  runApp(const CanteenPayApp());
+  // 11. Check if onboarding was seen
+  final showOnboarding = !await hasSeenOnboarding();
+
+  // 12. Run app
+  runApp(CanteenPayApp(showOnboarding: showOnboarding));
 }
 
 class CanteenPayApp extends StatefulWidget {
-  const CanteenPayApp({super.key});
+  final bool showOnboarding;
+  const CanteenPayApp({super.key, this.showOnboarding = false});
 
   @override
   State<CanteenPayApp> createState() => _CanteenPayAppState();
@@ -145,7 +150,7 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
       child: Builder(
         builder: (context) {
           final authProvider = context.watch<AuthProvider>();
-          _router ??= createRouter(authProvider);
+          _router ??= createRouter(authProvider, initialOnboarding: widget.showOnboarding);
           final router = _router!;
 
           try {

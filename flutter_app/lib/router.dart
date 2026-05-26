@@ -8,6 +8,7 @@ import 'screens/auth/role_select_screen.dart';
 
 // Shared screens
 import 'screens/shared/edit_profile_screen.dart';
+import 'screens/auth/onboarding_screen.dart';
 
 // Student screens
 import 'screens/student/home_screen.dart' as student;
@@ -55,10 +56,10 @@ String _homePathForRole(String? role) {
 }
 
 /// Creates the GoRouter with auth-aware redirects.
-GoRouter createRouter(AuthProvider authProvider) {
+GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false}) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
-    initialLocation: '/login',
+    initialLocation: initialOnboarding ? '/onboarding' : '/login',
     refreshListenable: authProvider,
     redirect: (context, state) {
       final isAuthenticated = authProvider.isAuthenticated;
@@ -67,12 +68,13 @@ GoRouter createRouter(AuthProvider authProvider) {
       final path = state.uri.path;
       final isLoginRoute = path == '/login';
       final isRoleSelect = path == '/role-select';
+      final isOnboarding = path == '/onboarding';
 
       // While auth is loading, stay on current page (don't flash)
       if (isLoading) return null;
 
-      // Not logged in → go to login
-      if (!isAuthenticated && !isLoginRoute && !isRoleSelect) {
+      // Not logged in → go to login (but allow onboarding)
+      if (!isAuthenticated && !isLoginRoute && !isRoleSelect && !isOnboarding) {
         return '/login';
       }
 
@@ -88,6 +90,10 @@ GoRouter createRouter(AuthProvider authProvider) {
     },
     routes: [
       // ========== Auth Routes ==========
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
