@@ -86,7 +86,16 @@ class _LoginScreenState extends State<LoginScreen>
 
       if (authenticated && mounted) {
         HapticService.success();
-        // Session is already valid — router will redirect to home
+        // Wait for AuthProvider to load profile before revealing UI
+        final auth = context.read<AuthProvider>();
+        // Give auth time to detect the session and load profile
+        for (int i = 0; i < 20; i++) {
+          await Future.delayed(const Duration(milliseconds: 200));
+          if (auth.isAuthenticated && auth.user != null) {
+            // Router will redirect — keep biometric screen visible
+            return;
+          }
+        }
       }
     } catch (_) {}
 
