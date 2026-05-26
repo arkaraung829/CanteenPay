@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, Plus, Download, Upload } from 'lucide-react';
+import Link from 'next/link';
+import { Search, Plus, Download, Upload, Printer } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
@@ -103,7 +104,7 @@ export default function StudentsPage() {
       grade: newGrade,
       class_name: className,
       student_code: studentCode,
-      qr_data: `QR-${studentCode}`,
+      qr_data: crypto.randomUUID(),
       school_id: schoolId,
       is_active: true,
     });
@@ -150,6 +151,12 @@ export default function StudentsPage() {
           <p className="mt-1 text-sm text-gray-500">{students.length} registered students</p>
         </div>
         <div className="flex gap-2">
+          <Link
+            href="/dashboard/students/print"
+            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+          >
+            <Printer className="h-4 w-4" /> Print QR Cards
+          </Link>
           <button className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
             <Upload className="h-4 w-4" /> CSV Import
           </button>
@@ -235,7 +242,7 @@ export default function StudentsPage() {
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4">
-                    <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">View</button>
+                    <Link href={`/dashboard/students/${student.id}`} className="text-sm text-blue-600 hover:text-blue-800 font-medium">View</Link>
                   </td>
                 </tr>
               ))

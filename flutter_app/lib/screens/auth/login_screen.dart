@@ -160,18 +160,33 @@ class _LoginScreenState extends State<LoginScreen>
             children: [
               const SizedBox(height: 48),
 
-              // Logo / Title
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: const Icon(
-                  Icons.restaurant,
-                  size: 40,
-                  color: Colors.white,
+              // Logo / Title with entrance animation
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: const Duration(milliseconds: 600),
+                curve: Curves.easeOutBack,
+                builder: (context, value, child) {
+                  return Transform.scale(
+                    scale: value,
+                    child: Opacity(
+                      opacity: value.clamp(0.0, 1.0),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: AppTheme.shadowLg,
+                  ),
+                  child: const Icon(
+                    Icons.restaurant,
+                    size: 40,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -435,16 +450,21 @@ class _DemoRoleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        boxShadow: AppTheme.shadowSm,
+      ),
+      child: Material(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
       child: InkWell(
         onTap: isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
             border: Border.all(color: color.withValues(alpha: 0.3)),
           ),
           child: Row(
@@ -486,6 +506,7 @@ class _DemoRoleButton extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

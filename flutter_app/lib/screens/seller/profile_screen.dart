@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
+import '../../widgets/animated_fade_in.dart';
+
 /// Simple seller profile screen with real auth data.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -16,8 +18,9 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Profile'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
+      body: AnimatedFadeIn(
+        child: ListView(
+        padding: const EdgeInsets.all(AppTheme.spacingMd),
         children: [
           // Seller avatar and name
           Center(
@@ -122,6 +125,7 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
+      ),
     );
   }
 
@@ -131,17 +135,11 @@ class ProfileScreen extends StatelessWidget {
     required String subtitle,
   }) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        boxShadow: AppTheme.shadowSm,
       ),
       child: Row(
         children: [

@@ -153,18 +153,12 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           // Student info card
           Container(
             width: double.infinity,
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.all(AppTheme.spacingMd),
+            padding: const EdgeInsets.all(AppTheme.spacingMd),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              boxShadow: AppTheme.shadowMd,
             ),
             child: Row(
               children: [

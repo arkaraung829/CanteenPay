@@ -83,7 +83,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.15),
@@ -128,24 +128,38 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
 
                 const SizedBox(height: 32),
 
-                // Scan Next button
-                ElevatedButton.icon(
-                  onPressed: () => context.go('/seller'),
-                  icon: const Icon(Icons.qr_code_scanner),
-                  label: const Text('Scan Next'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppTheme.success,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 32,
-                      vertical: 14,
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                // Scan Next button with elevated styling
+                Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed: () => context.go('/seller'),
+                    icon: const Icon(Icons.qr_code_scanner),
+                    label: const Text('Scan Next'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppTheme.success,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 32,
+                        vertical: 14,
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusMd),
+                      ),
                     ),
                   ),
                 ),

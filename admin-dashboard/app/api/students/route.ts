@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
         grade: grade || null,
         class_name: class_name || null,
         student_code: studentCode,
-        qr_data: `QR-${studentCode}`,
+        qr_data: crypto.randomUUID(),
         school_id,
         is_active: true,
       })

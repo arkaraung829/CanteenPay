@@ -4,6 +4,8 @@ import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/sales_provider.dart';
 import '../../services/haptic_service.dart';
+import '../../widgets/shimmer_loading.dart';
+import '../../widgets/animated_fade_in.dart';
 
 /// Displays today's sales history with summary and filtering.
 class SalesHistoryScreen extends StatefulWidget {
@@ -122,39 +124,30 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
 
           // Transactions list with pull-to-refresh
           Expanded(
-            child: filteredSales.isEmpty
-                ? const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.receipt_long,
-                          size: 64,
-                          color: AppTheme.textHint,
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'No sales yet',
-                          style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 16,
+            child: sales.isLoading && filteredSales.isEmpty
+                ? ListView(
+                    children: [
+                      for (int i = 0; i < 5; i++) ShimmerLoading.listTile(),
+                    ],
+                  )
+                : filteredSales.isEmpty
+                    ? EmptyStateWidget.noSales()
+                    : AnimatedFadeIn(
+                        child: RefreshIndicator(
+                          color: AppTheme.primary,
+                          onRefresh: _onRefresh,
+                          child: ListView.separated(
+                            itemCount: filteredSales.length,
+                            separatorBuilder: (_, __) =>
+                                const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              return TransactionTile(
+                                transaction: filteredSales[index],
+                              );
+                            },
                           ),
                         ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _onRefresh,
-                    child: ListView.separated(
-                      itemCount: filteredSales.length,
-                      separatorBuilder: (_, _) => const Divider(height: 1),
-                      itemBuilder: (context, index) {
-                        return TransactionTile(
-                          transaction: filteredSales[index],
-                        );
-                      },
-                    ),
-                  ),
+                      ),
           ),
         ],
       ),
