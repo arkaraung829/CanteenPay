@@ -63,21 +63,25 @@ GoRouter createRouter(AuthProvider authProvider) {
     redirect: (context, state) {
       final isAuthenticated = authProvider.isAuthenticated;
       final isLoading = authProvider.isLoading;
-      final isLoginRoute = state.uri.path == '/login';
-      final isRoleSelect = state.uri.path == '/role-select';
+      final user = authProvider.user;
+      final path = state.uri.path;
+      final isLoginRoute = path == '/login';
+      final isRoleSelect = path == '/role-select';
 
-      // While auth is loading on startup, don't redirect
-      if (isLoading && !isAuthenticated) return null;
+      // While auth is loading, stay on current page (don't flash)
+      if (isLoading) return null;
 
-      // If not logged in and not on login/role-select, redirect to login
+      // Not logged in → go to login
       if (!isAuthenticated && !isLoginRoute && !isRoleSelect) {
         return '/login';
       }
 
-      // If logged in and on login page, redirect to appropriate home
-      if (isAuthenticated && isLoginRoute) {
-        final role = authProvider.user?.role;
-        return _homePathForRole(role);
+      // Logged in but profile not loaded yet → wait (don't redirect)
+      if (isAuthenticated && user == null) return null;
+
+      // Logged in with profile → redirect away from login to role home
+      if (isAuthenticated && user != null && isLoginRoute) {
+        return _homePathForRole(user.role);
       }
 
       return null;
