@@ -139,13 +139,17 @@ export default function StudentsPage() {
   const [showBulkConfirm, setShowBulkConfirm] = useState<{ action: string; count: number } | null>(null);
   const [showToggleConfirm, setShowToggleConfirm] = useState<StudentRow | null>(null);
 
+  // Dynamic grades/sections from settings
+  const [dynamicGrades, setDynamicGrades] = useState<{ id: string; name: string }[]>([]);
+  const [dynamicSections, setDynamicSections] = useState<{ id: string; name: string }[]>([]);
+
   // Add student form
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
   const [newName, setNewName] = useState('');
   const [newNameMy, setNewNameMy] = useState('');
-  const [newGrade, setNewGrade] = useState('1');
-  const [newSection, setNewSection] = useState('A');
+  const [newGrade, setNewGrade] = useState('');
+  const [newSection, setNewSection] = useState('');
   const [newPhone, setNewPhone] = useState('');
 
   // CSV import state
@@ -171,6 +175,34 @@ export default function StudentsPage() {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     };
   }, [search]);
+
+  // Fetch dynamic grades and sections from settings
+  useEffect(() => {
+    async function fetchGradesSections() {
+      try {
+        const [gradesRes, sectionsRes] = await Promise.all([
+          fetch('/api/settings/grades'),
+          fetch('/api/settings/sections'),
+        ]);
+        const gradesJson = await gradesRes.json();
+        const sectionsJson = await sectionsRes.json();
+        if (gradesJson.success) {
+          const active = (gradesJson.data || []).filter((g: { is_active: boolean }) => g.is_active);
+          setDynamicGrades(active);
+          if (active.length > 0 && !newGrade) setNewGrade(active[0].name);
+        }
+        if (sectionsJson.success) {
+          const active = (sectionsJson.data || []).filter((s: { is_active: boolean }) => s.is_active);
+          setDynamicSections(active);
+          if (active.length > 0 && !newSection) setNewSection(active[0].name);
+        }
+      } catch {
+        // Fall back to existing behavior
+      }
+    }
+    fetchGradesSections();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync URL params
   useEffect(() => {
@@ -513,9 +545,15 @@ export default function StudentsPage() {
           className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
           <option value="">All Grades</option>
-          {grades.map(g => (
-            <option key={g} value={g}>Grade {g}</option>
-          ))}
+          {dynamicGrades.length > 0 ? (
+            dynamicGrades.map(g => (
+              <option key={g.id} value={g.name}>{g.name}</option>
+            ))
+          ) : (
+            grades.map(g => (
+              <option key={g} value={g}>Grade {g}</option>
+            ))
+          )}
         </select>
         <select
           value={classFilter}
@@ -742,17 +780,29 @@ export default function StudentsPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
                   <select value={newGrade} onChange={(e) => setNewGrade(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    {[1,2,3,4,5,6,7,8,9,10,11].map(g => (
-                      <option key={g} value={g}>Grade {g}</option>
-                    ))}
+                    {dynamicGrades.length > 0 ? (
+                      dynamicGrades.map(g => (
+                        <option key={g.id} value={g.name}>{g.name}</option>
+                      ))
+                    ) : (
+                      [1,2,3,4,5,6,7,8,9,10,11].map(g => (
+                        <option key={g} value={String(g)}>Grade {g}</option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
                   <select value={newSection} onChange={(e) => setNewSection(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                    {['A','B','C','D'].map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
+                    {dynamicSections.length > 0 ? (
+                      dynamicSections.map(s => (
+                        <option key={s.id} value={s.name}>{s.name}</option>
+                      ))
+                    ) : (
+                      ['A','B','C','D'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))
+                    )}
                   </select>
                 </div>
               </div>
