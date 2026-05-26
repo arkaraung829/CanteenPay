@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1083173550425",
+    "project_id": "canteenpay-a64a1",
+    "storage_bucket": "canteenpay-a64a1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1083173550425:android:05bf664d71622aca3ff448",
+        "android_client_info": {
+          "package_name": "com.canteenpay.canteenPay"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDEUpYncsoLtIY4VUH-u_UJuCiNL2LyMfs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
