@@ -1,0 +1,369 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+// Auth screens
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/role_select_screen.dart';
+
+// Student screens
+import 'screens/student/home_screen.dart' as student;
+import 'screens/student/transaction_history_screen.dart' as student_history;
+import 'screens/student/profile_screen.dart' as student_profile;
+
+// Parent screens
+import 'screens/parent/home_screen.dart' as parent;
+import 'screens/parent/child_detail_screen.dart';
+import 'screens/parent/transaction_history_screen.dart' as parent_history;
+import 'screens/parent/link_child_screen.dart';
+import 'screens/parent/spending_alerts_screen.dart';
+import 'screens/parent/notifications_screen.dart';
+import 'screens/parent/profile_screen.dart' as parent_profile;
+
+// Seller screens
+import 'screens/seller/scan_screen.dart';
+import 'screens/seller/payment_confirm_screen.dart';
+import 'screens/seller/payment_success_screen.dart';
+import 'screens/seller/sales_history_screen.dart';
+import 'screens/seller/profile_screen.dart' as seller_profile;
+
+/// Tracks the currently selected demo role. In a real app this would
+/// come from the AuthProvider / user profile.
+class DemoAuth {
+  static String? currentRole; // 'student', 'parent', 'seller'
+  static bool get isLoggedIn => currentRole != null;
+
+  static String get homePath {
+    switch (currentRole) {
+      case 'student':
+        return '/student';
+      case 'parent':
+        return '/parent';
+      case 'seller':
+        return '/seller';
+      default:
+        return '/login';
+    }
+  }
+
+  static void logout() {
+    currentRole = null;
+  }
+}
+
+final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
+final GlobalKey<NavigatorState> _studentShellKey =
+    GlobalKey<NavigatorState>(debugLabel: 'studentShell');
+final GlobalKey<NavigatorState> _parentShellKey =
+    GlobalKey<NavigatorState>(debugLabel: 'parentShell');
+final GlobalKey<NavigatorState> _sellerShellKey =
+    GlobalKey<NavigatorState>(debugLabel: 'sellerShell');
+
+/// Unified GoRouter with role-based routing.
+final GoRouter appRouter = GoRouter(
+  navigatorKey: _rootNavigatorKey,
+  initialLocation: '/login',
+  redirect: (context, state) {
+    final isLoggedIn = DemoAuth.isLoggedIn;
+    final isLoginRoute = state.uri.path == '/login';
+    final isRoleSelect = state.uri.path == '/role-select';
+
+    // If not logged in and not on login/role-select, redirect to login
+    if (!isLoggedIn && !isLoginRoute && !isRoleSelect) {
+      return '/login';
+    }
+
+    // If logged in and on login page, redirect to appropriate home
+    if (isLoggedIn && isLoginRoute) {
+      return DemoAuth.homePath;
+    }
+
+    return null;
+  },
+  routes: [
+    // ========== Auth Routes ==========
+    GoRoute(
+      path: '/login',
+      builder: (context, state) => const LoginScreen(),
+    ),
+    GoRoute(
+      path: '/role-select',
+      builder: (context, state) => const RoleSelectScreen(),
+    ),
+
+    // ========== Student Routes (ShellRoute with bottom nav) ==========
+    ShellRoute(
+      navigatorKey: _studentShellKey,
+      builder: (context, state, child) =>
+          _StudentShell(child: child),
+      routes: [
+        GoRoute(
+          path: '/student',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: student.HomeScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/student/history',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: student_history.TransactionHistoryScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/student/profile',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: student_profile.ProfileScreen(),
+          ),
+        ),
+      ],
+    ),
+
+    // ========== Parent Routes (ShellRoute with bottom nav) ==========
+    ShellRoute(
+      navigatorKey: _parentShellKey,
+      builder: (context, state, child) =>
+          _ParentShell(child: child),
+      routes: [
+        GoRoute(
+          path: '/parent',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: parent.HomeScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/parent/notifications',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: NotificationsScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/parent/profile',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: parent_profile.ProfileScreen(),
+          ),
+        ),
+      ],
+    ),
+    // Parent full-screen routes (no bottom nav)
+    GoRoute(
+      path: '/parent/child/:id',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final childId = state.pathParameters['id']!;
+        return ChildDetailScreen(childId: childId);
+      },
+    ),
+    GoRoute(
+      path: '/parent/child/:id/history',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final childId = state.pathParameters['id']!;
+        return parent_history.TransactionHistoryScreen(childId: childId);
+      },
+    ),
+    GoRoute(
+      path: '/parent/link-child',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const LinkChildScreen(),
+    ),
+    GoRoute(
+      path: '/parent/alerts',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const SpendingAlertsScreen(),
+    ),
+
+    // ========== Seller Routes (ShellRoute with bottom nav) ==========
+    ShellRoute(
+      navigatorKey: _sellerShellKey,
+      builder: (context, state, child) =>
+          _SellerShell(child: child),
+      routes: [
+        GoRoute(
+          path: '/seller',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: ScanScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/seller/sales',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: SalesHistoryScreen(),
+          ),
+        ),
+        GoRoute(
+          path: '/seller/profile',
+          pageBuilder: (context, state) => const NoTransitionPage(
+            child: seller_profile.ProfileScreen(),
+          ),
+        ),
+      ],
+    ),
+    // Seller full-screen routes (no bottom nav)
+    GoRoute(
+      path: '/seller/payment-confirm',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) => const PaymentConfirmScreen(),
+    ),
+    GoRoute(
+      path: '/seller/payment-success',
+      parentNavigatorKey: _rootNavigatorKey,
+      builder: (context, state) {
+        final extra = state.extra as Map<String, dynamic>?;
+        return PaymentSuccessScreen(
+          studentName: extra?['studentName'] ?? '',
+          amountCharged: extra?['amountCharged'] ?? 0,
+          newBalance: extra?['newBalance'] ?? 0,
+          referenceId: extra?['referenceId'] ?? '',
+        );
+      },
+    ),
+  ],
+);
+
+// =============================================================================
+// Shell Widgets (bottom navigation wrappers)
+// =============================================================================
+
+/// Student bottom navigation shell.
+class _StudentShell extends StatelessWidget {
+  final Widget child;
+  const _StudentShell({required this.child});
+
+  static const _tabs = ['/student', '/student/history', '/student/profile'];
+
+  int _currentIndex(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+    final index = _tabs.indexWhere((t) => location == t);
+    return index < 0 ? 0 : index;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final index = _currentIndex(context);
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (i) => context.go(_tabs[i]),
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.qr_code_2_outlined),
+            selectedIcon: Icon(Icons.qr_code_2),
+            label: 'QR Card',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.receipt_long_outlined),
+            selectedIcon: Icon(Icons.receipt_long),
+            label: 'History',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Parent bottom navigation shell.
+class _ParentShell extends StatelessWidget {
+  final Widget child;
+  const _ParentShell({required this.child});
+
+  int _currentIndex(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+    if (location.startsWith('/parent/notifications')) return 1;
+    if (location.startsWith('/parent/profile')) return 2;
+    return 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final index = _currentIndex(context);
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (i) {
+          switch (i) {
+            case 0:
+              context.go('/parent');
+            case 1:
+              context.go('/parent/notifications');
+            case 2:
+              context.go('/parent/profile');
+          }
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.notifications_outlined),
+            selectedIcon: Icon(Icons.notifications),
+            label: 'Notifications',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outlined),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Seller bottom navigation shell.
+class _SellerShell extends StatelessWidget {
+  final Widget child;
+  const _SellerShell({required this.child});
+
+  int _currentIndex(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+    if (location.startsWith('/seller/sales')) return 1;
+    if (location.startsWith('/seller/profile')) return 2;
+    return 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final index = _currentIndex(context);
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (i) {
+          switch (i) {
+            case 0:
+              context.go('/seller');
+            case 1:
+              context.go('/seller/sales');
+            case 2:
+              context.go('/seller/profile');
+          }
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.qr_code_scanner_outlined),
+            selectedIcon: Icon(Icons.qr_code_scanner),
+            label: 'Scan',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.list_alt_outlined),
+            selectedIcon: Icon(Icons.list_alt),
+            label: 'Sales',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outlined),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}

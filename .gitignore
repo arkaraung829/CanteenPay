@@ -1,0 +1,43 @@
+# Flutter
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/.pub-cache/
+**/.pub/
+**/pubspec.lock
+*.iml
+
+# Android
+**/android/.gradle/
+**/android/local.properties
+**/android/key.properties
+**/android/*.jks
+
+# iOS
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+
+# Node.js / Next.js
+**/node_modules/
+**/.next/
+**/.env
+**/.env.local
+**/.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Claude
+.claude/
+
+# Misc
+*.log

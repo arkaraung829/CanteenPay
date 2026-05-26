@@ -1,0 +1,91 @@
+/// Parent-Student Link Model
+///
+/// Represents the relationship between a parent and a student.
+/// Supports optional eager loading of nested student and wallet data.
+import 'student_model.dart';
+import 'wallet_model.dart';
+
+class ParentStudentLinkModel {
+  final String id;
+  final String parentId;
+  final String studentId;
+  final String? relationship;
+  final bool isPrimary;
+  final DateTime? createdAt;
+
+  /// Optional nested models for eager loading
+  final StudentModel? student;
+  final WalletModel? wallet;
+
+  ParentStudentLinkModel({
+    required this.id,
+    required this.parentId,
+    required this.studentId,
+    this.relationship,
+    this.isPrimary = false,
+    this.createdAt,
+    this.student,
+    this.wallet,
+  });
+
+  /// Create ParentStudentLinkModel from JSON
+  factory ParentStudentLinkModel.fromJson(Map<String, dynamic> json) {
+    return ParentStudentLinkModel(
+      id: json['id']?.toString() ?? '',
+      parentId: json['parent_id']?.toString() ?? json['parentId']?.toString() ?? '',
+      studentId: json['student_id']?.toString() ?? json['studentId']?.toString() ?? '',
+      relationship: json['relationship'],
+      isPrimary: json['is_primary'] ?? json['isPrimary'] ?? false,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : json['createdAt'] != null
+              ? DateTime.parse(json['createdAt'])
+              : null,
+      student: json['student'] != null
+          ? StudentModel.fromJson(json['student'] as Map<String, dynamic>)
+          : json['students'] != null
+              ? StudentModel.fromJson(json['students'] as Map<String, dynamic>)
+              : null,
+      wallet: json['wallet'] != null
+          ? WalletModel.fromJson(json['wallet'] as Map<String, dynamic>)
+          : json['wallets'] != null
+              ? WalletModel.fromJson(json['wallets'] as Map<String, dynamic>)
+              : null,
+    );
+  }
+
+  /// Convert ParentStudentLinkModel to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'parent_id': parentId,
+      'student_id': studentId,
+      if (relationship != null) 'relationship': relationship,
+      'is_primary': isPrimary,
+      if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
+    };
+  }
+
+  /// Copy with method
+  ParentStudentLinkModel copyWith({
+    String? id,
+    String? parentId,
+    String? studentId,
+    String? relationship,
+    bool? isPrimary,
+    DateTime? createdAt,
+    StudentModel? student,
+    WalletModel? wallet,
+  }) {
+    return ParentStudentLinkModel(
+      id: id ?? this.id,
+      parentId: parentId ?? this.parentId,
+      studentId: studentId ?? this.studentId,
+      relationship: relationship ?? this.relationship,
+      isPrimary: isPrimary ?? this.isPrimary,
+      createdAt: createdAt ?? this.createdAt,
+      student: student ?? this.student,
+      wallet: wallet ?? this.wallet,
+    );
+  }
+}

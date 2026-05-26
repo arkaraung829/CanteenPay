@@ -1,0 +1,36 @@
+name: flutter_student_app
+description: CanteenPay Student - Display QR code and check balance
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Shared package
+  canteen_common:
+    path: ../canteen_common
+
+  # QR code generation
+  qr_flutter: ^4.1.0
+
+  # State management
+  provider: ^6.1.1
+
+  # Router
+  go_router: ^17.0.1
+
+  # Date formatting
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

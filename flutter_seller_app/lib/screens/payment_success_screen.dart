@@ -1,0 +1,218 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:canteen_common/canteen_common.dart';
+
+/// Success screen displayed after a payment is processed.
+class PaymentSuccessScreen extends StatefulWidget {
+  final String studentName;
+  final int amountCharged;
+  final int newBalance;
+  final String referenceId;
+
+  const PaymentSuccessScreen({
+    super.key,
+    required this.studentName,
+    required this.amountCharged,
+    required this.newBalance,
+    required this.referenceId,
+  });
+
+  @override
+  State<PaymentSuccessScreen> createState() => _PaymentSuccessScreenState();
+}
+
+class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
+  bool _showCheck = false;
+  Timer? _autoReturnTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Animate the checkmark in
+    Future.delayed(const Duration(milliseconds: 200), () {
+      if (mounted) setState(() => _showCheck = true);
+    });
+
+    // Auto-return to scan screen after 5 seconds
+    _autoReturnTimer = Timer(const Duration(seconds: 5), () {
+      if (mounted) context.go('/scan');
+    });
+  }
+
+  @override
+  void dispose() {
+    _autoReturnTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: AppTheme.success,
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Animated checkmark
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.elasticOut,
+                  width: _showCheck ? 120 : 0,
+                  height: _showCheck ? 120 : 0,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 400),
+                    opacity: _showCheck ? 1.0 : 0.0,
+                    child: const Icon(
+                      Icons.check,
+                      color: AppTheme.success,
+                      size: 64,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                const Text(
+                  'Payment Successful!',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Transaction receipt card
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 32),
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 16,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      _receiptRow('Student', widget.studentName),
+                      const Divider(height: 24),
+                      _receiptRow(
+                        'Amount Charged',
+                        CurrencyFormatter.formatMMK(widget.amountCharged),
+                        valueColor: AppTheme.error,
+                        valueBold: true,
+                      ),
+                      const Divider(height: 24),
+                      _receiptRow(
+                        'New Balance',
+                        CurrencyFormatter.formatMMK(widget.newBalance),
+                        valueColor: widget.newBalance < 1000
+                            ? AppTheme.error
+                            : AppTheme.success,
+                      ),
+                      const Divider(height: 24),
+                      _receiptRow(
+                        'Time',
+                        TimeOfDay.now().format(context),
+                      ),
+                      const Divider(height: 24),
+                      _receiptRow('Reference', widget.referenceId),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Scan Next button
+                ElevatedButton.icon(
+                  onPressed: () => context.go('/scan'),
+                  icon: const Icon(Icons.qr_code_scanner),
+                  label: const Text('Scan Next'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.success,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 32,
+                      vertical: 14,
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                Text(
+                  'Auto-returning in 5 seconds...',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _receiptRow(
+    String label,
+    String value, {
+    Color? valueColor,
+    bool valueBold = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppTheme.textSecondary,
+            fontSize: 14,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? AppTheme.textPrimary,
+              fontSize: 14,
+              fontWeight: valueBold ? FontWeight.bold : FontWeight.w600,
+            ),
+            textAlign: TextAlign.end,
+          ),
+        ),
+      ],
+    );
+  }
+}

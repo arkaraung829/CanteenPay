@@ -1,0 +1,36 @@
+name: flutter_seller_app
+description: CanteenPay Seller - Canteen terminal for scanning student QR and processing payments
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # Shared package
+  canteen_common:
+    path: ../canteen_common
+
+  # State management
+  provider: ^6.1.2
+
+  # Navigation
+  go_router: ^17.2.3
+
+  # QR code scanning
+  mobile_scanner: ^5.0.0
+
+  # UUID generation
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
