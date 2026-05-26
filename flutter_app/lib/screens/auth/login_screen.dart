@@ -312,13 +312,18 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: 24),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 24),
 
                   // Logo
                   TweenAnimationBuilder<double>(
@@ -413,10 +418,13 @@ class _LoginScreenState extends State<LoginScreen>
                     'Contact your school admin for access',
                     style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
                   ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ),
