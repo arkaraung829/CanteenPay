@@ -533,11 +533,13 @@ class _LoginScreenState extends State<LoginScreen>
       children: [
         Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.7)),
         const SizedBox(width: 10),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 13,
-            color: Colors.white.withValues(alpha: 0.8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.8),
+            ),
           ),
         ),
       ],
