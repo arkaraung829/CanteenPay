@@ -318,10 +318,6 @@ export default function StudentsPage() {
     setAddError('');
 
     try {
-      // Get school_id
-      const schoolRes = await fetch('/api/students');
-      const schoolJson = await schoolRes.json();
-      // We need school_id from somewhere - fetch from supabase via a simple approach
       const className = `Grade ${newGrade}-${newSection}`;
 
       const res = await fetch('/api/students', {
@@ -332,7 +328,6 @@ export default function StudentsPage() {
           full_name_my: newNameMy || null,
           grade: newGrade,
           class_name: className,
-          school_id: schoolJson.data?.[0]?.school_id || null, // Will be set server-side if needed
         }),
       });
 

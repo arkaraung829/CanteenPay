@@ -139,13 +139,30 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { full_name, full_name_my, grade, class_name, school_id } = body;
+    const { full_name, full_name_my, grade, class_name } = body;
+    let { school_id } = body;
 
-    if (!full_name || !school_id) {
+    if (!full_name) {
       return Response.json(
-        { success: false, error: 'full_name and school_id are required' },
+        { success: false, error: 'full_name is required' },
         { status: 400 }
       );
+    }
+
+    // Auto-assign school_id if not provided
+    if (!school_id) {
+      const { data: schools } = await supabase
+        .from('schools')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1);
+      school_id = schools?.[0]?.id;
+      if (!school_id) {
+        return Response.json(
+          { success: false, error: 'No school found. Please create a school first.' },
+          { status: 400 }
+        );
+      }
     }
 
     // Generate student code
