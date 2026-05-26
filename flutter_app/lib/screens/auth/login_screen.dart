@@ -33,6 +33,7 @@ class _LoginScreenState extends State<LoginScreen>
   late final AnimationController _shakeController;
   late final Animation<double> _shakeAnimation;
   bool _checkingBiometric = true;
+  String _biometricType = 'face'; // 'face' or 'fingerprint'
 
   @override
   void initState() {
@@ -82,17 +83,17 @@ class _LoginScreenState extends State<LoginScreen>
           ? 'Unlock CanteenPay with Face ID'
           : 'Unlock CanteenPay with fingerprint';
 
+      setState(() => _biometricType = type);
+
       final authenticated = await biometric.authenticate(reason: reason);
 
       if (authenticated && mounted) {
         HapticService.success();
         // Wait for AuthProvider to load profile before revealing UI
         final auth = context.read<AuthProvider>();
-        // Give auth time to detect the session and load profile
         for (int i = 0; i < 20; i++) {
           await Future.delayed(const Duration(milliseconds: 200));
           if (auth.isAuthenticated && auth.user != null) {
-            // Router will redirect — keep biometric screen visible
             return;
           }
         }
@@ -269,10 +270,14 @@ class _LoginScreenState extends State<LoginScreen>
                   child: const Icon(Icons.restaurant_rounded, size: 44, color: AppTheme.primary),
                 ),
                 const SizedBox(height: 24),
-                const Icon(Icons.fingerprint_rounded, size: 48, color: Colors.white),
+                Icon(
+                  _biometricType == 'face' ? Icons.face_rounded : Icons.fingerprint_rounded,
+                  size: 48,
+                  color: Colors.white,
+                ),
                 const SizedBox(height: 12),
                 Text(
-                  'Verifying...',
+                  _biometricType == 'face' ? 'Verifying with Face ID...' : 'Verifying with fingerprint...',
                   style: TextStyle(fontSize: 16, color: Colors.white.withValues(alpha: 0.8)),
                 ),
               ],
