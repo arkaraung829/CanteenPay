@@ -39,6 +39,17 @@ dependencies:
   # UUID
   uuid: ^4.5.1
 
+  # Firebase services
+  firebase_core: ^3.6.0
+  firebase_crashlytics: ^4.0.0
+  firebase_analytics: ^11.0.0
+
+  # Biometric auth
+  local_auth: ^2.3.0
+
+  # Jailbreak detection
+  flutter_jailbreak_detection: ^1.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

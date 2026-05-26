@@ -60,6 +60,17 @@ export 'providers/auth_provider.dart';
 export 'services/supabase_service.dart';
 export 'services/notification_service.dart';
 export 'services/connectivity_service.dart';
+export 'services/logging_service.dart';
+export 'services/crash_reporting_service.dart';
+export 'services/analytics_service.dart';
+export 'services/security_service.dart';
+export 'services/biometric_service.dart';
+export 'services/session_service.dart';
+export 'services/offline_cache_service.dart';
+export 'services/offline_action_queue.dart';
+export 'services/rate_limiter.dart';
+export 'services/error_handler_service.dart';
+export 'services/device_id_service.dart';
 
 // ============================================================================
 // UTILS
