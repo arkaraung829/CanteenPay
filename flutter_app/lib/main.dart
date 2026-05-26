@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -21,7 +19,9 @@ import 'widgets/session_wrapper.dart';
 // ---------------------------------------------------------------------------
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
   if (message.notification != null) {
     await NotificationStorageService.saveNotification(
       title: message.notification!.title ?? 'Notification',
@@ -34,28 +34,30 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1. Initialize Firebase (try-catch — app works without Firebase config)
+  // 1. Initialize Firebase (app works without Firebase config)
+  bool firebaseAvailable = false;
   try {
     await Firebase.initializeApp();
-    debugPrint('CanteenPay: Firebase initialized successfully');
+    firebaseAvailable = true;
+    debugPrint('CanteenPay: Firebase initialized');
   } catch (e) {
-    debugPrint('CanteenPay: Firebase initialization skipped: $e');
+    debugPrint('CanteenPay: Firebase not configured — skipping ($e)');
   }
 
-  // 2. Register FCM background handler (must be after Firebase.initializeApp)
-  try {
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  } catch (e) {
-    debugPrint('CanteenPay: FCM background handler registration skipped: $e');
+  // 2. Register FCM background handler
+  if (firebaseAvailable) {
+    try {
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    } catch (_) {}
   }
 
-  // 3. Initialize Crashlytics and set FlutterError.onError
+  // 3. Initialize Crashlytics
   final crashReporting = CrashReportingService();
-  try {
-    await crashReporting.initialize();
-    FlutterError.onError = crashReporting.flutterErrorHandler;
-  } catch (e) {
-    debugPrint('CanteenPay: Crashlytics initialization skipped: $e');
+  if (firebaseAvailable) {
+    try {
+      await crashReporting.initialize();
+      FlutterError.onError = crashReporting.flutterErrorHandler;
+    } catch (_) {}
   }
 
   // 4. Initialize Supabase
@@ -64,63 +66,56 @@ void main() async {
       url: SupabaseConfig.supabaseUrl,
       anonKey: SupabaseConfig.supabaseAnonKey,
     );
-    debugPrint('CanteenPay: Supabase initialized successfully');
+    debugPrint('CanteenPay: Supabase initialized');
   } catch (e) {
-    debugPrint('CanteenPay: Supabase initialization failed: $e');
+    debugPrint('CanteenPay: Supabase failed: $e');
   }
 
-  // 5. Initialize Notification Service (after Supabase so token can be saved)
+  // 5. Initialize Notifications (after Supabase)
+  if (firebaseAvailable) {
+    try {
+      await NotificationService.instance.initialize();
+    } catch (_) {}
+  }
+
+  // 6. Security checks
   try {
-    await NotificationService.instance.initialize();
-    debugPrint('CanteenPay: Notification service initialized');
-  } catch (e) {
-    debugPrint('CanteenPay: Notification init failed: $e');
+    await SecurityService().initialize();
+  } catch (_) {}
+
+  // 7. Analytics
+  if (firebaseAvailable) {
+    try {
+      await AnalyticsService().initialize();
+    } catch (_) {}
   }
 
-  // 6. Initialize Security Service (jailbreak detection)
-  final securityService = SecurityService();
-  try {
-    await securityService.initialize();
-  } catch (e) {
-    debugPrint('CanteenPay: Security service initialization skipped: $e');
+  // 8. Wire logging to Crashlytics in release
+  if (firebaseAvailable) {
+    LoggingService().onErrorLogged = (message, {error, stackTrace}) {
+      crashReporting.recordError(
+        error ?? message,
+        stackTrace: stackTrace,
+        reason: message,
+      );
+    };
   }
 
-  // 7. Initialize Analytics Service
-  final analyticsService = AnalyticsService();
-  try {
-    await analyticsService.initialize();
-  } catch (e) {
-    debugPrint('CanteenPay: Analytics initialization skipped: $e');
-  }
-
-  // 8. Wire up LoggingService to forward errors to Crashlytics in release mode
-  LoggingService().onErrorLogged = (message, {error, stackTrace}) {
-    crashReporting.recordError(
-      error ?? message,
-      stackTrace: stackTrace,
-      reason: message,
-    );
-  };
-
-  // 9. Set up PlatformDispatcher.onError for async errors
+  // 9. Catch async errors
   PlatformDispatcher.instance.onError = (error, stack) {
-    crashReporting.recordError(error, stackTrace: stack, fatal: true);
+    if (firebaseAvailable) {
+      crashReporting.recordError(error, stackTrace: stack, fatal: true);
+    }
+    debugPrint('Uncaught error: $error');
     return true;
   };
 
   // 10. Limit image cache
   PaintingBinding.instance.imageCache.maximumSize = 100;
-  PaintingBinding.instance.imageCache.maximumSizeBytes = 100 << 20; // 100 MB
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 100 << 20;
 
-  // 11. Run app inside error zone to catch all uncaught errors
-  runZonedGuarded(
-    () {
-      runApp(const CanteenPayApp());
-    },
-    (error, stackTrace) {
-      crashReporting.recordError(error, stackTrace: stackTrace, reason: 'Uncaught zone error');
-    },
-  );
+  // 11. Run app (same zone as ensureInitialized — no runZonedGuarded)
+  runApp(const CanteenPayApp());
 }
 
 class CanteenPayApp extends StatelessWidget {
@@ -130,17 +125,13 @@ class CanteenPayApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Auth provider (from canteen_common) - must be first
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        // Seller providers
         ChangeNotifierProvider(create: (_) => ScannerProvider()),
         ChangeNotifierProvider(create: (_) => SalesProvider()),
-        // Parent providers
         ChangeNotifierProvider(create: (_) => ChildrenProvider()),
         ChangeNotifierProvider(
           create: (_) => NotificationProvider()..loadNotifications(),
         ),
-        // Student provider
         ChangeNotifierProvider(create: (_) => StudentProvider()),
       ],
       child: Builder(
@@ -148,19 +139,14 @@ class CanteenPayApp extends StatelessWidget {
           final authProvider = context.watch<AuthProvider>();
           final router = createRouter(authProvider);
 
-          // Wire up notification tap navigation
           NotificationService.instance.onNotificationTapped = (data) {
             final type = data['type']?.toString();
             final studentId = data['student_id']?.toString();
-            if ((type == 'purchase' || type == 'deposit') &&
-                studentId != null) {
+            if ((type == 'purchase' || type == 'deposit') && studentId != null) {
               router.go('/parent/child/$studentId');
             } else if (type == 'low_balance') {
               router.go('/parent/alerts');
-            } else if (type == 'announcement') {
-              router.go('/parent/notifications');
             } else {
-              // Default: go to notifications screen
               router.go('/parent/notifications');
             }
           };
