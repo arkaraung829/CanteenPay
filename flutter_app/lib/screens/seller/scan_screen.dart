@@ -57,7 +57,6 @@ class _ScanScreenState extends State<ScanScreen> {
     final barcode = capture.barcodes.firstOrNull;
     if (barcode?.rawValue == null) return;
 
-    _hasScanned = true;
     HapticService.medium();
     _processScannedData(barcode!.rawValue!);
   }
