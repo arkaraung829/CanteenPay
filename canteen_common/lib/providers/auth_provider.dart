@@ -96,6 +96,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
     }
   }
 
+  /// Reload user profile (call after profile update)
+  Future<void> reloadProfile() async {
+    await _loadUserProfile();
+  }
+
   /// Load user profile from the profiles table
   Future<void> _loadUserProfile() async {
     try {
@@ -215,17 +220,31 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         type: OtpType.sms,
       );
 
-      // Update profile metadata if this is a new user
+      // Update profile with name and role (trigger may have set defaults)
       if (fullName != null || role != null) {
         try {
-          await _supabase.auth.updateUser(
-            UserAttributes(data: {
-              if (fullName != null) 'full_name': fullName,
-              if (role != null) 'role': role,
-            }),
-          );
+          final userId = _supabase.auth.currentUser?.id;
+          if (userId != null) {
+            // Update profiles table directly
+            final updates = <String, dynamic>{};
+            if (fullName != null && fullName.isNotEmpty) updates['full_name'] = fullName;
+            if (role != null && role.isNotEmpty) updates['role'] = role;
+            if (updates.isNotEmpty) {
+              await _supabase.from('profiles').update(updates).eq('id', userId);
+            }
+            // Also update auth metadata
+            await _supabase.auth.updateUser(
+              UserAttributes(data: {
+                if (fullName != null) 'full_name': fullName,
+                if (role != null) 'role': role,
+              }),
+            );
+          }
         } catch (_) {}
       }
+
+      // Reload profile to get correct role
+      await _loadUserProfile();
 
       return true;
     } on AuthException catch (e) {

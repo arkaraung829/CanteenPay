@@ -190,18 +190,30 @@ class _LoginScreenState extends State<LoginScreen>
       _shake();
       return;
     }
-    // Profile is auto-created by trigger; just update it
     try {
       final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser!.id;
+
+      // Update profiles table
       await supabase.from('profiles').update({
         'full_name': name,
         'role': _role,
-      }).eq('id', supabase.auth.currentUser!.id);
-      // Reload profile
-      final auth = context.read<AuthProvider>();
-      await auth.signInWithEmail('', ''); // triggers profile reload via auth state
-    } catch (_) {}
-    // Router will redirect
+      }).eq('id', userId);
+
+      // Update auth metadata
+      await supabase.auth.updateUser(
+        UserAttributes(data: {'full_name': name, 'role': _role}),
+      );
+
+      // Reload profile in AuthProvider
+      if (mounted) {
+        final auth = context.read<AuthProvider>();
+        await auth.reloadProfile();
+        HapticService.success();
+      }
+    } catch (e) {
+      _showError('Failed to save profile');
+    }
   }
 
   Future<void> _emailLogin() async {
