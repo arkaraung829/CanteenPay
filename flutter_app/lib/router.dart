@@ -228,7 +228,6 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
           return PaymentSuccessScreen(
             studentName: extra?['studentName'] ?? '',
             amountCharged: extra?['amountCharged'] ?? 0,
-            newBalance: extra?['newBalance'] ?? 0,
             referenceId: extra?['referenceId'] ?? '',
           );
         },

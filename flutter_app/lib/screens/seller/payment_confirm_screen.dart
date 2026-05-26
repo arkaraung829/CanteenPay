@@ -107,7 +107,6 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         context.go('/seller/payment-success', extra: {
           'studentName': student.displayName,
           'amountCharged': _amountInt,
-          'newBalance': newBalance,
           'referenceId': referenceId,
         });
       }
@@ -200,28 +199,21 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text(
-                      'Balance',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      CurrencyFormatter.formatMMK(wallet.balance),
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: wallet.isLowBalance
-                            ? AppTheme.error
-                            : AppTheme.success,
-                      ),
-                    ),
-                  ],
+                // Verified badge (no balance shown to seller)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.verified_rounded, size: 16, color: AppTheme.success),
+                      SizedBox(width: 4),
+                      Text('Verified', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.success)),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -229,11 +221,10 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
           // Insufficient balance ErrorCard
           if (insufficientBalance && _amountInt > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
               child: ErrorCard(
-                message:
-                    'Insufficient balance! Student only has ${CurrencyFormatter.formatMMK(wallet.balance)}',
+                message: 'Insufficient balance for this amount',
               ),
             ),
 

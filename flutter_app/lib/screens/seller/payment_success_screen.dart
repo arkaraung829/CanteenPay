@@ -11,15 +11,13 @@ import '../../widgets/success_animation.dart';
 class PaymentSuccessScreen extends StatefulWidget {
   final String studentName;
   final int amountCharged;
-  final int newBalance;
   final String referenceId;
 
   const PaymentSuccessScreen({
     super.key,
     required this.studentName,
     required this.amountCharged,
-    required this.newBalance,
-    required this.referenceId,
+    this.referenceId = '',
   });
 
   @override
@@ -106,14 +104,6 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                         CurrencyFormatter.formatMMK(widget.amountCharged),
                         valueColor: AppTheme.error,
                         valueBold: true,
-                      ),
-                      const Divider(height: 24),
-                      _receiptRow(
-                        'New Balance',
-                        CurrencyFormatter.formatMMK(widget.newBalance),
-                        valueColor: widget.newBalance < 1000
-                            ? AppTheme.error
-                            : AppTheme.success,
                       ),
                       const Divider(height: 24),
                       _receiptRow(
