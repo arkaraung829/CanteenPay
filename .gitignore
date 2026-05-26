@@ -41,3 +41,4 @@
 
 # Misc
 *.log
+supabase/.temp/
