@@ -47,5 +47,9 @@
 		<true/>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>NSFaceIDUsageDescription</key>
+		<string>CanteenPay uses Face ID to securely unlock the app</string>
+		<key>NSCameraUsageDescription</key>
+		<string>CanteenPay uses the camera to scan student QR codes</string>
 	</dict>
 </plist>
