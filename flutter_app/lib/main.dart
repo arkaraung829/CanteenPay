@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:go_router/go_router.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import 'providers/scanner_provider.dart';
@@ -118,8 +119,15 @@ void main() async {
   runApp(const CanteenPayApp());
 }
 
-class CanteenPayApp extends StatelessWidget {
+class CanteenPayApp extends StatefulWidget {
   const CanteenPayApp({super.key});
+
+  @override
+  State<CanteenPayApp> createState() => _CanteenPayAppState();
+}
+
+class _CanteenPayAppState extends State<CanteenPayApp> {
+  GoRouter? _router;
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +145,8 @@ class CanteenPayApp extends StatelessWidget {
       child: Builder(
         builder: (context) {
           final authProvider = context.watch<AuthProvider>();
-          final router = createRouter(authProvider);
+          _router ??= createRouter(authProvider);
+          final router = _router!;
 
           try {
             NotificationService.instance.onNotificationTapped = (data) {

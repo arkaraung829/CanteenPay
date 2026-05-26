@@ -170,13 +170,16 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
 
-    return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppTheme.primary, Color(0xFF0D47A1)],
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        resizeToAvoidBottomInset: true,
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppTheme.primary, Color(0xFF0D47A1)],
           ),
         ),
         child: SafeArea(
@@ -287,6 +290,7 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -577,6 +581,8 @@ class _LoginScreenState extends State<LoginScreen>
     Widget? suffix,
     TextCapitalization textCap = TextCapitalization.none,
     bool autofocus = false,
+    TextInputAction? textInputAction,
+    VoidCallback? onSubmitted,
   }) {
     return TextField(
       controller: controller,
@@ -584,6 +590,8 @@ class _LoginScreenState extends State<LoginScreen>
       obscureText: obscureText,
       textCapitalization: textCap,
       autofocus: autofocus,
+      textInputAction: textInputAction ?? TextInputAction.next,
+      onSubmitted: onSubmitted != null ? (_) => onSubmitted() : null,
       style: const TextStyle(fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
