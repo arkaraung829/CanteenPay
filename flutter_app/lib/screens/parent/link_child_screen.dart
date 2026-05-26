@@ -158,7 +158,8 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
   }
 
   Widget _buildForm() {
-    return Column(
+    return SingleChildScrollView(
+      child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const SizedBox(height: 24),
@@ -272,6 +273,7 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
           ),
         ],
       ],
+    ),
     );
   }
 
