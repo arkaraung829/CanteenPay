@@ -181,6 +181,65 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
     }
   }
 
+  /// Send OTP to phone number
+  Future<bool> signInWithPhone(String phone) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      safeNotifyListeners();
+
+      await _supabase.auth.signInWithOtp(phone: phone);
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Verify OTP code
+  Future<bool> verifyOtp(String phone, String token, {String? fullName, String? role}) async {
+    try {
+      _isLoading = true;
+      _error = null;
+      safeNotifyListeners();
+
+      await _supabase.auth.verifyOTP(
+        phone: phone,
+        token: token,
+        type: OtpType.sms,
+      );
+
+      // Update profile metadata if this is a new user
+      if (fullName != null || role != null) {
+        try {
+          await _supabase.auth.updateUser(
+            UserAttributes(data: {
+              if (fullName != null) 'full_name': fullName,
+              if (role != null) 'role': role,
+            }),
+          );
+        } catch (_) {}
+      }
+
+      return true;
+    } on AuthException catch (e) {
+      _error = e.message;
+      return false;
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
   /// Sign out
   Future<void> signOut() async {
     try {
