@@ -63,6 +63,9 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Future<void> _processScannedData(String qrData) async {
+    if (_hasScanned) return;
+    _hasScanned = true;
+
     final scanner = context.read<ScannerProvider>();
     await scanner.processScan(qrData);
 
@@ -70,20 +73,21 @@ class _ScanScreenState extends State<ScanScreen> {
       if (scanner.scannedStudent != null) {
         HapticService.success();
         setState(() => _scanError = null);
-        context.push('/seller/payment-confirm');
+        await context.push('/seller/payment-confirm');
+        // Returned from payment — reset for next scan
+        _hasScanned = false;
       } else if (scanner.error != null) {
         HapticService.error();
         setState(() => _scanError = scanner.error);
         scanner.reset();
+        _hasScanned = false; // Allow retry on error
       }
     }
+  }
 
-    // Reset scan lock after navigation
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() => _hasScanned = false);
-      }
-    });
+  /// Reset scan lock — called when returning from payment screen
+  void _resetScanLock() {
+    _hasScanned = false;
   }
 
   void _simulateDemoScan() {
