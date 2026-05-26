@@ -89,10 +89,6 @@ class _ScanScreenState extends State<ScanScreen> {
     _hasScanned = false;
   }
 
-  void _simulateDemoScan() {
-    _processScannedData('3b0f4e17-d510-43e2-b9a9-31ba0c368dcf');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -169,7 +165,7 @@ class _ScanScreenState extends State<ScanScreen> {
                   child: ErrorCard(
                     message: _scanError!,
                     onDismiss: () => setState(() => _scanError = null),
-                    onRetry: _simulateDemoScan,
+                    onRetry: () => setState(() => _scanError = null),
                   ),
                 ),
 
@@ -308,53 +304,6 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ),
 
-          // Demo scan button (for simulator testing)
-          Positioned(
-            bottom: 24,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Consumer<ScannerProvider>(
-                builder: (context, scanner, _) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                      boxShadow: AppTheme.shadowMd,
-                    ),
-                    child: ElevatedButton.icon(
-                      onPressed:
-                          scanner.isProcessing ? null : _simulateDemoScan,
-                      icon: scanner.isProcessing
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.qr_code_scanner),
-                      label: Text(
-                        scanner.isProcessing ? 'Processing...' : 'Demo Scan',
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.secondary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 28,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusMd),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -363,33 +312,24 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget _buildCameraError() {
     return Container(
       color: Colors.black87,
-      child: Center(
+      child: const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.videocam_off,
               color: Colors.white54,
               size: 64,
             ),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               'Camera not available',
               style: TextStyle(color: Colors.white70, fontSize: 16),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Use the Demo Scan button below',
+            SizedBox(height: 8),
+            Text(
+              'Please allow camera access in Settings',
               style: TextStyle(color: Colors.white54, fontSize: 14),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _simulateDemoScan,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.secondary,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Demo Scan'),
             ),
           ],
         ),
