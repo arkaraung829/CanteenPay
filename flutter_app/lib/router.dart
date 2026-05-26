@@ -6,6 +6,9 @@ import 'package:canteen_common/canteen_common.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/role_select_screen.dart';
 
+// Shared screens
+import 'screens/shared/edit_profile_screen.dart';
+
 // Student screens
 import 'screens/student/home_screen.dart' as student;
 import 'screens/student/transaction_history_screen.dart' as student_history;
@@ -167,6 +170,13 @@ GoRouter createRouter(AuthProvider authProvider) {
         path: '/parent/alerts',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const SpendingAlertsScreen(),
+      ),
+
+      // ========== Shared Routes ==========
+      GoRoute(
+        path: '/edit-profile',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const EditProfileScreen(),
       ),
 
       // ========== Seller Routes (ShellRoute with bottom nav) ==========

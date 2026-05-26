@@ -63,6 +63,24 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: AppTheme.spacingMd),
+
+            // Edit Profile button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.push('/edit-profile'),
+                icon: const Icon(Icons.edit_rounded, size: 18),
+                label: const Text('Edit Profile'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+                ),
+              ),
+            ),
+
             const SizedBox(height: AppTheme.spacingLg),
 
             // Linked children

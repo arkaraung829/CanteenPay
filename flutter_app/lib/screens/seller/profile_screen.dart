@@ -78,6 +78,20 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: 32),
 
+          // Edit Profile
+          ElevatedButton.icon(
+            onPressed: () => context.push('/edit-profile'),
+            icon: const Icon(Icons.edit_rounded, size: 18),
+            label: const Text('Edit Profile'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
           // Account Info
           OutlinedButton.icon(
             onPressed: () => context.go('/role-select'),
