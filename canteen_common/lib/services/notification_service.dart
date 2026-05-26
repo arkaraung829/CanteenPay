@@ -29,7 +29,18 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  FirebaseMessaging? _firebaseMessaging;
+
+  /// Lazy access to FirebaseMessaging — returns null if Firebase not configured.
+  FirebaseMessaging? get _messaging {
+    if (_firebaseMessaging != null) return _firebaseMessaging;
+    try {
+      _firebaseMessaging = FirebaseMessaging.instance;
+      return _firebaseMessaging;
+    } catch (_) {
+      return null;
+    }
+  }
 
   String? _fcmToken;
   bool _initialized = false;
@@ -90,7 +101,7 @@ class NotificationService {
       );
 
       // 4. Enable iOS foreground notification presentation
-      await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+      await _messaging?.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
         sound: true,
@@ -123,7 +134,7 @@ class NotificationService {
       });
 
       // 8. Check for terminated-state tap (cold start)
-      final initialMessage = await _firebaseMessaging.getInitialMessage();
+      final initialMessage = await _messaging?.getInitialMessage();
       if (initialMessage != null) {
         if (kDebugMode) {
           debugPrint(
@@ -143,7 +154,7 @@ class NotificationService {
       // 9. Listen for token rotation
       _onTokenRefreshSubscription?.cancel();
       _onTokenRefreshSubscription =
-          _firebaseMessaging.onTokenRefresh.listen((String newToken) {
+          _messaging?.onTokenRefresh.listen((String newToken) {
         if (kDebugMode) {
           debugPrint('NotificationService: token refreshed');
         }
@@ -170,8 +181,8 @@ class NotificationService {
   Future<void> _requestPermissions() async {
     try {
       if (Platform.isIOS) {
-        await _firebaseMessaging
-            .requestPermission(
+        await _messaging
+            ?.requestPermission(
               alert: true,
               announcement: false,
               badge: true,
@@ -199,7 +210,7 @@ class NotificationService {
               ),
             );
       } else if (Platform.isAndroid) {
-        await _firebaseMessaging.requestPermission(
+        await _messaging?.requestPermission(
           alert: true,
           badge: true,
           sound: true,
@@ -245,7 +256,7 @@ class NotificationService {
 
   Future<void> _setupFCMToken() async {
     try {
-      _fcmToken = await _firebaseMessaging.getToken().timeout(
+      _fcmToken = await _messaging?.getToken().timeout(
             const Duration(seconds: 5),
             onTimeout: () {
               if (kDebugMode) {
@@ -279,7 +290,7 @@ class NotificationService {
 
     _fcmRefreshLock = Completer<void>();
     try {
-      final token = await _firebaseMessaging.getToken();
+      final token = await _messaging?.getToken();
       if (token != null) {
         final changed = token != _fcmToken;
         _fcmToken = token;
@@ -461,7 +472,7 @@ class NotificationService {
         }).eq('id', userId);
       }
 
-      await _firebaseMessaging.deleteToken();
+      await _messaging?.deleteToken();
       _fcmToken = null;
 
       if (kDebugMode) {
