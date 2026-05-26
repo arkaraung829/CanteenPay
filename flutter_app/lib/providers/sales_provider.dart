@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
 
@@ -22,7 +23,7 @@ class SalesProvider extends ChangeNotifier {
   Future<void> loadTodaySales(String sellerId) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
 
     try {
       final now = DateTime.now();

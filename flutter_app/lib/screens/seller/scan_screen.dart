@@ -37,10 +37,12 @@ class _ScanScreenState extends State<ScanScreen> {
     super.didChangeDependencies();
     if (!_hasLoadedSales) {
       _hasLoadedSales = true;
-      final auth = context.read<AuthProvider>();
-      if (auth.isAuthenticated) {
-        context.read<SalesProvider>().loadTodaySales(auth.user!.id);
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final auth = context.read<AuthProvider>();
+        if (auth.isAuthenticated) {
+          context.read<SalesProvider>().loadTodaySales(auth.user!.id);
+        }
+      });
     }
   }
 
@@ -85,7 +87,7 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   void _simulateDemoScan() {
-    _processScannedData('CANTEEN-STU-2024-001');
+    _processScannedData('3b0f4e17-d510-43e2-b9a9-31ba0c368dcf');
   }
 
   @override
