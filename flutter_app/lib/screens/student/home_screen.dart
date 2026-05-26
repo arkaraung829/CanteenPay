@@ -26,11 +26,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.didChangeDependencies();
     if (!_hasLoaded) {
       _hasLoaded = true;
-      final auth = context.read<AuthProvider>();
-      final studentProvider = context.read<StudentProvider>();
-      if (auth.isAuthenticated && studentProvider.currentStudent == null) {
-        studentProvider.loadStudent(auth.user!.id);
-      }
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final auth = context.read<AuthProvider>();
+        final studentProvider = context.read<StudentProvider>();
+        if (auth.isAuthenticated && studentProvider.currentStudent == null) {
+          studentProvider.loadStudent(auth.user!.id);
+        }
+      });
     }
   }
 

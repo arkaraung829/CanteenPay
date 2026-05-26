@@ -139,17 +139,21 @@ class CanteenPayApp extends StatelessWidget {
           final authProvider = context.watch<AuthProvider>();
           final router = createRouter(authProvider);
 
-          NotificationService.instance.onNotificationTapped = (data) {
-            final type = data['type']?.toString();
-            final studentId = data['student_id']?.toString();
-            if ((type == 'purchase' || type == 'deposit') && studentId != null) {
-              router.go('/parent/child/$studentId');
-            } else if (type == 'low_balance') {
-              router.go('/parent/alerts');
-            } else {
-              router.go('/parent/notifications');
-            }
-          };
+          try {
+            NotificationService.instance.onNotificationTapped = (data) {
+              final type = data['type']?.toString();
+              final studentId = data['student_id']?.toString();
+              if ((type == 'purchase' || type == 'deposit') && studentId != null) {
+                router.go('/parent/child/$studentId');
+              } else if (type == 'low_balance') {
+                router.go('/parent/alerts');
+              } else {
+                router.go('/parent/notifications');
+              }
+            };
+          } catch (_) {
+            // NotificationService unavailable (no Firebase)
+          }
 
           return SessionWrapper(
             child: MaterialApp.router(
