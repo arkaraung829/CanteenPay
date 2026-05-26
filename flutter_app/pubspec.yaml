@@ -15,6 +15,9 @@ dependencies:
   canteen_common:
     path: ../canteen_common
 
+  # Supabase for auth and database
+  supabase_flutter: ^2.0.0
+
   # State management
   provider: ^6.1.1
 

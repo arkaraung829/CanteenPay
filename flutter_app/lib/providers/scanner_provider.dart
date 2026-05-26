@@ -15,10 +15,7 @@ class ScannerProvider extends ChangeNotifier {
   bool get isProcessing => _isProcessing;
   String? get error => _error;
 
-  /// Process a scanned QR code.
-  ///
-  /// For the prototype, this simulates looking up a student from QR data
-  /// and creating demo models.
+  /// Process a scanned QR code using real Supabase lookups.
   Future<void> processScan(String qrData) async {
     _isProcessing = true;
     _error = null;
@@ -26,33 +23,41 @@ class ScannerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(milliseconds: 600));
+      // Look up student by QR data
+      final student = await SupabaseService.instance.getStudentByQr(qrData);
+      if (student == null) {
+        _error = 'Student not found for this QR code';
+        _isProcessing = false;
+        notifyListeners();
+        return;
+      }
 
-      // Demo: create a simulated student from QR data
-      _scannedStudent = StudentModel(
-        id: 'student-001',
-        profileId: 'profile-001',
-        schoolId: 'school-001',
-        studentCode: 'STU-2024-001',
-        qrData: qrData,
-        fullName: 'Aung Kyaw Moe',
-        className: 'Grade 8',
-        grade: 'Section A',
-        enrollmentYear: 2024,
-        isActive: true,
-        dailySpendingLimit: 10000,
-      );
+      if (!student.isActive) {
+        _error = 'This student account is inactive';
+        _isProcessing = false;
+        notifyListeners();
+        return;
+      }
 
-      _scannedWallet = WalletModel(
-        id: 'wallet-001',
-        studentId: 'student-001',
-        balance: 15000,
-        currency: 'MMK',
-        isFrozen: false,
-        updatedAt: DateTime.now(),
-      );
+      _scannedStudent = student;
 
+      // Get the student's wallet
+      final wallet = await SupabaseService.instance.getWallet(student.id);
+      if (wallet == null) {
+        _error = 'No wallet found for this student';
+        _isProcessing = false;
+        notifyListeners();
+        return;
+      }
+
+      if (wallet.isFrozen) {
+        _error = 'This wallet is frozen';
+        _isProcessing = false;
+        notifyListeners();
+        return;
+      }
+
+      _scannedWallet = wallet;
       _isProcessing = false;
       notifyListeners();
     } catch (e) {

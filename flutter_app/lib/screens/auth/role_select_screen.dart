@@ -1,28 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
-import '../../router.dart';
-
-/// Role selection screen for switching demo roles.
+/// Role selection screen -- informational in production mode.
+/// Shows the current user's role and allows sign-out.
 class RoleSelectScreen extends StatelessWidget {
   const RoleSelectScreen({super.key});
 
-  void _selectRole(BuildContext context, String role) {
-    DemoAuth.currentRole = role;
-    context.go(DemoAuth.homePath);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final currentRole = auth.user?.role;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Switch Role'),
+        title: const Text('Account Info'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            if (DemoAuth.isLoggedIn) {
-              context.go(DemoAuth.homePath);
+            if (auth.isAuthenticated) {
+              final role = auth.user?.role;
+              switch (role) {
+                case 'student':
+                  context.go('/student');
+                case 'parent':
+                  context.go('/parent');
+                case 'seller':
+                case 'admin':
+                case 'counter_staff':
+                  context.go('/seller');
+                default:
+                  context.go('/login');
+              }
             } else {
               context.go('/login');
             }
@@ -36,7 +46,7 @@ class RoleSelectScreen extends StatelessWidget {
           children: [
             const SizedBox(height: 16),
             const Text(
-              'Select a Role',
+              'Current Role',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -44,9 +54,9 @@ class RoleSelectScreen extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Switch to a different role to explore the app',
-              style: TextStyle(color: AppTheme.textSecondary),
+            Text(
+              auth.user?.displayName ?? 'User',
+              style: const TextStyle(color: AppTheme.textSecondary),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -55,8 +65,7 @@ class RoleSelectScreen extends StatelessWidget {
               label: 'Student',
               description: 'View QR code, balance, and transaction history',
               color: AppTheme.primary,
-              isActive: DemoAuth.currentRole == 'student',
-              onTap: () => _selectRole(context, 'student'),
+              isActive: currentRole == 'student',
             ),
             const SizedBox(height: 16),
             _RoleCard(
@@ -65,8 +74,7 @@ class RoleSelectScreen extends StatelessWidget {
               description:
                   'Monitor children, spending alerts, and notifications',
               color: AppTheme.success,
-              isActive: DemoAuth.currentRole == 'parent',
-              onTap: () => _selectRole(context, 'parent'),
+              isActive: currentRole == 'parent',
             ),
             const SizedBox(height: 16),
             _RoleCard(
@@ -74,14 +82,17 @@ class RoleSelectScreen extends StatelessWidget {
               label: 'Seller',
               description: 'Scan QR codes and process canteen payments',
               color: AppTheme.secondary,
-              isActive: DemoAuth.currentRole == 'seller',
-              onTap: () => _selectRole(context, 'seller'),
+              isActive: currentRole == 'seller' ||
+                  currentRole == 'admin' ||
+                  currentRole == 'counter_staff',
             ),
             const Spacer(),
             OutlinedButton.icon(
-              onPressed: () {
-                DemoAuth.logout();
-                context.go('/login');
+              onPressed: () async {
+                await auth.signOut();
+                if (context.mounted) {
+                  context.go('/login');
+                }
               },
               icon: const Icon(Icons.logout, color: AppTheme.error),
               label: const Text(
@@ -107,7 +118,6 @@ class _RoleCard extends StatelessWidget {
   final String description;
   final Color color;
   final bool isActive;
-  final VoidCallback onTap;
 
   const _RoleCard({
     required this.icon,
@@ -115,90 +125,81 @@ class _RoleCard extends StatelessWidget {
     required this.description,
     required this.color,
     required this.isActive,
-    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: isActive ? color.withValues(alpha: 0.08) : Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isActive ? color.withValues(alpha: 0.08) : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isActive ? color : Colors.grey[300]!,
-              width: isActive ? 2 : 1,
+        border: Border.all(
+          color: isActive ? color : Colors.grey[300]!,
+          width: isActive ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
             ),
+            child: Icon(icon, color: color),
           ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          label,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: color,
-                          ),
-                        ),
-                        if (isActive) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: color,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Text(
-                              'Active',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 4),
                     Text(
-                      description,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textSecondary,
+                      label,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: color,
                       ),
                     ),
+                    if (isActive) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: color,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text(
+                          'Active',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: color),
-            ],
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

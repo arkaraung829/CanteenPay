@@ -3,40 +3,164 @@
 import { useState } from 'react';
 import { Search, Banknote, CheckCircle } from 'lucide-react';
 import { formatMMK, type Student } from '@/lib/types';
-
-// Demo students for prototype
-const DEMO_STUDENTS: Student[] = [
-  { id: '1', school_id: 's1', student_code: 'STU-2024-001', qr_data: 'qr1', full_name: 'Aung Kyaw Zin', class_name: 'Grade 5-A', grade: '5', is_active: true, created_at: '', wallet: { id: 'w1', student_id: '1', balance: 15000, currency: 'MMK', is_frozen: false, updated_at: '' } },
-  { id: '2', school_id: 's1', student_code: 'STU-2024-002', qr_data: 'qr2', full_name: 'Thin Thin Aye', class_name: 'Grade 4-B', grade: '4', is_active: true, created_at: '', wallet: { id: 'w2', student_id: '2', balance: 8500, currency: 'MMK', is_frozen: false, updated_at: '' } },
-  { id: '3', school_id: 's1', student_code: 'STU-2024-003', qr_data: 'qr3', full_name: 'Min Thant Zaw', class_name: 'Grade 6-A', grade: '6', is_active: true, created_at: '', wallet: { id: 'w3', student_id: '3', balance: 3200, currency: 'MMK', is_frozen: false, updated_at: '' } },
-];
+import { supabase } from '@/lib/supabase';
 
 const QUICK_AMOUNTS = [2000, 5000, 10000, 20000, 50000];
 
 export default function DepositForm() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Student[]>([]);
+  const [searching, setSearching] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [amount, setAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'transfer'>('cash');
   const [note, setNote] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [receipt, setReceipt] = useState<{ ref: string; newBalance: number } | null>(null);
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [depositError, setDepositError] = useState('');
 
-  const filteredStudents = searchQuery.length > 0
-    ? DEMO_STUDENTS.filter(s =>
-        s.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.student_code.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : [];
+  async function handleSearch(query: string) {
+    setSearchQuery(query);
+    setSelectedStudent(null);
 
-  function handleDeposit() {
+    if (query.length < 1) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearching(true);
+    const { data, error } = await supabase
+      .from('students')
+      .select('*, wallets(*)')
+      .or(`full_name.ilike.%${query}%,student_code.ilike.%${query}%`)
+      .eq('is_active', true)
+      .limit(5);
+
+    if (!error && data) {
+      const mapped: Student[] = data.map((s: Record<string, unknown>) => {
+        const wallets = s.wallets as Array<Record<string, unknown>> | Record<string, unknown> | null;
+        let wallet = undefined;
+        if (Array.isArray(wallets) && wallets.length > 0) {
+          wallet = {
+            id: wallets[0].id as string,
+            student_id: wallets[0].student_id as string,
+            balance: wallets[0].balance as number,
+            currency: (wallets[0].currency as string) || 'MMK',
+            is_frozen: wallets[0].is_frozen as boolean,
+            updated_at: wallets[0].updated_at as string,
+          };
+        } else if (wallets && !Array.isArray(wallets)) {
+          wallet = {
+            id: wallets.id as string,
+            student_id: wallets.student_id as string,
+            balance: wallets.balance as number,
+            currency: (wallets.currency as string) || 'MMK',
+            is_frozen: wallets.is_frozen as boolean,
+            updated_at: wallets.updated_at as string,
+          };
+        }
+        return {
+          id: s.id as string,
+          school_id: s.school_id as string,
+          student_code: s.student_code as string,
+          qr_data: s.qr_data as string,
+          full_name: s.full_name as string,
+          full_name_my: s.full_name_my as string | undefined,
+          class_name: s.class_name as string | undefined,
+          grade: s.grade as string | undefined,
+          is_active: s.is_active as boolean,
+          created_at: s.created_at as string,
+          wallet,
+        };
+      });
+      setSearchResults(mapped);
+    }
+    setSearching(false);
+  }
+
+  async function handleDeposit() {
     if (!selectedStudent || !amount) return;
+    setDepositLoading(true);
+    setDepositError('');
+
     const depositAmount = parseInt(amount);
+
+    // Get current user for performed_by
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // Try RPC first, fall back to direct insert
+    const { data: rpcData, error: rpcError } = await supabase.rpc('process_deposit', {
+      p_student_id: selectedStudent.id,
+      p_amount: depositAmount,
+      p_staff_profile_id: user?.id || null,
+    });
+
+    if (rpcError) {
+      // RPC may not exist; fall back to manual wallet update + transaction insert
+      if (rpcError.message.includes('function') || rpcError.code === '42883') {
+        // Manual deposit: update wallet balance and create transaction
+        const walletId = selectedStudent.wallet?.id;
+        if (!walletId) {
+          setDepositError('Student has no wallet. Please contact support.');
+          setDepositLoading(false);
+          return;
+        }
+
+        const currentBalance = selectedStudent.wallet?.balance || 0;
+        const newBalance = currentBalance + depositAmount;
+
+        const { error: updateError } = await supabase
+          .from('wallets')
+          .update({ balance: newBalance })
+          .eq('id', walletId);
+
+        if (updateError) {
+          setDepositError(updateError.message);
+          setDepositLoading(false);
+          return;
+        }
+
+        const { error: txError } = await supabase
+          .from('transactions')
+          .insert({
+            wallet_id: walletId,
+            type: 'deposit',
+            amount: depositAmount,
+            balance_before: currentBalance,
+            balance_after: newBalance,
+            description: note || `Cash deposit (${paymentMethod})`,
+            performed_by: user?.id || null,
+            metadata: { payment_method: paymentMethod },
+          });
+
+        if (txError) {
+          // Rollback wallet
+          await supabase.from('wallets').update({ balance: currentBalance }).eq('id', walletId);
+          setDepositError(txError.message);
+          setDepositLoading(false);
+          return;
+        }
+
+        const ref = `RC-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+        setReceipt({ ref, newBalance });
+        setShowSuccess(true);
+        setDepositLoading(false);
+        return;
+      }
+
+      setDepositError(rpcError.message);
+      setDepositLoading(false);
+      return;
+    }
+
+    // RPC succeeded
     const currentBalance = selectedStudent.wallet?.balance || 0;
-    const newBalance = currentBalance + depositAmount;
-    const ref = `RC-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const newBalance = rpcData?.new_balance ?? (currentBalance + depositAmount);
+    const ref = rpcData?.reference_id || `RC-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
     setReceipt({ ref, newBalance });
     setShowSuccess(true);
+    setDepositLoading(false);
   }
 
   function handleReset() {
@@ -46,6 +170,8 @@ export default function DepositForm() {
     setShowSuccess(false);
     setReceipt(null);
     setSearchQuery('');
+    setSearchResults([]);
+    setDepositError('');
   }
 
   if (showSuccess && receipt && selectedStudent) {
@@ -106,18 +232,22 @@ export default function DepositForm() {
           <input
             type="text"
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setSelectedStudent(null); }}
+            onChange={(e) => handleSearch(e.target.value)}
             placeholder="Search by name or student ID..."
             className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-4 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
 
-        {filteredStudents.length > 0 && !selectedStudent && (
+        {searching && (
+          <p className="mt-3 text-sm text-gray-400">Searching...</p>
+        )}
+
+        {searchResults.length > 0 && !selectedStudent && (
           <div className="mt-3 divide-y divide-gray-100 rounded-lg border border-gray-200">
-            {filteredStudents.map((student) => (
+            {searchResults.map((student) => (
               <button
                 key={student.id}
-                onClick={() => { setSelectedStudent(student); setSearchQuery(student.full_name); }}
+                onClick={() => { setSelectedStudent(student); setSearchQuery(student.full_name); setSearchResults([]); }}
                 className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50"
               >
                 <div>
@@ -130,6 +260,10 @@ export default function DepositForm() {
               </button>
             ))}
           </div>
+        )}
+
+        {!searching && searchQuery.length > 0 && searchResults.length === 0 && !selectedStudent && (
+          <p className="mt-3 text-sm text-gray-400">No students found</p>
         )}
 
         {selectedStudent && (
@@ -218,6 +352,11 @@ export default function DepositForm() {
       {selectedStudent && amount && parseInt(amount) > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <h3 className="text-sm font-semibold text-gray-900 mb-4">3. Confirm Deposit</h3>
+          {depositError && (
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {depositError}
+            </div>
+          )}
           <div className="rounded-lg bg-gray-50 p-4 space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Student</span>
@@ -236,9 +375,10 @@ export default function DepositForm() {
           </div>
           <button
             onClick={handleDeposit}
-            className="mt-4 w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-700"
+            disabled={depositLoading}
+            className="mt-4 w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-green-700 disabled:opacity-50"
           >
-            Confirm Deposit
+            {depositLoading ? 'Processing...' : 'Confirm Deposit'}
           </button>
         </div>
       )}

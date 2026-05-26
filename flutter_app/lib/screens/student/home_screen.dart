@@ -9,8 +9,28 @@ import '../../widgets/qr_card.dart';
 ///
 /// Focused on one thing: showing the QR code prominently so the
 /// student can present it at the canteen counter.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _hasLoaded = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasLoaded) {
+      _hasLoaded = true;
+      final auth = context.read<AuthProvider>();
+      final studentProvider = context.read<StudentProvider>();
+      if (auth.isAuthenticated && studentProvider.currentStudent == null) {
+        studentProvider.loadStudent(auth.user!.id);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,95 +42,108 @@ class HomeScreen extends StatelessWidget {
         return Scaffold(
           backgroundColor: AppTheme.background,
           body: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: provider.refresh,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
+            child: provider.isLoading && student == null
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: provider.refresh,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 24),
 
-                    // -- Student info --
-                    if (student != null) ...[
-                      Text(
-                        student.displayName,
-                        style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Grade ${student.gradeAndClass}',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        student.studentCode,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color:
-                              AppTheme.textSecondary.withValues(alpha: 0.7),
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ],
+                          // Error state
+                          if (provider.error != null && student == null)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 16),
+                              child: Text(
+                                provider.error!,
+                                style: const TextStyle(color: AppTheme.error),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
 
-                    const SizedBox(height: 28),
+                          // -- Student info --
+                          if (student != null) ...[
+                            Text(
+                              student.displayName,
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Grade ${student.gradeAndClass}',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              student.studentCode,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textSecondary
+                                    .withValues(alpha: 0.7),
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ],
 
-                    // -- QR Code --
-                    if (student?.qrData != null)
-                      QrCard(
-                        qrData: student!.qrData!,
-                        size: 220,
-                        schoolName: 'CanteenPay',
-                      ),
+                          const SizedBox(height: 28),
 
-                    const SizedBox(height: 20),
+                          // -- QR Code --
+                          if (student?.qrData != null)
+                            QrCard(
+                              qrData: student!.qrData!,
+                              size: 220,
+                              schoolName: 'CanteenPay',
+                            ),
 
-                    // -- Balance --
-                    if (wallet != null)
-                      Text(
-                        wallet.formattedBalance,
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
-                        ),
-                      ),
+                          const SizedBox(height: 20),
 
-                    const SizedBox(height: 8),
+                          // -- Balance --
+                          if (wallet != null)
+                            Text(
+                              wallet.formattedBalance,
+                              style: const TextStyle(
+                                fontSize: 32,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primary,
+                              ),
+                            ),
 
-                    // -- Instruction --
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'Show this QR at the canteen',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.primary,
-                          fontWeight: FontWeight.w500,
-                        ),
+                          const SizedBox(height: 8),
+
+                          // -- Instruction --
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'Show this QR at the canteen',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 40),
+                        ],
                       ),
                     ),
-
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ),
+                  ),
           ),
         );
       },

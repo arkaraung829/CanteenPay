@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
-import '../../router.dart';
-
-/// Simple seller profile screen.
+/// Simple seller profile screen with real auth data.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final user = auth.user;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
@@ -31,17 +33,17 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Main Canteen',
-                  style: TextStyle(
+                Text(
+                  user?.displayName ?? 'Seller',
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  'U Kyaw Win',
-                  style: TextStyle(
+                Text(
+                  user?.email ?? '',
+                  style: const TextStyle(
                     fontSize: 16,
                     color: AppTheme.textSecondary,
                   ),
@@ -54,30 +56,30 @@ class ProfileScreen extends StatelessWidget {
 
           // Info cards
           _buildInfoCard(
-            icon: Icons.store,
-            title: 'Stall Name',
-            subtitle: 'Main Canteen - Building A',
-          ),
-          const SizedBox(height: 12),
-          _buildInfoCard(
             icon: Icons.person,
-            title: 'Seller Name',
-            subtitle: 'U Kyaw Win',
+            title: 'Name',
+            subtitle: user?.displayName ?? '-',
           ),
           const SizedBox(height: 12),
           _buildInfoCard(
-            icon: Icons.school,
-            title: 'School',
-            subtitle: 'International School of Yangon',
+            icon: Icons.email,
+            title: 'Email',
+            subtitle: user?.email ?? '-',
+          ),
+          const SizedBox(height: 12),
+          _buildInfoCard(
+            icon: Icons.badge,
+            title: 'Role',
+            subtitle: user?.role ?? '-',
           ),
 
           const SizedBox(height: 32),
 
-          // Switch Role (Demo)
+          // Account Info
           OutlinedButton.icon(
             onPressed: () => context.go('/role-select'),
-            icon: const Icon(Icons.swap_horiz),
-            label: const Text('Switch Role (Demo)'),
+            icon: const Icon(Icons.info_outline),
+            label: const Text('Account Info'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
@@ -88,9 +90,11 @@ class ProfileScreen extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed: () {
-                DemoAuth.logout();
-                context.go('/login');
+              onPressed: () async {
+                await auth.signOut();
+                if (context.mounted) {
+                  context.go('/login');
+                }
               },
               icon: const Icon(Icons.logout, color: AppTheme.error),
               label: const Text(

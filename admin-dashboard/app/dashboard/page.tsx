@@ -1,18 +1,137 @@
+'use client';
+
+import { useEffect, useState } from 'react';
 import StatCard from '@/components/StatCard';
 import { Users, Banknote, ArrowLeftRight, Store, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
+import { supabase } from '@/lib/supabase';
 
-// Demo data for prototype
-const recentTransactions = [
-  { id: '1', student: 'Aung Kyaw Zin', type: 'purchase', amount: 1500, seller: 'Daw Aye - Stall #1', time: '2 min ago' },
-  { id: '2', student: 'Thin Thin Aye', type: 'deposit', amount: 20000, seller: 'Counter', time: '15 min ago' },
-  { id: '3', student: 'Min Thant Zaw', type: 'purchase', amount: 2000, seller: 'U Ko Ko - Stall #3', time: '22 min ago' },
-  { id: '4', student: 'Su Su Lwin', type: 'purchase', amount: 1000, seller: 'Daw Aye - Stall #1', time: '35 min ago' },
-  { id: '5', student: 'Htet Aung', type: 'deposit', amount: 10000, seller: 'Counter', time: '1 hr ago' },
-  { id: '6', student: 'Phyu Phyu Win', type: 'refund', amount: 500, seller: 'U Ko Ko - Stall #3', time: '1 hr ago' },
-];
+interface DashboardStats {
+  totalStudents: number;
+  totalBalance: number;
+  todayTransactions: number;
+  activeSellers: number;
+  todayDeposits: number;
+  todayDepositCount: number;
+  todayPurchases: number;
+  todayPurchaseCount: number;
+}
+
+interface RecentTx {
+  id: string;
+  student: string;
+  type: string;
+  amount: number;
+  seller: string;
+  time: string;
+}
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [recentTransactions, setRecentTransactions] = useState<RecentTx[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchDashboard() {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayISO = today.toISOString();
+
+      const [
+        studentsRes,
+        walletsRes,
+        todayTxRes,
+        sellersRes,
+        recentTxRes,
+      ] = await Promise.all([
+        supabase.from('students').select('id', { count: 'exact', head: true }),
+        supabase.from('wallets').select('balance'),
+        supabase.from('transactions').select('type, amount').gte('created_at', todayISO),
+        supabase.from('canteen_sellers').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('transactions').select(`
+          id,
+          type,
+          amount,
+          created_at,
+          wallet:wallets(student:students(full_name)),
+          seller:canteen_sellers(stall_name)
+        `).order('created_at', { ascending: false }).limit(10),
+      ]);
+
+      const totalBalance = (walletsRes.data || []).reduce((sum, w) => sum + (w.balance || 0), 0);
+      const todayTxData = todayTxRes.data || [];
+      const todayDeposits = todayTxData.filter(t => t.type === 'deposit').reduce((s, t) => s + t.amount, 0);
+      const todayDepositCount = todayTxData.filter(t => t.type === 'deposit').length;
+      const todayPurchases = todayTxData.filter(t => t.type === 'purchase').reduce((s, t) => s + t.amount, 0);
+      const todayPurchaseCount = todayTxData.filter(t => t.type === 'purchase').length;
+
+      setStats({
+        totalStudents: studentsRes.count || 0,
+        totalBalance,
+        todayTransactions: todayTxData.length,
+        activeSellers: sellersRes.count || 0,
+        todayDeposits,
+        todayDepositCount,
+        todayPurchases,
+        todayPurchaseCount,
+      });
+
+      const mapped: RecentTx[] = (recentTxRes.data || []).map((tx: Record<string, unknown>) => {
+        const wallet = tx.wallet as Record<string, unknown> | null;
+        const student = wallet?.student as Record<string, unknown> | null;
+        const seller = tx.seller as Record<string, unknown> | null;
+        const createdAt = tx.created_at as string;
+        const elapsed = getTimeAgo(createdAt);
+        return {
+          id: tx.id as string,
+          student: (student?.full_name as string) || 'Unknown',
+          type: tx.type as string,
+          amount: tx.amount as number,
+          seller: (seller?.stall_name as string) || (tx.type === 'deposit' ? 'Counter' : '-'),
+          time: elapsed,
+        };
+      });
+      setRecentTransactions(mapped);
+      setLoading(false);
+    }
+
+    fetchDashboard();
+  }, []);
+
+  function getTimeAgo(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} hr ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="mt-1 text-sm text-gray-500">Overview of today&apos;s activity</p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-28 animate-pulse rounded-xl border border-gray-200 bg-gray-100" />
+          ))}
+        </div>
+        <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-24 animate-pulse rounded-xl border border-gray-200 bg-gray-100" />
+          ))}
+        </div>
+        <div className="mt-8 h-64 animate-pulse rounded-xl border border-gray-200 bg-gray-100" />
+      </div>
+    );
+  }
+
+  const s = stats!;
+
   return (
     <div>
       <div className="mb-8">
@@ -24,16 +143,16 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Students"
-          value="342"
-          change="+12 this month"
-          changeType="positive"
+          value={s.totalStudents.toString()}
+          change="Registered students"
+          changeType="neutral"
           icon={Users}
           iconColor="text-blue-600"
           iconBg="bg-blue-100"
         />
         <StatCard
           title="Total Balance"
-          value={formatMMK(4850000)}
+          value={formatMMK(s.totalBalance)}
           change="Across all wallets"
           changeType="neutral"
           icon={Banknote}
@@ -42,17 +161,17 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Today's Transactions"
-          value="87"
-          change="+23% vs yesterday"
-          changeType="positive"
+          value={s.todayTransactions.toString()}
+          change="Today"
+          changeType="neutral"
           icon={ArrowLeftRight}
           iconColor="text-purple-600"
           iconBg="bg-purple-100"
         />
         <StatCard
           title="Active Sellers"
-          value="8"
-          change="All stalls open"
+          value={s.activeSellers.toString()}
+          change="Active stalls"
           changeType="neutral"
           icon={Store}
           iconColor="text-amber-600"
@@ -67,23 +186,23 @@ export default function DashboardPage() {
             <TrendingUp className="h-4 w-4 text-green-500" />
             <h3 className="text-sm font-semibold text-gray-900">Deposits Today</h3>
           </div>
-          <p className="mt-2 text-2xl font-bold text-green-600">{formatMMK(350000)}</p>
-          <p className="mt-1 text-xs text-gray-500">14 deposits</p>
+          <p className="mt-2 text-2xl font-bold text-green-600">{formatMMK(s.todayDeposits)}</p>
+          <p className="mt-1 text-xs text-gray-500">{s.todayDepositCount} deposits</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <div className="flex items-center gap-2">
             <TrendingDown className="h-4 w-4 text-red-500" />
             <h3 className="text-sm font-semibold text-gray-900">Purchases Today</h3>
           </div>
-          <p className="mt-2 text-2xl font-bold text-red-500">{formatMMK(128500)}</p>
-          <p className="mt-1 text-xs text-gray-500">73 purchases</p>
+          <p className="mt-2 text-2xl font-bold text-red-500">{formatMMK(s.todayPurchases)}</p>
+          <p className="mt-1 text-xs text-gray-500">{s.todayPurchaseCount} purchases</p>
         </div>
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <div className="flex items-center gap-2">
             <Banknote className="h-4 w-4 text-blue-500" />
             <h3 className="text-sm font-semibold text-gray-900">Net Flow</h3>
           </div>
-          <p className="mt-2 text-2xl font-bold text-blue-600">{formatMMK(221500)}</p>
+          <p className="mt-2 text-2xl font-bold text-blue-600">{formatMMK(s.todayDeposits - s.todayPurchases)}</p>
           <p className="mt-1 text-xs text-gray-500">Deposits minus purchases</p>
         </div>
       </div>
@@ -103,29 +222,35 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {recentTransactions.map((tx) => (
-                <tr key={tx.id} className="hover:bg-gray-50">
-                  <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{tx.student}</td>
-                  <td className="whitespace-nowrap px-6 py-4">
-                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      tx.type === 'deposit' ? 'bg-green-100 text-green-700' :
-                      tx.type === 'purchase' ? 'bg-red-100 text-red-700' :
-                      'bg-amber-100 text-amber-700'
-                    }`}>
-                      {tx.type}
-                    </span>
-                  </td>
-                  <td className={`whitespace-nowrap px-6 py-4 text-sm font-medium ${
-                    tx.type === 'deposit' ? 'text-green-600' :
-                    tx.type === 'refund' ? 'text-amber-600' :
-                    'text-red-600'
-                  }`}>
-                    {tx.type === 'purchase' ? '-' : '+'}{formatMMK(tx.amount)}
-                  </td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{tx.seller}</td>
-                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{tx.time}</td>
+              {recentTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-400">No transactions yet</td>
                 </tr>
-              ))}
+              ) : (
+                recentTransactions.map((tx) => (
+                  <tr key={tx.id} className="hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{tx.student}</td>
+                    <td className="whitespace-nowrap px-6 py-4">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                        tx.type === 'deposit' ? 'bg-green-100 text-green-700' :
+                        tx.type === 'purchase' ? 'bg-red-100 text-red-700' :
+                        'bg-amber-100 text-amber-700'
+                      }`}>
+                        {tx.type}
+                      </span>
+                    </td>
+                    <td className={`whitespace-nowrap px-6 py-4 text-sm font-medium ${
+                      tx.type === 'deposit' ? 'text-green-600' :
+                      tx.type === 'refund' ? 'text-amber-600' :
+                      'text-red-600'
+                    }`}>
+                      {tx.type === 'purchase' ? '-' : '+'}{formatMMK(tx.amount)}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{tx.seller}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{tx.time}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:canteen_common/canteen_common.dart';
 
 // Auth screens
 import 'screens/auth/login_screen.dart';
@@ -26,30 +27,6 @@ import 'screens/seller/payment_success_screen.dart';
 import 'screens/seller/sales_history_screen.dart';
 import 'screens/seller/profile_screen.dart' as seller_profile;
 
-/// Tracks the currently selected demo role. In a real app this would
-/// come from the AuthProvider / user profile.
-class DemoAuth {
-  static String? currentRole; // 'student', 'parent', 'seller'
-  static bool get isLoggedIn => currentRole != null;
-
-  static String get homePath {
-    switch (currentRole) {
-      case 'student':
-        return '/student';
-      case 'parent':
-        return '/parent';
-      case 'seller':
-        return '/seller';
-      default:
-        return '/login';
-    }
-  }
-
-  static void logout() {
-    currentRole = null;
-  }
-}
-
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _studentShellKey =
     GlobalKey<NavigatorState>(debugLabel: 'studentShell');
@@ -58,166 +35,187 @@ final GlobalKey<NavigatorState> _parentShellKey =
 final GlobalKey<NavigatorState> _sellerShellKey =
     GlobalKey<NavigatorState>(debugLabel: 'sellerShell');
 
-/// Unified GoRouter with role-based routing.
-final GoRouter appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
-  initialLocation: '/login',
-  redirect: (context, state) {
-    final isLoggedIn = DemoAuth.isLoggedIn;
-    final isLoginRoute = state.uri.path == '/login';
-    final isRoleSelect = state.uri.path == '/role-select';
-
-    // If not logged in and not on login/role-select, redirect to login
-    if (!isLoggedIn && !isLoginRoute && !isRoleSelect) {
+/// Returns the home path for a given user role.
+String _homePathForRole(String? role) {
+  switch (role) {
+    case 'student':
+      return '/student';
+    case 'parent':
+      return '/parent';
+    case 'seller':
+    case 'admin':
+    case 'counter_staff':
+      return '/seller';
+    default:
       return '/login';
-    }
+  }
+}
 
-    // If logged in and on login page, redirect to appropriate home
-    if (isLoggedIn && isLoginRoute) {
-      return DemoAuth.homePath;
-    }
+/// Creates the GoRouter with auth-aware redirects.
+GoRouter createRouter(AuthProvider authProvider) {
+  return GoRouter(
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: '/login',
+    refreshListenable: authProvider,
+    redirect: (context, state) {
+      final isAuthenticated = authProvider.isAuthenticated;
+      final isLoading = authProvider.isLoading;
+      final isLoginRoute = state.uri.path == '/login';
+      final isRoleSelect = state.uri.path == '/role-select';
 
-    return null;
-  },
-  routes: [
-    // ========== Auth Routes ==========
-    GoRoute(
-      path: '/login',
-      builder: (context, state) => const LoginScreen(),
-    ),
-    GoRoute(
-      path: '/role-select',
-      builder: (context, state) => const RoleSelectScreen(),
-    ),
+      // While auth is loading on startup, don't redirect
+      if (isLoading && !isAuthenticated) return null;
 
-    // ========== Student Routes (ShellRoute with bottom nav) ==========
-    ShellRoute(
-      navigatorKey: _studentShellKey,
-      builder: (context, state, child) =>
-          _StudentShell(child: child),
-      routes: [
-        GoRoute(
-          path: '/student',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: student.HomeScreen(),
-          ),
-        ),
-        GoRoute(
-          path: '/student/history',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: student_history.TransactionHistoryScreen(),
-          ),
-        ),
-        GoRoute(
-          path: '/student/profile',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: student_profile.ProfileScreen(),
-          ),
-        ),
-      ],
-    ),
+      // If not logged in and not on login/role-select, redirect to login
+      if (!isAuthenticated && !isLoginRoute && !isRoleSelect) {
+        return '/login';
+      }
 
-    // ========== Parent Routes (ShellRoute with bottom nav) ==========
-    ShellRoute(
-      navigatorKey: _parentShellKey,
-      builder: (context, state, child) =>
-          _ParentShell(child: child),
-      routes: [
-        GoRoute(
-          path: '/parent',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: parent.HomeScreen(),
-          ),
-        ),
-        GoRoute(
-          path: '/parent/notifications',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: NotificationsScreen(),
-          ),
-        ),
-        GoRoute(
-          path: '/parent/profile',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: parent_profile.ProfileScreen(),
-          ),
-        ),
-      ],
-    ),
-    // Parent full-screen routes (no bottom nav)
-    GoRoute(
-      path: '/parent/child/:id',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) {
-        final childId = state.pathParameters['id']!;
-        return ChildDetailScreen(childId: childId);
-      },
-    ),
-    GoRoute(
-      path: '/parent/child/:id/history',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) {
-        final childId = state.pathParameters['id']!;
-        return parent_history.TransactionHistoryScreen(childId: childId);
-      },
-    ),
-    GoRoute(
-      path: '/parent/link-child',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const LinkChildScreen(),
-    ),
-    GoRoute(
-      path: '/parent/alerts',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const SpendingAlertsScreen(),
-    ),
+      // If logged in and on login page, redirect to appropriate home
+      if (isAuthenticated && isLoginRoute) {
+        final role = authProvider.user?.role;
+        return _homePathForRole(role);
+      }
 
-    // ========== Seller Routes (ShellRoute with bottom nav) ==========
-    ShellRoute(
-      navigatorKey: _sellerShellKey,
-      builder: (context, state, child) =>
-          _SellerShell(child: child),
-      routes: [
-        GoRoute(
-          path: '/seller',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: ScanScreen(),
+      return null;
+    },
+    routes: [
+      // ========== Auth Routes ==========
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: '/role-select',
+        builder: (context, state) => const RoleSelectScreen(),
+      ),
+
+      // ========== Student Routes (ShellRoute with bottom nav) ==========
+      ShellRoute(
+        navigatorKey: _studentShellKey,
+        builder: (context, state, child) => _StudentShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/student',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: student.HomeScreen(),
+            ),
           ),
-        ),
-        GoRoute(
-          path: '/seller/sales',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: SalesHistoryScreen(),
+          GoRoute(
+            path: '/student/history',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: student_history.TransactionHistoryScreen(),
+            ),
           ),
-        ),
-        GoRoute(
-          path: '/seller/profile',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: seller_profile.ProfileScreen(),
+          GoRoute(
+            path: '/student/profile',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: student_profile.ProfileScreen(),
+            ),
           ),
-        ),
-      ],
-    ),
-    // Seller full-screen routes (no bottom nav)
-    GoRoute(
-      path: '/seller/payment-confirm',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) => const PaymentConfirmScreen(),
-    ),
-    GoRoute(
-      path: '/seller/payment-success',
-      parentNavigatorKey: _rootNavigatorKey,
-      builder: (context, state) {
-        final extra = state.extra as Map<String, dynamic>?;
-        return PaymentSuccessScreen(
-          studentName: extra?['studentName'] ?? '',
-          amountCharged: extra?['amountCharged'] ?? 0,
-          newBalance: extra?['newBalance'] ?? 0,
-          referenceId: extra?['referenceId'] ?? '',
-        );
-      },
-    ),
-  ],
-);
+        ],
+      ),
+
+      // ========== Parent Routes (ShellRoute with bottom nav) ==========
+      ShellRoute(
+        navigatorKey: _parentShellKey,
+        builder: (context, state, child) => _ParentShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/parent',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: parent.HomeScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/parent/notifications',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: NotificationsScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/parent/profile',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: parent_profile.ProfileScreen(),
+            ),
+          ),
+        ],
+      ),
+      // Parent full-screen routes (no bottom nav)
+      GoRoute(
+        path: '/parent/child/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final childId = state.pathParameters['id']!;
+          return ChildDetailScreen(childId: childId);
+        },
+      ),
+      GoRoute(
+        path: '/parent/child/:id/history',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final childId = state.pathParameters['id']!;
+          return parent_history.TransactionHistoryScreen(childId: childId);
+        },
+      ),
+      GoRoute(
+        path: '/parent/link-child',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const LinkChildScreen(),
+      ),
+      GoRoute(
+        path: '/parent/alerts',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const SpendingAlertsScreen(),
+      ),
+
+      // ========== Seller Routes (ShellRoute with bottom nav) ==========
+      ShellRoute(
+        navigatorKey: _sellerShellKey,
+        builder: (context, state, child) => _SellerShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/seller',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: ScanScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/sales',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SalesHistoryScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/profile',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: seller_profile.ProfileScreen(),
+            ),
+          ),
+        ],
+      ),
+      // Seller full-screen routes (no bottom nav)
+      GoRoute(
+        path: '/seller/payment-confirm',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PaymentConfirmScreen(),
+      ),
+      GoRoute(
+        path: '/seller/payment-success',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return PaymentSuccessScreen(
+            studentName: extra?['studentName'] ?? '',
+            amountCharged: extra?['amountCharged'] ?? 0,
+            newBalance: extra?['newBalance'] ?? 0,
+            referenceId: extra?['referenceId'] ?? '',
+          );
+        },
+      ),
+    ],
+  );
+}
 
 // =============================================================================
 // Shell Widgets (bottom navigation wrappers)

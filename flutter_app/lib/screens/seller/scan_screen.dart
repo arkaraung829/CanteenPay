@@ -18,6 +18,7 @@ class ScanScreen extends StatefulWidget {
 class _ScanScreenState extends State<ScanScreen> {
   MobileScannerController? _cameraController;
   bool _hasScanned = false;
+  bool _hasLoadedSales = false;
 
   @override
   void initState() {
@@ -26,6 +27,18 @@ class _ScanScreenState extends State<ScanScreen> {
       detectionSpeed: DetectionSpeed.normal,
       facing: CameraFacing.back,
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasLoadedSales) {
+      _hasLoadedSales = true;
+      final auth = context.read<AuthProvider>();
+      if (auth.isAuthenticated) {
+        context.read<SalesProvider>().loadTodaySales(auth.user!.id);
+      }
+    }
   }
 
   @override
@@ -47,8 +60,18 @@ class _ScanScreenState extends State<ScanScreen> {
     final scanner = context.read<ScannerProvider>();
     await scanner.processScan(qrData);
 
-    if (mounted && scanner.scannedStudent != null) {
-      context.push('/seller/payment-confirm');
+    if (mounted) {
+      if (scanner.scannedStudent != null) {
+        context.push('/seller/payment-confirm');
+      } else if (scanner.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(scanner.error!),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+        scanner.reset();
+      }
     }
 
     // Reset scan lock after navigation

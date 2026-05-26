@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:uuid/uuid.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/scanner_provider.dart';
@@ -29,6 +28,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   Future<void> _onCharge() async {
     final scanner = context.read<ScannerProvider>();
     final sales = context.read<SalesProvider>();
+    final auth = context.read<AuthProvider>();
     final student = scanner.scannedStudent;
     final wallet = scanner.scannedWallet;
 
@@ -36,38 +36,55 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
     setState(() => _isCharging = true);
 
-    // Simulate processing delay
-    await Future.delayed(const Duration(milliseconds: 800));
+    try {
+      // Call the real Supabase RPC for purchase processing
+      final result = await SupabaseService.instance.processPurchase(
+        qrData: student.qrData ?? '',
+        amount: _amountInt,
+        sellerProfileId: auth.user?.id ?? '',
+        description: 'Canteen Purchase',
+      );
 
-    final referenceId =
-        'TXN-${const Uuid().v4().substring(0, 8).toUpperCase()}';
-    final newBalance = wallet.balance - _amountInt;
+      final referenceId = result['reference_id']?.toString() ?? result['transaction_id']?.toString() ?? '';
+      final newBalance = (result['new_balance'] as num?)?.toInt() ?? (wallet.balance - _amountInt);
+      final txnId = result['transaction_id']?.toString() ?? '';
 
-    // Create the transaction
-    final transaction = TransactionModel(
-      id: const Uuid().v4(),
-      walletId: wallet.id,
-      type: 'purchase',
-      amount: _amountInt,
-      balanceBefore: wallet.balance,
-      balanceAfter: newBalance,
-      description: 'Canteen Purchase',
-      referenceId: referenceId,
-      sellerId: 'seller-001',
-      sellerName: 'Main Canteen',
-      createdAt: DateTime.now(),
-    );
+      // Create a local transaction model for the sales list
+      final transaction = TransactionModel(
+        id: txnId,
+        walletId: wallet.id,
+        type: 'purchase',
+        amount: _amountInt,
+        balanceBefore: wallet.balance,
+        balanceAfter: newBalance,
+        description: 'Canteen Purchase',
+        referenceId: referenceId,
+        performedBy: auth.user?.id,
+        sellerName: auth.user?.displayName ?? 'Seller',
+        createdAt: DateTime.now(),
+      );
 
-    sales.addSale(transaction);
-    scanner.reset();
+      sales.addSale(transaction);
+      scanner.reset();
 
-    if (mounted) {
-      context.go('/seller/payment-success', extra: {
-        'studentName': student.displayName,
-        'amountCharged': _amountInt,
-        'newBalance': newBalance,
-        'referenceId': referenceId,
-      });
+      if (mounted) {
+        context.go('/seller/payment-success', extra: {
+          'studentName': student.displayName,
+          'amountCharged': _amountInt,
+          'newBalance': newBalance,
+          'referenceId': referenceId,
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isCharging = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Payment failed: $e'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
     }
   }
 

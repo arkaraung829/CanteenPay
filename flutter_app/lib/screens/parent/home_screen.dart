@@ -16,25 +16,34 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  bool _hasLoaded = false;
+
   @override
-  void initState() {
-    super.initState();
-    // Load data on first build
-    final childrenProvider = context.read<ChildrenProvider>();
-    if (childrenProvider.children.isEmpty) {
-      childrenProvider.loadChildren();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasLoaded) {
+      _hasLoaded = true;
+      final auth = context.read<AuthProvider>();
+      final childrenProvider = context.read<ChildrenProvider>();
+      if (auth.isAuthenticated && childrenProvider.children.isEmpty) {
+        childrenProvider.loadChildren(auth.user!.id);
+      }
     }
   }
 
   String _greeting() {
+    final auth = context.read<AuthProvider>();
+    final name = auth.user?.fullName ?? 'Parent';
+    final firstName = name.split(' ').first;
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning, Parent';
-    if (hour < 17) return 'Good afternoon, Parent';
-    return 'Good evening, Parent';
+    if (hour < 12) return 'Good morning, $firstName';
+    if (hour < 17) return 'Good afternoon, $firstName';
+    return 'Good evening, $firstName';
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
     final childrenProvider = context.watch<ChildrenProvider>();
     final notifProvider = context.watch<NotificationProvider>();
 
@@ -75,10 +84,32 @@ class _HomeScreenState extends State<HomeScreen> {
       body: childrenProvider.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: () => childrenProvider.loadChildren(),
+              onRefresh: () =>
+                  childrenProvider.loadChildren(auth.user?.id ?? ''),
               child: ListView(
                 children: [
                   const SizedBox(height: 20),
+
+                  // Error state
+                  if (childrenProvider.error != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          childrenProvider.error!,
+                          style: const TextStyle(
+                            color: AppTheme.error,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+
                   // Greeting
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -127,19 +158,31 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: 4),
                   // Children list
-                  ...childrenProvider.children.map((child) {
-                    final wallet =
-                        childrenProvider.walletForChild(child.id);
-                    final lastTx =
-                        childrenProvider.getLastTransaction(child.id);
-                    return ChildCard(
-                      child: child,
-                      wallet: wallet,
-                      lastTransaction: lastTx,
-                      onTap: () =>
-                          context.push('/parent/child/${child.id}'),
-                    );
-                  }),
+                  if (childrenProvider.children.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Center(
+                        child: Text(
+                          'No children linked yet.\nTap "Link Child" to get started.',
+                          style: TextStyle(color: AppTheme.textSecondary),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    )
+                  else
+                    ...childrenProvider.children.map((child) {
+                      final wallet =
+                          childrenProvider.walletForChild(child.id);
+                      final lastTx =
+                          childrenProvider.getLastTransaction(child.id);
+                      return ChildCard(
+                        child: child,
+                        wallet: wallet,
+                        lastTransaction: lastTx,
+                        onTap: () =>
+                            context.push('/parent/child/${child.id}'),
+                      );
+                    }),
                   const SizedBox(height: 24),
                 ],
               ),

@@ -4,16 +4,15 @@ import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/student_provider.dart';
-import '../../router.dart';
 
-/// Student profile screen.
-///
-/// Shows student details, linked parent info, balance, and sign-out.
+/// Student profile screen with real data from Supabase.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+
     return Consumer<StudentProvider>(
       builder: (context, provider, _) {
         final student = provider.currentStudent;
@@ -33,7 +32,7 @@ class ProfileScreen extends StatelessWidget {
                   radius: 48,
                   backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                   child: Text(
-                    _initials(student?.displayName ?? '?'),
+                    _initials(student?.displayName ?? auth.user?.displayName ?? '?'),
                     style: const TextStyle(
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
@@ -47,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
               // -- Name --
               Center(
                 child: Text(
-                  student?.displayName ?? '',
+                  student?.displayName ?? auth.user?.displayName ?? '',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -58,7 +57,7 @@ class ProfileScreen extends StatelessWidget {
               const SizedBox(height: 4),
               Center(
                 child: Text(
-                  'Grade ${student?.gradeAndClass ?? ''}',
+                  student != null ? 'Grade ${student.gradeAndClass}' : '',
                   style: const TextStyle(
                     fontSize: 15,
                     color: AppTheme.textSecondary,
@@ -74,13 +73,15 @@ class ProfileScreen extends StatelessWidget {
                     _InfoTile(
                       icon: Icons.badge_outlined,
                       label: 'Student Code',
-                      value: student?.studentCode ?? '',
+                      value: student?.studentCode ?? '-',
                     ),
                     const Divider(height: 1),
                     _InfoTile(
                       icon: Icons.school_outlined,
                       label: 'Grade & Class',
-                      value: 'Grade ${student?.gradeAndClass ?? ''}',
+                      value: student != null
+                          ? 'Grade ${student.gradeAndClass}'
+                          : '-',
                     ),
                     const Divider(height: 1),
                     _InfoTile(
@@ -95,36 +96,22 @@ class ProfileScreen extends StatelessWidget {
                       value: wallet?.formattedBalance ?? '0 MMK',
                       valueColor: AppTheme.primary,
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // -- Parent info --
-              const Card(
-                child: Column(
-                  children: [
+                    const Divider(height: 1),
                     _InfoTile(
-                      icon: Icons.family_restroom,
-                      label: 'Linked Parent',
-                      value: 'U Kyaw Soe',
-                    ),
-                    Divider(height: 1),
-                    _InfoTile(
-                      icon: Icons.phone_outlined,
-                      label: 'Parent Phone',
-                      value: '09-xxxxxxxx',
+                      icon: Icons.email_outlined,
+                      label: 'Email',
+                      value: auth.user?.email ?? '-',
                     ),
                   ],
                 ),
               ),
               const SizedBox(height: 24),
 
-              // -- Switch Role (Demo) --
+              // -- Account Info --
               OutlinedButton.icon(
                 onPressed: () => context.go('/role-select'),
-                icon: const Icon(Icons.swap_horiz),
-                label: const Text('Switch Role (Demo)'),
+                icon: const Icon(Icons.info_outline),
+                label: const Text('Account Info'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -136,9 +123,11 @@ class ProfileScreen extends StatelessWidget {
 
               // -- Sign out --
               OutlinedButton.icon(
-                onPressed: () {
-                  DemoAuth.logout();
-                  context.go('/login');
+                onPressed: () async {
+                  await auth.signOut();
+                  if (context.mounted) {
+                    context.go('/login');
+                  }
                 },
                 icon: const Icon(Icons.logout),
                 label: const Text('Sign Out'),

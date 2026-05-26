@@ -1,112 +1,107 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
 
-/// Tracks today's sales for the seller terminal.
+/// Tracks today's sales for the seller terminal using real Supabase data.
 class SalesProvider extends ChangeNotifier {
   final List<TransactionModel> _todaySales = [];
+  bool _isLoading = false;
+  String? _error;
+  RealtimeChannel? _realtimeChannel;
 
   List<TransactionModel> get todaySales => List.unmodifiable(_todaySales);
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
   int get totalAmount =>
       _todaySales.fold(0, (sum, tx) => sum + tx.amount);
 
   int get transactionCount => _todaySales.length;
 
-  SalesProvider() {
-    _loadDemoData();
-  }
-
-  /// Pre-populate with demo transactions for the prototype.
-  void _loadDemoData() {
-    final now = DateTime.now();
-    final demoTransactions = [
-      TransactionModel(
-        id: 'tx-demo-001',
-        walletId: 'wallet-001',
-        type: 'purchase',
-        amount: 1500,
-        balanceBefore: 16500,
-        balanceAfter: 15000,
-        description: 'Lunch - Fried Rice',
-        referenceId: 'REF-001',
-        sellerId: 'seller-001',
-        sellerName: 'Main Canteen',
-        createdAt: now.subtract(const Duration(hours: 3, minutes: 20)),
-      ),
-      TransactionModel(
-        id: 'tx-demo-002',
-        walletId: 'wallet-002',
-        type: 'purchase',
-        amount: 1000,
-        balanceBefore: 8000,
-        balanceAfter: 7000,
-        description: 'Snack - Samosa',
-        referenceId: 'REF-002',
-        sellerId: 'seller-001',
-        sellerName: 'Main Canteen',
-        createdAt: now.subtract(const Duration(hours: 2, minutes: 45)),
-      ),
-      TransactionModel(
-        id: 'tx-demo-003',
-        walletId: 'wallet-003',
-        type: 'purchase',
-        amount: 2000,
-        balanceBefore: 12000,
-        balanceAfter: 10000,
-        description: 'Lunch - Mohinga',
-        referenceId: 'REF-003',
-        sellerId: 'seller-001',
-        sellerName: 'Main Canteen',
-        createdAt: now.subtract(const Duration(hours: 2, minutes: 10)),
-      ),
-      TransactionModel(
-        id: 'tx-demo-004',
-        walletId: 'wallet-004',
-        type: 'purchase',
-        amount: 500,
-        balanceBefore: 5500,
-        balanceAfter: 5000,
-        description: 'Drink - Juice',
-        referenceId: 'REF-004',
-        sellerId: 'seller-001',
-        sellerName: 'Main Canteen',
-        createdAt: now.subtract(const Duration(hours: 1, minutes: 30)),
-      ),
-      TransactionModel(
-        id: 'tx-demo-005',
-        walletId: 'wallet-005',
-        type: 'purchase',
-        amount: 3000,
-        balanceBefore: 20000,
-        balanceAfter: 17000,
-        description: 'Lunch - Biryani Set',
-        referenceId: 'REF-005',
-        sellerId: 'seller-001',
-        sellerName: 'Main Canteen',
-        createdAt: now.subtract(const Duration(minutes: 45)),
-      ),
-      TransactionModel(
-        id: 'tx-demo-006',
-        walletId: 'wallet-001',
-        type: 'purchase',
-        amount: 1000,
-        balanceBefore: 15000,
-        balanceAfter: 14000,
-        description: 'Snack - Spring Roll',
-        referenceId: 'REF-006',
-        sellerId: 'seller-001',
-        sellerName: 'Main Canteen',
-        createdAt: now.subtract(const Duration(minutes: 15)),
-      ),
-    ];
-
-    _todaySales.addAll(demoTransactions);
-  }
-
-  /// Add a new sale to today's list.
-  void addSale(TransactionModel transaction) {
-    _todaySales.insert(0, transaction);
+  /// Load today's sales from Supabase for the given seller.
+  Future<void> loadTodaySales(String sellerId) async {
+    _isLoading = true;
+    _error = null;
     notifyListeners();
+
+    try {
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+
+      final response = await Supabase.instance.client
+          .from('transactions')
+          .select()
+          .eq('performed_by', sellerId)
+          .eq('type', 'purchase')
+          .gte('created_at', todayStart.toIso8601String())
+          .order('created_at', ascending: false);
+
+      _todaySales.clear();
+      _todaySales.addAll(
+        (response as List)
+            .map((json) => TransactionModel.fromJson(json))
+            .toList(),
+      );
+
+      // Subscribe to realtime for new transactions
+      _subscribeToRealtime(sellerId);
+    } catch (e) {
+      _error = 'Failed to load sales: $e';
+      debugPrint('SalesProvider: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Subscribe to realtime inserts on transactions table.
+  void _subscribeToRealtime(String sellerId) {
+    _realtimeChannel?.unsubscribe();
+
+    try {
+      _realtimeChannel = Supabase.instance.client
+          .channel('seller-sales-$sellerId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'transactions',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'performed_by',
+              value: sellerId,
+            ),
+            callback: (payload) {
+              try {
+                final newTx = TransactionModel.fromJson(payload.newRecord);
+                // Only add if it's from today and not already in the list
+                final now = DateTime.now();
+                final isToday = newTx.createdAt != null &&
+                    newTx.createdAt!.year == now.year &&
+                    newTx.createdAt!.month == now.month &&
+                    newTx.createdAt!.day == now.day;
+                final alreadyExists = _todaySales.any((tx) => tx.id == newTx.id);
+                if (isToday && !alreadyExists) {
+                  _todaySales.insert(0, newTx);
+                  notifyListeners();
+                }
+              } catch (e) {
+                debugPrint('SalesProvider: realtime parse error: $e');
+              }
+            },
+          )
+          .subscribe();
+    } catch (e) {
+      debugPrint('SalesProvider: realtime subscription failed: $e');
+    }
+  }
+
+  /// Add a new sale to today's list (after successful RPC call).
+  void addSale(TransactionModel transaction) {
+    // Avoid duplicates from realtime
+    if (!_todaySales.any((tx) => tx.id == transaction.id)) {
+      _todaySales.insert(0, transaction);
+      notifyListeners();
+    }
   }
 
   /// Filter transactions by time period.
@@ -127,5 +122,11 @@ class SalesProvider extends ChangeNotifier {
           .toList();
     }
     return _todaySales;
+  }
+
+  @override
+  void dispose() {
+    _realtimeChannel?.unsubscribe();
+    super.dispose();
   }
 }

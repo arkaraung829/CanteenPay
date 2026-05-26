@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
+
+import '../../providers/children_provider.dart';
 
 /// Screen for linking a new child via student code.
 class LinkChildScreen extends StatefulWidget {
@@ -11,9 +15,11 @@ class LinkChildScreen extends StatefulWidget {
 
 class _LinkChildScreenState extends State<LinkChildScreen> {
   final _codeController = TextEditingController();
-  bool _isLoading = false;
+  bool _isSearching = false;
+  bool _isLinking = false;
   bool _isLinked = false;
-  StudentModel? _linkedChild;
+  StudentModel? _foundStudent;
+  String? _error;
 
   @override
   void dispose() {
@@ -21,28 +27,96 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
     super.dispose();
   }
 
-  Future<void> _linkChild() async {
-    if (_codeController.text.trim().isEmpty) return;
-
-    setState(() => _isLoading = true);
-
-    // Simulate network call
-    await Future<void>.delayed(const Duration(seconds: 1));
+  Future<void> _searchStudent() async {
+    final code = _codeController.text.trim();
+    if (code.isEmpty) return;
 
     setState(() {
-      _isLoading = false;
-      _isLinked = true;
-      _linkedChild = StudentModel(
-        id: 'child-new',
-        profileId: 'profile-new',
-        schoolId: 'school-001',
-        studentCode: _codeController.text.trim(),
-        fullName: 'New Student',
-        grade: 'Grade 4',
-        className: 'C',
-        isActive: true,
-      );
+      _isSearching = true;
+      _error = null;
+      _foundStudent = null;
     });
+
+    try {
+      // Search by student code
+      final response = await Supabase.instance.client
+          .from('students')
+          .select()
+          .eq('student_code', code)
+          .eq('is_active', true)
+          .maybeSingle();
+
+      if (response != null) {
+        setState(() {
+          _foundStudent = StudentModel.fromJson(response);
+        });
+      } else {
+        setState(() {
+          _error = 'No student found with code "$code"';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        _error = 'Search failed: $e';
+      });
+    } finally {
+      setState(() => _isSearching = false);
+    }
+  }
+
+  Future<void> _linkChild() async {
+    if (_foundStudent == null) return;
+
+    final auth = context.read<AuthProvider>();
+    final parentId = auth.user?.id;
+    if (parentId == null) {
+      setState(() => _error = 'Not logged in');
+      return;
+    }
+
+    setState(() {
+      _isLinking = true;
+      _error = null;
+    });
+
+    try {
+      // Check if already linked
+      final existing = await Supabase.instance.client
+          .from('parent_student_links')
+          .select()
+          .eq('parent_id', parentId)
+          .eq('student_id', _foundStudent!.id)
+          .maybeSingle();
+
+      if (existing != null) {
+        setState(() {
+          _error = 'This child is already linked to your account';
+          _isLinking = false;
+        });
+        return;
+      }
+
+      // Insert the link
+      await Supabase.instance.client.from('parent_student_links').insert({
+        'parent_id': parentId,
+        'student_id': _foundStudent!.id,
+      });
+
+      // Reload children in the provider
+      if (mounted) {
+        await context.read<ChildrenProvider>().loadChildren(parentId);
+      }
+
+      setState(() {
+        _isLinked = true;
+        _isLinking = false;
+      });
+    } catch (e) {
+      setState(() {
+        _error = 'Failed to link child: $e';
+        _isLinking = false;
+      });
+    }
   }
 
   @override
@@ -88,20 +162,91 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
             prefixIcon: Icon(Icons.badge_outlined),
           ),
         ),
-        const SizedBox(height: 24),
-        ElevatedButton(
-          onPressed: _isLoading ? null : _linkChild,
-          child: _isLoading
-              ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
+        const SizedBox(height: 16),
+
+        if (_error != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Text(
+              _error!,
+              style: const TextStyle(color: AppTheme.error, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+        // Search button
+        if (_foundStudent == null)
+          ElevatedButton(
+            onPressed: _isSearching ? null : _searchStudent,
+            child: _isSearching
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Search'),
+          ),
+
+        // Found student card
+        if (_foundStudent != null) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                    child: Text(
+                      _foundStudent!.displayName[0],
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.primary,
+                      ),
+                    ),
                   ),
-                )
-              : const Text('Link Child'),
-        ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _foundStudent!.displayName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _foundStudent!.gradeAndClass,
+                          style: const TextStyle(color: AppTheme.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.check_circle, color: AppTheme.success),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            onPressed: _isLinking ? null : _linkChild,
+            child: _isLinking
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text('Link This Child'),
+          ),
+        ],
       ],
     );
   }
@@ -126,7 +271,7 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
                   radius: 30,
                   backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                   child: Text(
-                    _linkedChild?.displayName[0] ?? '?',
+                    _foundStudent?.displayName[0] ?? '?',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -136,7 +281,7 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  _linkedChild?.displayName ?? '',
+                  _foundStudent?.displayName ?? '',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
@@ -144,12 +289,12 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _linkedChild?.gradeAndClass ?? '',
+                  _foundStudent?.gradeAndClass ?? '',
                   style: const TextStyle(color: AppTheme.textSecondary),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Code: ${_linkedChild?.studentCode ?? ''}',
+                  'Code: ${_foundStudent?.studentCode ?? ''}',
                   style: const TextStyle(color: AppTheme.textSecondary),
                 ),
               ],

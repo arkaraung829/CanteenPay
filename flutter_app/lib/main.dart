@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import 'providers/scanner_provider.dart';
@@ -12,20 +13,15 @@ import 'router.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // For prototype: skip actual Firebase/Supabase initialization.
-  // In production, initialize here with real credentials.
+  // Initialize Supabase with real credentials
   try {
-    // TODO: Initialize Firebase
-    // await Firebase.initializeApp();
-
-    // TODO: Initialize Supabase
-    // await Supabase.initialize(
-    //   url: SupabaseConfig.supabaseUrl,
-    //   anonKey: SupabaseConfig.supabaseAnonKey,
-    // );
-    debugPrint('CanteenPay unified app starting (prototype mode)');
+    await Supabase.initialize(
+      url: SupabaseConfig.supabaseUrl,
+      anonKey: SupabaseConfig.supabaseAnonKey,
+    );
+    debugPrint('CanteenPay: Supabase initialized successfully');
   } catch (e) {
-    debugPrint('Initialization skipped (prototype mode): $e');
+    debugPrint('CanteenPay: Supabase initialization failed: $e');
   }
 
   runApp(const CanteenPayApp());
@@ -38,24 +34,30 @@ class CanteenPayApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        // Auth provider (from canteen_common) - must be first
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         // Seller providers
         ChangeNotifierProvider(create: (_) => ScannerProvider()),
         ChangeNotifierProvider(create: (_) => SalesProvider()),
         // Parent providers
-        ChangeNotifierProvider(
-          create: (_) => ChildrenProvider()..loadChildren(),
-        ),
+        ChangeNotifierProvider(create: (_) => ChildrenProvider()),
         ChangeNotifierProvider(
           create: (_) => NotificationProvider()..loadNotifications(),
         ),
         // Student provider
         ChangeNotifierProvider(create: (_) => StudentProvider()),
       ],
-      child: MaterialApp.router(
-        title: 'CanteenPay',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        routerConfig: appRouter,
+      child: Builder(
+        builder: (context) {
+          final authProvider = context.watch<AuthProvider>();
+          final router = createRouter(authProvider);
+          return MaterialApp.router(
+            title: 'CanteenPay',
+            debugShowCheckedModeBanner: false,
+            theme: AppTheme.lightTheme,
+            routerConfig: router,
+          );
+        },
       ),
     );
   }

@@ -1,26 +1,76 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Search, Plus, Download, Upload } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
+import { supabase } from '@/lib/supabase';
 
-const DEMO_STUDENTS = [
-  { id: '1', student_code: 'STU-2024-001', full_name: 'Aung Kyaw Zin', class_name: 'Grade 5-A', grade: '5', balance: 15000, is_active: true },
-  { id: '2', student_code: 'STU-2024-002', full_name: 'Thin Thin Aye', class_name: 'Grade 4-B', grade: '4', balance: 8500, is_active: true },
-  { id: '3', student_code: 'STU-2024-003', full_name: 'Min Thant Zaw', class_name: 'Grade 6-A', grade: '6', balance: 3200, is_active: true },
-  { id: '4', student_code: 'STU-2024-004', full_name: 'Su Su Lwin', class_name: 'Grade 3-C', grade: '3', balance: 22000, is_active: true },
-  { id: '5', student_code: 'STU-2024-005', full_name: 'Htet Aung', class_name: 'Grade 5-A', grade: '5', balance: 500, is_active: true },
-  { id: '6', student_code: 'STU-2024-006', full_name: 'Phyu Phyu Win', class_name: 'Grade 7-B', grade: '7', balance: 11200, is_active: true },
-  { id: '7', student_code: 'STU-2024-007', full_name: 'Zaw Min Oo', class_name: 'Grade 6-A', grade: '6', balance: 0, is_active: false },
-  { id: '8', student_code: 'STU-2024-008', full_name: 'Hnin Si Thu', class_name: 'Grade 4-A', grade: '4', balance: 7500, is_active: true },
-];
+interface StudentRow {
+  id: string;
+  student_code: string;
+  full_name: string;
+  class_name: string | null;
+  grade: string | null;
+  is_active: boolean;
+  balance: number;
+}
 
 export default function StudentsPage() {
+  const [students, setStudents] = useState<StudentRow[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [gradeFilter, setGradeFilter] = useState('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState('');
 
-  const filtered = DEMO_STUDENTS.filter(s => {
+  // Form state for add student
+  const [newName, setNewName] = useState('');
+  const [newNameMy, setNewNameMy] = useState('');
+  const [newGrade, setNewGrade] = useState('1');
+  const [newSection, setNewSection] = useState('A');
+  const [newPhone, setNewPhone] = useState('');
+
+  const fetchStudents = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, student_code, full_name, class_name, grade, is_active, wallets(balance)')
+      .order('full_name');
+
+    if (error) {
+      console.error('Error fetching students:', error);
+      setLoading(false);
+      return;
+    }
+
+    const mapped: StudentRow[] = (data || []).map((s: Record<string, unknown>) => {
+      const wallets = s.wallets as Array<{ balance: number }> | { balance: number } | null;
+      let balance = 0;
+      if (Array.isArray(wallets) && wallets.length > 0) {
+        balance = wallets[0].balance || 0;
+      } else if (wallets && !Array.isArray(wallets)) {
+        balance = wallets.balance || 0;
+      }
+      return {
+        id: s.id as string,
+        student_code: s.student_code as string,
+        full_name: s.full_name as string,
+        class_name: s.class_name as string | null,
+        grade: s.grade as string | null,
+        is_active: s.is_active as boolean,
+        balance,
+      };
+    });
+
+    setStudents(mapped);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]);
+
+  const filtered = students.filter(s => {
     const matchesSearch = search === '' ||
       s.full_name.toLowerCase().includes(search.toLowerCase()) ||
       s.student_code.toLowerCase().includes(search.toLowerCase());
@@ -28,14 +78,76 @@ export default function StudentsPage() {
     return matchesSearch && matchesGrade;
   });
 
-  const grades = [...new Set(DEMO_STUDENTS.map(s => s.grade))].sort();
+  const grades = [...new Set(students.map(s => s.grade).filter(Boolean))].sort() as string[];
+
+  async function handleAddStudent() {
+    setAddLoading(true);
+    setAddError('');
+
+    const className = `Grade ${newGrade}-${newSection}`;
+    const studentCode = `STU-${new Date().getFullYear()}-${String(students.length + 1).padStart(3, '0')}`;
+
+    // Get a school_id - try to find one or use a placeholder
+    const { data: schools } = await supabase.from('schools').select('id').limit(1);
+    const schoolId = schools?.[0]?.id;
+
+    if (!schoolId) {
+      setAddError('No school found. Please create a school first.');
+      setAddLoading(false);
+      return;
+    }
+
+    const { error } = await supabase.from('students').insert({
+      full_name: newName,
+      full_name_my: newNameMy || null,
+      grade: newGrade,
+      class_name: className,
+      student_code: studentCode,
+      qr_data: `QR-${studentCode}`,
+      school_id: schoolId,
+      is_active: true,
+    });
+
+    if (error) {
+      setAddError(error.message);
+      setAddLoading(false);
+      return;
+    }
+
+    setShowAddModal(false);
+    setNewName('');
+    setNewNameMy('');
+    setNewGrade('1');
+    setNewSection('A');
+    setNewPhone('');
+    setAddLoading(false);
+    fetchStudents();
+  }
+
+  if (loading) {
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Students</h1>
+            <p className="mt-1 text-sm text-gray-500">Loading...</p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="h-14 animate-pulse rounded-lg bg-gray-100" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Students</h1>
-          <p className="mt-1 text-sm text-gray-500">{DEMO_STUDENTS.length} registered students</p>
+          <p className="mt-1 text-sm text-gray-500">{students.length} registered students</p>
         </div>
         <div className="flex gap-2">
           <button className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
@@ -91,35 +203,43 @@ export default function StudentsPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
-            {filtered.map((student) => (
-              <tr key={student.id} className="hover:bg-gray-50">
-                <td className="whitespace-nowrap px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
-                      {student.full_name.charAt(0)}
-                    </div>
-                    <span className="text-sm font-medium text-gray-900">{student.full_name}</span>
-                  </div>
-                </td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">{student.student_code}</td>
-                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{student.class_name}</td>
-                <td className={`whitespace-nowrap px-6 py-4 text-sm font-medium ${
-                  student.balance < 1000 ? 'text-red-600' : 'text-gray-900'
-                }`}>
-                  {formatMMK(student.balance)}
-                </td>
-                <td className="whitespace-nowrap px-6 py-4">
-                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    student.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    {student.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-6 py-4">
-                  <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">View</button>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-400">
+                  {search || gradeFilter !== 'all' ? 'No students match your search' : 'No students yet'}
                 </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((student) => (
+                <tr key={student.id} className="hover:bg-gray-50">
+                  <td className="whitespace-nowrap px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
+                        {student.full_name.charAt(0)}
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">{student.full_name}</span>
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">{student.student_code}</td>
+                  <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{student.class_name || '-'}</td>
+                  <td className={`whitespace-nowrap px-6 py-4 text-sm font-medium ${
+                    student.balance < 1000 ? 'text-red-600' : 'text-gray-900'
+                  }`}>
+                    {formatMMK(student.balance)}
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      student.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {student.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-6 py-4">
+                    <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">View</button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -129,19 +249,41 @@ export default function StudentsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAddModal(false)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-gray-900 mb-4">Add New Student</h2>
-            <form className="space-y-4">
+            {addError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {addError}
+              </div>
+            )}
+            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleAddStudent(); }}>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input type="text" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Enter student name" />
+                <input
+                  type="text"
+                  required
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Enter student name"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name (Myanmar)</label>
-                <input type="text" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Enter Myanmar name" />
+                <input
+                  type="text"
+                  value={newNameMy}
+                  onChange={(e) => setNewNameMy(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="Enter Myanmar name"
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
-                  <select className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  <select
+                    value={newGrade}
+                    onChange={(e) => setNewGrade(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
                     {[1,2,3,4,5,6,7,8,9,10,11].map(g => (
                       <option key={g} value={g}>Grade {g}</option>
                     ))}
@@ -149,7 +291,11 @@ export default function StudentsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Section</label>
-                  <select className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                  <select
+                    value={newSection}
+                    onChange={(e) => setNewSection(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
                     {['A','B','C','D'].map(s => (
                       <option key={s} value={s}>{s}</option>
                     ))}
@@ -158,11 +304,19 @@ export default function StudentsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone (optional)</label>
-                <input type="tel" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="09xxxxxxxxx" />
+                <input
+                  type="tel"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="09xxxxxxxxx"
+                />
               </div>
               <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="button" onClick={() => setShowAddModal(false)} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700">Add Student</button>
+                <button type="button" onClick={() => { setShowAddModal(false); setAddError(''); }} className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={addLoading} className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                  {addLoading ? 'Adding...' : 'Add Student'}
+                </button>
               </div>
             </form>
           </div>
