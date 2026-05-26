@@ -69,7 +69,7 @@ class NotificationsScreen extends StatelessWidget {
               separatorBuilder: (_, _) => const Divider(height: 1),
               itemBuilder: (context, index) {
                 final notif = notifications[index];
-                final color = _colorForType(notif.type);
+                final color = _colorForType(notif.type ?? 'system');
                 return ListTile(
                   tileColor: notif.isRead
                       ? null
@@ -77,7 +77,7 @@ class NotificationsScreen extends StatelessWidget {
                   leading: CircleAvatar(
                     backgroundColor: color.withValues(alpha: 0.1),
                     child: Icon(
-                      _iconForType(notif.type),
+                      _iconForType(notif.type ?? 'system'),
                       color: color,
                       size: 20,
                     ),
@@ -91,7 +91,7 @@ class NotificationsScreen extends StatelessWidget {
                   ),
                   subtitle: Text(notif.body),
                   trailing: Text(
-                    _timeAgo(notif.createdAt),
+                    _timeAgo(notif.timestamp),
                     style: const TextStyle(
                       fontSize: 12,
                       color: AppTheme.textSecondary,

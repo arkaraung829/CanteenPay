@@ -1,119 +1,489 @@
 /// Notification Service
 ///
-/// Handles Firebase Cloud Messaging (FCM) notifications including
-/// permission requests, token management, and message handling.
-/// Uses singleton pattern.
+/// Production-grade FCM push notification handling with local notification
+/// display, token lifecycle management, and tap-to-navigate support.
+/// Follows singleton pattern. All methods wrapped in try-catch so the app
+/// never crashes if Firebase is not configured.
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class NotificationService {
-  NotificationService._();
-  static final NotificationService _instance = NotificationService._();
-  factory NotificationService() => _instance;
+import 'device_id_service.dart';
+import 'notification_storage_service.dart';
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+class NotificationService {
+  NotificationService._internal();
+  static final NotificationService _instance = NotificationService._internal();
+
+  /// Singleton accessor.
+  static NotificationService get instance => _instance;
+
+  // ---------------------------------------------------------------------------
+  // Fields
+  // ---------------------------------------------------------------------------
+
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
+  final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 
-  bool _isInitialized = false;
+  String? _fcmToken;
+  bool _initialized = false;
 
-  /// Initialize notification service
+  /// Lock to prevent concurrent token refreshes.
+  Completer<void>? _fcmRefreshLock;
+
+  /// Callback the host app sets so notification taps can trigger navigation.
+  Function(Map<String, dynamic>)? onNotificationTapped;
+
+  // Stream controllers
+  final _notificationController =
+      StreamController<Map<String, dynamic>>.broadcast();
+
+  /// Stream emitted whenever a new notification arrives (for badge updates).
+  Stream<Map<String, dynamic>> get notificationStream =>
+      _notificationController.stream;
+
+  // Subscriptions for cleanup
+  StreamSubscription<RemoteMessage>? _onMessageSubscription;
+  StreamSubscription<RemoteMessage>? _onMessageOpenedAppSubscription;
+  StreamSubscription<String>? _onTokenRefreshSubscription;
+
+  String? get fcmToken => _fcmToken;
+
+  // ---------------------------------------------------------------------------
+  // Initialization
+  // ---------------------------------------------------------------------------
+
   Future<void> initialize() async {
-    if (_isInitialized) return;
+    if (_initialized) return;
 
-    // Request permissions
-    final settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    try {
+      // 1. Request notification permissions
+      await _requestPermissions();
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized ||
-        settings.authorizationStatus == AuthorizationStatus.provisional) {
-      debugPrint('NotificationService: Permission granted');
+      // 2. Create Android notification channel
+      if (Platform.isAndroid) {
+        await _createAndroidNotificationChannel();
+      }
 
-      // Initialize local notifications
+      // 3. Initialize local notifications plugin
       const androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
-      const iosSettings = DarwinInitializationSettings();
+      const iosSettings = DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
       const initSettings = InitializationSettings(
         android: androidSettings,
         iOS: iosSettings,
       );
-      await _localNotifications.initialize(initSettings);
 
-      // Get and save FCM token
-      await _sendTokenToBackend();
-
-      // Listen for token refresh
-      _messaging.onTokenRefresh.listen((_) => _sendTokenToBackend());
-
-      // Handle foreground messages
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-      _isInitialized = true;
-    } else {
-      debugPrint('NotificationService: Permission denied');
-    }
-  }
-
-  /// Refresh and re-send the FCM token
-  Future<void> refreshToken() async {
-    await _sendTokenToBackend();
-  }
-
-  /// Handle foreground messages by showing a local notification
-  void _handleForegroundMessage(RemoteMessage message) {
-    final notification = message.notification;
-    if (notification != null) {
-      showLocalNotification(
-        notification.title ?? '',
-        notification.body ?? '',
+      await _localNotifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: _onLocalNotificationTapped,
       );
-    }
-  }
 
-  /// Save the FCM token to the profiles table
-  Future<void> _sendTokenToBackend() async {
-    try {
-      final token = await _messaging.getToken();
-      if (token == null) return;
+      // 4. Enable iOS foreground notification presentation
+      await _firebaseMessaging.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
 
-      final userId = Supabase.instance.client.auth.currentUser?.id;
-      if (userId == null) return;
+      // 5. Get FCM token and send to backend
+      await _setupFCMToken();
 
-      await Supabase.instance.client
-          .from('profiles')
-          .update({'fcm_token': token}).eq('id', userId);
+      // 6. Listen for foreground messages
+      _onMessageSubscription?.cancel();
+      _onMessageSubscription =
+          FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-      debugPrint('NotificationService: FCM token saved');
+      // 7. Listen for background tap (app was in background)
+      _onMessageOpenedAppSubscription?.cancel();
+      _onMessageOpenedAppSubscription =
+          FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        if (kDebugMode) {
+          debugPrint(
+              'NotificationService: onMessageOpenedApp - ${message.notification?.title}');
+        }
+        if (message.notification != null) {
+          NotificationStorageService.saveNotification(
+            title: message.notification!.title ?? 'Notification',
+            body: message.notification!.body ?? '',
+            data: message.data,
+          );
+        }
+        _handleNotificationTap(message.data);
+      });
+
+      // 8. Check for terminated-state tap (cold start)
+      final initialMessage = await _firebaseMessaging.getInitialMessage();
+      if (initialMessage != null) {
+        if (kDebugMode) {
+          debugPrint(
+              'NotificationService: getInitialMessage - ${initialMessage.notification?.title}');
+        }
+        if (initialMessage.notification != null) {
+          await NotificationStorageService.saveNotification(
+            title: initialMessage.notification!.title ?? 'Notification',
+            body: initialMessage.notification!.body ?? '',
+            data: initialMessage.data,
+          );
+          _notificationController.add({'type': 'new_notification'});
+        }
+        _handleNotificationTap(initialMessage.data);
+      }
+
+      // 9. Listen for token rotation
+      _onTokenRefreshSubscription?.cancel();
+      _onTokenRefreshSubscription =
+          _firebaseMessaging.onTokenRefresh.listen((String newToken) {
+        if (kDebugMode) {
+          debugPrint('NotificationService: token refreshed');
+        }
+        _fcmToken = newToken;
+        _sendTokenToBackend(newToken);
+      });
+
+      _initialized = true;
+      if (kDebugMode) {
+        debugPrint('NotificationService: initialized successfully');
+      }
     } catch (e) {
-      debugPrint('NotificationService: Failed to save FCM token: $e');
+      if (kDebugMode) {
+        debugPrint('NotificationService: initialization failed: $e');
+      }
+      // Don't rethrow — app must not crash if Firebase isn't configured.
     }
   }
 
-  /// Show a local notification
-  Future<void> showLocalNotification(String title, String body) async {
-    const androidDetails = AndroidNotificationDetails(
-      'canteen_pay_default',
-      'CanteenPay Notifications',
-      channelDescription: 'Default notification channel for CanteenPay',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-    const iosDetails = DarwinNotificationDetails();
-    const details = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+  // ---------------------------------------------------------------------------
+  // Permission request
+  // ---------------------------------------------------------------------------
 
-    await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      details,
-    );
+  Future<void> _requestPermissions() async {
+    try {
+      if (Platform.isIOS) {
+        await _firebaseMessaging
+            .requestPermission(
+              alert: true,
+              announcement: false,
+              badge: true,
+              carPlay: false,
+              criticalAlert: false,
+              provisional: true,
+              sound: true,
+            )
+            .timeout(
+              const Duration(seconds: 5),
+              onTimeout: () => const NotificationSettings(
+                authorizationStatus: AuthorizationStatus.notDetermined,
+                alert: AppleNotificationSetting.notSupported,
+                badge: AppleNotificationSetting.notSupported,
+                sound: AppleNotificationSetting.notSupported,
+                carPlay: AppleNotificationSetting.notSupported,
+                lockScreen: AppleNotificationSetting.notSupported,
+                notificationCenter: AppleNotificationSetting.notSupported,
+                showPreviews: AppleShowPreviewSetting.notSupported,
+                criticalAlert: AppleNotificationSetting.notSupported,
+                announcement: AppleNotificationSetting.notSupported,
+                timeSensitive: AppleNotificationSetting.notSupported,
+                providesAppNotificationSettings:
+                    AppleNotificationSetting.notSupported,
+              ),
+            );
+      } else if (Platform.isAndroid) {
+        await _firebaseMessaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationService: permission request error: $e');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Android notification channel
+  // ---------------------------------------------------------------------------
+
+  Future<void> _createAndroidNotificationChannel() async {
+    try {
+      const channel = AndroidNotificationChannel(
+        'canteen_pay',
+        'CanteenPay',
+        description: 'Notifications from CanteenPay',
+        importance: Importance.high,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(channel);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            'NotificationService: error creating Android channel: $e');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // FCM token management
+  // ---------------------------------------------------------------------------
+
+  Future<void> _setupFCMToken() async {
+    try {
+      _fcmToken = await _firebaseMessaging.getToken().timeout(
+            const Duration(seconds: 5),
+            onTimeout: () {
+              if (kDebugMode) {
+                debugPrint('NotificationService: getToken timeout');
+              }
+              return null;
+            },
+          );
+
+      if (_fcmToken != null) {
+        _sendTokenToBackend(_fcmToken!);
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationService: error getting FCM token: $e');
+      }
+    }
+  }
+
+  /// Manually refresh and re-send the FCM token.
+  /// Uses a Completer lock to prevent concurrent refresh attempts.
+  Future<void> refreshToken() async {
+    if (_fcmRefreshLock != null) {
+      if (kDebugMode) {
+        debugPrint(
+            'NotificationService: token refresh already in progress, waiting...');
+      }
+      await _fcmRefreshLock!.future;
+      return;
+    }
+
+    _fcmRefreshLock = Completer<void>();
+    try {
+      final token = await _firebaseMessaging.getToken();
+      if (token != null) {
+        final changed = token != _fcmToken;
+        _fcmToken = token;
+
+        if (changed) {
+          await _sendTokenToBackend(token);
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationService: error refreshing token: $e');
+      }
+    } finally {
+      _fcmRefreshLock!.complete();
+      _fcmRefreshLock = null;
+    }
+  }
+
+  /// Send the FCM token to the Supabase profiles table.
+  Future<void> _sendTokenToBackend(String token) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        if (kDebugMode) {
+          debugPrint(
+              'NotificationService: no authenticated user, skipping token save');
+        }
+        return;
+      }
+
+      final deviceId = await DeviceIdService().getDeviceId();
+
+      await supabase.from('profiles').update({
+        'fcm_token': token,
+        'device_id': deviceId,
+      }).eq('id', userId);
+
+      if (kDebugMode) {
+        debugPrint('NotificationService: FCM token saved to profiles');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationService: failed to save FCM token: $e');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Foreground message handling
+  // ---------------------------------------------------------------------------
+
+  void _handleForegroundMessage(RemoteMessage message) {
+    try {
+      if (kDebugMode) {
+        debugPrint(
+            'NotificationService: foreground message - ${message.notification?.title}');
+      }
+
+      if (message.notification != null) {
+        // Store in local history
+        NotificationStorageService.saveNotification(
+          title: message.notification!.title ?? 'Notification',
+          body: message.notification!.body ?? '',
+          data: message.data,
+        );
+
+        // Notify listeners (badge count update)
+        _notificationController.add({
+          'type': 'new_notification',
+          'title': message.notification!.title,
+          'body': message.notification!.body,
+        });
+
+        // On Android, show a local notification (iOS shows automatically via
+        // setForegroundNotificationPresentationOptions).
+        if (Platform.isAndroid) {
+          showLocalNotification(
+            id: message.hashCode,
+            title: message.notification!.title ?? 'CanteenPay',
+            body: message.notification!.body ?? '',
+            payload: jsonEncode(message.data),
+          );
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint(
+            'NotificationService: error handling foreground message: $e');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Notification tap handling
+  // ---------------------------------------------------------------------------
+
+  void _handleNotificationTap(Map<String, dynamic> data) {
+    try {
+      if (kDebugMode) {
+        debugPrint('NotificationService: notification tapped, data: $data');
+      }
+      onNotificationTapped?.call(data);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationService: error handling tap: $e');
+      }
+    }
+  }
+
+  void _onLocalNotificationTapped(NotificationResponse response) {
+    if (response.payload != null) {
+      try {
+        final data = jsonDecode(response.payload!) as Map<String, dynamic>;
+        _handleNotificationTap(data);
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint(
+              'NotificationService: error parsing local notification payload: $e');
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Show local notification
+  // ---------------------------------------------------------------------------
+
+  /// Display a local notification banner.
+  Future<void> showLocalNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    try {
+      const androidDetails = AndroidNotificationDetails(
+        'canteen_pay',
+        'CanteenPay',
+        channelDescription: 'Notifications from CanteenPay',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+      );
+
+      const details = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+
+      await _localNotifications.show(id, title, body, details,
+          payload: payload);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationService: error showing notification: $e');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Token cleanup (sign-out)
+  // ---------------------------------------------------------------------------
+
+  /// Clear the FCM token from backend and locally. Call on sign out.
+  Future<void> clearToken() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+
+      if (userId != null) {
+        await supabase.from('profiles').update({
+          'fcm_token': null,
+        }).eq('id', userId);
+      }
+
+      await _firebaseMessaging.deleteToken();
+      _fcmToken = null;
+
+      if (kDebugMode) {
+        debugPrint('NotificationService: token cleared');
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationService: error clearing token: $e');
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Dispose
+  // ---------------------------------------------------------------------------
+
+  /// Cancel stream subscriptions. Safe for singleton — does not close the
+  /// broadcast stream controller.
+  Future<void> dispose() async {
+    _onMessageSubscription?.cancel();
+    _onMessageOpenedAppSubscription?.cancel();
+    _onTokenRefreshSubscription?.cancel();
+    _initialized = false;
   }
 }

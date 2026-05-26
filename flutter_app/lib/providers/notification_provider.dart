@@ -1,100 +1,98 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:canteen_common/canteen_common.dart';
 
-/// A single notification entry.
-class NotificationItem {
-  final String id;
-  final String title;
-  final String body;
-  final String type; // purchase, deposit, low_balance
-  final DateTime createdAt;
-  bool isRead;
+/// Re-export NotificationItem from canteen_common so screens can import from
+/// this provider file without needing a separate import.
+export 'package:canteen_common/services/notification_storage_service.dart'
+    show NotificationItem;
 
-  NotificationItem({
-    required this.id,
-    required this.title,
-    required this.body,
-    required this.type,
-    required this.createdAt,
-    this.isRead = false,
-  });
-}
-
-/// Manages in-app notifications for the parent.
+/// Manages in-app notification state for the UI (badge count, list, read status).
+/// Backed by [NotificationStorageService] for persistence and
+/// [NotificationService.notificationStream] for real-time updates.
 class NotificationProvider extends ChangeNotifier {
   List<NotificationItem> _notifications = [];
+  int _unreadCount = 0;
+  StreamSubscription<Map<String, dynamic>>? _streamSubscription;
 
   List<NotificationItem> get notifications => _notifications;
+  int get unreadCount => _unreadCount;
 
-  int get unreadCount => _notifications.where((n) => !n.isRead).length;
+  /// Load notifications from local storage and start listening for new ones.
+  Future<void> loadNotifications() async {
+    try {
+      _notifications = await NotificationStorageService.getNotifications();
+      _unreadCount = await NotificationStorageService.getUnreadCount();
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationProvider: error loading notifications: $e');
+      }
+    }
 
-  /// Load demo notifications.
-  void loadNotifications() {
-    final now = DateTime.now();
-    _notifications = [
-      NotificationItem(
-        id: 'notif-1',
-        title: 'Purchase Alert',
-        body: 'Aung Kyaw Zin purchased Fried Rice for 1,500 MMK',
-        type: 'purchase',
-        createdAt: now.subtract(const Duration(hours: 1)),
-      ),
-      NotificationItem(
-        id: 'notif-2',
-        title: 'Purchase Alert',
-        body: 'Aye Aye Khine purchased Milk Tea for 1,000 MMK',
-        type: 'purchase',
-        createdAt: now.subtract(const Duration(hours: 2)),
-      ),
-      NotificationItem(
-        id: 'notif-3',
-        title: 'Deposit Confirmed',
-        body: '10,000 MMK deposited to Aung Kyaw Zin\'s account',
-        type: 'deposit',
-        createdAt: now.subtract(const Duration(days: 1)),
-        isRead: true,
-      ),
-      NotificationItem(
-        id: 'notif-4',
-        title: 'Low Balance Warning',
-        body: 'Aye Aye Khine\'s balance is below 3,000 MMK',
-        type: 'low_balance',
-        createdAt: now.subtract(const Duration(days: 1, hours: 5)),
-        isRead: true,
-      ),
-      NotificationItem(
-        id: 'notif-5',
-        title: 'Purchase Alert',
-        body: 'Aung Kyaw Zin purchased Noodle Soup for 2,000 MMK',
-        type: 'purchase',
-        createdAt: now.subtract(const Duration(days: 1, hours: 4)),
-        isRead: true,
-      ),
-      NotificationItem(
-        id: 'notif-6',
-        title: 'Deposit Confirmed',
-        body: '5,000 MMK deposited to Aye Aye Khine\'s account',
-        type: 'deposit',
-        createdAt: now.subtract(const Duration(days: 2)),
-        isRead: true,
-      ),
-    ];
-    notifyListeners();
+    // Subscribe to real-time notification events
+    _streamSubscription?.cancel();
+    _streamSubscription =
+        NotificationService.instance.notificationStream.listen((_) {
+      // Reload from storage when a new notification arrives
+      _reload();
+    });
+  }
+
+  Future<void> _reload() async {
+    try {
+      _notifications = await NotificationStorageService.getNotifications();
+      _unreadCount = await NotificationStorageService.getUnreadCount();
+      notifyListeners();
+    } catch (_) {}
   }
 
   /// Mark a single notification as read.
-  void markAsRead(String id) {
-    final index = _notifications.indexWhere((n) => n.id == id);
-    if (index != -1) {
-      _notifications[index].isRead = true;
-      notifyListeners();
+  Future<void> markAsRead(String id) async {
+    try {
+      await NotificationStorageService.markAsRead(id);
+      final index = _notifications.indexWhere((n) => n.id == id);
+      if (index != -1) {
+        _notifications[index] = _notifications[index].copyWith(isRead: true);
+        _unreadCount = _notifications.where((n) => !n.isRead).length;
+        notifyListeners();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationProvider: error marking as read: $e');
+      }
     }
   }
 
   /// Mark all notifications as read.
-  void markAllAsRead() {
-    for (final n in _notifications) {
-      n.isRead = true;
+  Future<void> markAllAsRead() async {
+    try {
+      await NotificationStorageService.markAllAsRead();
+      _notifications =
+          _notifications.map((n) => n.copyWith(isRead: true)).toList();
+      _unreadCount = 0;
+      notifyListeners();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('NotificationProvider: error marking all as read: $e');
+      }
     }
-    notifyListeners();
+  }
+
+  /// Clear all stored notifications.
+  Future<void> clearAll() async {
+    try {
+      await NotificationStorageService.clearAll();
+      _notifications = [];
+      _unreadCount = 0;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _streamSubscription?.cancel();
+    super.dispose();
   }
 }

@@ -59,6 +59,7 @@ export 'providers/auth_provider.dart';
 
 export 'services/supabase_service.dart';
 export 'services/notification_service.dart';
+export 'services/notification_storage_service.dart';
 export 'services/connectivity_service.dart';
 export 'services/logging_service.dart';
 export 'services/crash_reporting_service.dart';
