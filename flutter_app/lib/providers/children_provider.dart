@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
 
@@ -15,6 +16,13 @@ class ChildrenProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// Safely notify listeners, deferring if in build phase.
+  void _safeNotify() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      notifyListeners();
+    });
+  }
+
   /// Sum of all children's balances.
   int get totalBalance =>
       _wallets.values.fold<int>(0, (sum, w) => sum + w.balance);
@@ -26,7 +34,7 @@ class ChildrenProvider extends ChangeNotifier {
   Future<void> loadChildren(String parentId) async {
     _isLoading = true;
     _error = null;
-    notifyListeners();
+    _safeNotify();
 
     try {
       final links = await SupabaseService.instance.getStudentsForParent(parentId);

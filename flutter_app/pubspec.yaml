@@ -28,7 +28,7 @@ dependencies:
   qr_flutter: ^4.1.0
 
   # QR code scanning (seller)
-  mobile_scanner: ^5.0.0
+  mobile_scanner: ^6.0.0
 
   # Charts (parent spending)
   fl_chart: ^0.69.0

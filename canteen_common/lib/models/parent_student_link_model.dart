@@ -30,6 +30,31 @@ class ParentStudentLinkModel {
 
   /// Create ParentStudentLinkModel from JSON
   factory ParentStudentLinkModel.fromJson(Map<String, dynamic> json) {
+    // Parse student data (Supabase returns 'students' for the table name)
+    final studentData = json['student'] ?? json['students'];
+    StudentModel? student;
+    WalletModel? wallet;
+
+    if (studentData is Map<String, dynamic>) {
+      student = StudentModel.fromJson(studentData);
+
+      // Wallet is nested inside student data: students(*, wallets(*))
+      final walletData = studentData['wallets'] ?? studentData['wallet'];
+      if (walletData is Map<String, dynamic>) {
+        wallet = WalletModel.fromJson(walletData);
+      } else if (walletData is List && walletData.isNotEmpty) {
+        wallet = WalletModel.fromJson(walletData[0] as Map<String, dynamic>);
+      }
+    }
+
+    // Also check top-level wallet (for backward compatibility)
+    if (wallet == null) {
+      final topWallet = json['wallet'] ?? json['wallets'];
+      if (topWallet is Map<String, dynamic>) {
+        wallet = WalletModel.fromJson(topWallet);
+      }
+    }
+
     return ParentStudentLinkModel(
       id: json['id']?.toString() ?? '',
       parentId: json['parent_id']?.toString() ?? json['parentId']?.toString() ?? '',
@@ -41,16 +66,8 @@ class ParentStudentLinkModel {
           : json['createdAt'] != null
               ? DateTime.parse(json['createdAt'])
               : null,
-      student: json['student'] != null
-          ? StudentModel.fromJson(json['student'] as Map<String, dynamic>)
-          : json['students'] != null
-              ? StudentModel.fromJson(json['students'] as Map<String, dynamic>)
-              : null,
-      wallet: json['wallet'] != null
-          ? WalletModel.fromJson(json['wallet'] as Map<String, dynamic>)
-          : json['wallets'] != null
-              ? WalletModel.fromJson(json['wallets'] as Map<String, dynamic>)
-              : null,
+      student: student,
+      wallet: wallet,
     );
   }
 
