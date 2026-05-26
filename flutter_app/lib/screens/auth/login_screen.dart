@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
 
@@ -7,6 +8,9 @@ import '../../services/haptic_service.dart';
 import '../../widgets/error_card.dart';
 
 enum _AuthStep { phone, otp, profile, emailLogin }
+
+/// Key for storing biometric preference
+const _kBiometricEnabled = 'biometric_login_enabled';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,6 +32,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   late final AnimationController _shakeController;
   late final Animation<double> _shakeAnimation;
+  bool _checkingBiometric = true;
 
   @override
   void initState() {
@@ -42,6 +47,59 @@ class _LoginScreenState extends State<LoginScreen>
       TweenSequenceItem(tween: Tween(begin: 10, end: -6), weight: 2),
       TweenSequenceItem(tween: Tween(begin: -6, end: 0), weight: 1),
     ]).animate(CurvedAnimation(parent: _shakeController, curve: Curves.easeInOut));
+
+    // Try biometric login on app launch
+    WidgetsBinding.instance.addPostFrameCallback((_) => _tryBiometricLogin());
+  }
+
+  Future<void> _tryBiometricLogin() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final biometricEnabled = prefs.getBool(_kBiometricEnabled) ?? false;
+
+      if (!biometricEnabled) {
+        setState(() => _checkingBiometric = false);
+        return;
+      }
+
+      // Check if there's an existing session
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session == null) {
+        setState(() => _checkingBiometric = false);
+        return;
+      }
+
+      // Device supports biometric?
+      final biometric = BiometricService();
+      if (!await biometric.isAvailable()) {
+        setState(() => _checkingBiometric = false);
+        return;
+      }
+
+      // Prompt Face ID / Touch ID
+      final type = await biometric.getBiometricType();
+      final reason = type == 'face'
+          ? 'Unlock CanteenPay with Face ID'
+          : 'Unlock CanteenPay with fingerprint';
+
+      final authenticated = await biometric.authenticate(reason: reason);
+
+      if (authenticated && mounted) {
+        HapticService.success();
+        // Session is already valid — router will redirect to home
+      }
+    } catch (_) {}
+
+    if (mounted) setState(() => _checkingBiometric = false);
+  }
+
+  /// Enable biometric for future logins
+  static Future<void> enableBiometric() async {
+    final biometric = BiometricService();
+    if (await biometric.isAvailable()) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_kBiometricEnabled, true);
+    }
   }
 
   @override
@@ -102,6 +160,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (mounted) {
       if (success) {
         HapticService.success();
+        await enableBiometric(); // Enable Face ID for next login
         // Check if profile has a name — if not, show profile step
         if (auth.user?.fullName == null || auth.user!.fullName!.isEmpty) {
           setState(() => _step = _AuthStep.profile);
@@ -146,7 +205,13 @@ class _LoginScreenState extends State<LoginScreen>
     }
     final auth = context.read<AuthProvider>();
     final success = await auth.signInWithEmail(email, password);
-    if (!success && mounted) _shake();
+    if (mounted) {
+      if (success) {
+        await enableBiometric();
+      } else {
+        _shake();
+      }
+    }
   }
 
   void _shake() {
@@ -169,6 +234,44 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+
+    // Show biometric check screen
+    if (_checkingBiometric) {
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [AppTheme.primary, Color(0xFF0D47A1)],
+            ),
+          ),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 88,
+                  height: 88,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: const Icon(Icons.restaurant_rounded, size: 44, color: AppTheme.primary),
+                ),
+                const SizedBox(height: 24),
+                const Icon(Icons.fingerprint_rounded, size: 48, color: Colors.white),
+                const SizedBox(height: 12),
+                Text(
+                  'Verifying...',
+                  style: TextStyle(fontSize: 16, color: Colors.white.withValues(alpha: 0.8)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
