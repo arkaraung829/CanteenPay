@@ -138,15 +138,6 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Future<void> _demoLogin(String email, String password) async {
-    HapticService.selection();
-    final auth = context.read<AuthProvider>();
-    final success = await auth.signInWithEmail(email, password);
-    if (!success && mounted) {
-      _showError(auth.error ?? 'Demo login failed. Make sure Supabase is configured with demo accounts.');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -261,57 +252,6 @@ class _LoginScreenState extends State<LoginScreen>
                     _buildRegisterForm(auth),
                   ],
                 ),
-              ),
-
-              const SizedBox(height: 16),
-
-              // Divider
-              Row(
-                children: [
-                  Expanded(child: Divider(color: Colors.grey[300])),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      'Quick Demo',
-                      style: TextStyle(
-                        color: Colors.grey[500],
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  Expanded(child: Divider(color: Colors.grey[300])),
-                ],
-              ),
-
-              const SizedBox(height: 20),
-
-              // Demo role buttons
-              _DemoRoleButton(
-                icon: Icons.school,
-                label: 'Try as Student',
-                subtitle: 'View QR code, check balance & history',
-                color: AppTheme.primary,
-                isLoading: auth.isLoading,
-                onTap: () => _demoLogin('student@demo.canteenpay.com', 'demo123456'),
-              ),
-              const SizedBox(height: 12),
-              _DemoRoleButton(
-                icon: Icons.family_restroom,
-                label: 'Try as Parent',
-                subtitle: 'Monitor children, view spending & alerts',
-                color: AppTheme.success,
-                isLoading: auth.isLoading,
-                onTap: () => _demoLogin('parent@demo.canteenpay.com', 'demo123456'),
-              ),
-              const SizedBox(height: 12),
-              _DemoRoleButton(
-                icon: Icons.storefront,
-                label: 'Try as Seller',
-                subtitle: 'Scan QR codes, process payments',
-                color: AppTheme.secondary,
-                isLoading: auth.isLoading,
-                onTap: () => _demoLogin('seller@demo.canteenpay.com', 'demo123456'),
               ),
 
               const SizedBox(height: 32),
@@ -431,83 +371,3 @@ class _LoginScreenState extends State<LoginScreen>
   }
 }
 
-class _DemoRoleButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-  final bool isLoading;
-
-  const _DemoRoleButton({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-    this.isLoading = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        boxShadow: AppTheme.shadowSm,
-      ),
-      child: Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-      child: InkWell(
-        onTap: isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            border: Border.all(color: color.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: color,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.arrow_forward_ios, size: 16, color: color),
-            ],
-          ),
-        ),
-      ),
-      ),
-    );
-  }
-}
