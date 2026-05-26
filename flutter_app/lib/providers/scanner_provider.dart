@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 /// Manages QR scan state for the seller terminal.
@@ -23,8 +24,12 @@ class ScannerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Clean QR data — trim whitespace/newlines
+      final cleanQr = qrData.trim();
+      debugPrint('ScannerProvider: looking up QR data: "$cleanQr"');
+
       // Look up student by QR data
-      final student = await SupabaseService.instance.getStudentByQr(qrData);
+      final student = await SupabaseService.instance.getStudentByQr(cleanQr);
       if (student == null) {
         _error = 'Student not found for this QR code';
         _isProcessing = false;
