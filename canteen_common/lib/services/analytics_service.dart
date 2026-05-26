@@ -13,13 +13,27 @@ class AnalyticsService {
   factory AnalyticsService() => _instance;
   AnalyticsService._internal();
 
-  final FirebaseAnalytics _analytics = FirebaseAnalytics.instance;
+  FirebaseAnalytics? _analytics;
   final LoggingService _logger = LoggingService();
   bool _isInitialized = false;
 
-  /// Get the analytics observer for navigation tracking
-  FirebaseAnalyticsObserver get observer =>
-      FirebaseAnalyticsObserver(analytics: _analytics);
+  /// Lazy access to Firebase Analytics — returns null if Firebase not configured.
+  FirebaseAnalytics? get _safeAnalytics {
+    if (_analytics != null) return _analytics;
+    try {
+      _analytics = FirebaseAnalytics.instance;
+      return _analytics;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Get the analytics observer for navigation tracking (safe — no-ops if unavailable)
+  FirebaseAnalyticsObserver? get observer {
+    final a = _safeAnalytics;
+    if (a == null) return null;
+    return FirebaseAnalyticsObserver(analytics: a);
+  }
 
   /// Initialize analytics service
   Future<void> initialize() async {
@@ -28,10 +42,10 @@ class AnalyticsService {
     try {
       // Disable analytics collection in debug mode for clean data
       if (kDebugMode) {
-        await _analytics.setAnalyticsCollectionEnabled(false);
+        await _safeAnalytics?.setAnalyticsCollectionEnabled(false);
         _logger.debug('Analytics disabled in debug mode', tag: 'ANALYTICS');
       } else {
-        await _analytics.setAnalyticsCollectionEnabled(true);
+        await _safeAnalytics?.setAnalyticsCollectionEnabled(true);
         _logger.info('Analytics initialized for production', tag: 'ANALYTICS');
       }
 
@@ -49,7 +63,7 @@ class AnalyticsService {
   /// Set user ID for analytics (call after login)
   Future<void> setUserId(String userId) async {
     try {
-      await _analytics.setUserId(id: userId);
+      await _safeAnalytics?.setUserId(id: userId);
       _logger.debug('Analytics user ID set', tag: 'ANALYTICS');
     } catch (e) {
       _logger.error('Failed to set analytics user ID',
@@ -60,7 +74,7 @@ class AnalyticsService {
   /// Clear user ID (call on logout)
   Future<void> clearUserId() async {
     try {
-      await _analytics.setUserId(id: null);
+      await _safeAnalytics?.setUserId(id: null);
       _logger.debug('Analytics user ID cleared', tag: 'ANALYTICS');
     } catch (e) {
       _logger.error('Failed to clear analytics user ID',
@@ -72,10 +86,10 @@ class AnalyticsService {
   Future<void> setUserProperties({String? role, String? schoolId}) async {
     try {
       if (role != null) {
-        await _analytics.setUserProperty(name: 'user_role', value: role);
+        await _safeAnalytics?.setUserProperty(name: 'user_role', value: role);
       }
       if (schoolId != null) {
-        await _analytics.setUserProperty(name: 'school_id', value: schoolId);
+        await _safeAnalytics?.setUserProperty(name: 'school_id', value: schoolId);
       }
     } catch (e) {
       _logger.error('Failed to set user properties',
@@ -90,7 +104,7 @@ class AnalyticsService {
   /// Log screen view
   Future<void> logScreenView(String screenName, {String? screenClass}) async {
     try {
-      await _analytics.logScreenView(
+      await _safeAnalytics?.logScreenView(
         screenName: screenName,
         screenClass: screenClass,
       );
@@ -109,7 +123,7 @@ class AnalyticsService {
   /// Log login event
   Future<void> logLogin(String method) async {
     try {
-      await _analytics.logLogin(loginMethod: method);
+      await _safeAnalytics?.logLogin(loginMethod: method);
     } catch (e) {
       _logger.error('Failed to log login', tag: 'ANALYTICS', error: e);
     }
@@ -118,7 +132,7 @@ class AnalyticsService {
   /// Log sign up event
   Future<void> logSignUp(String method) async {
     try {
-      await _analytics.logSignUp(signUpMethod: method);
+      await _safeAnalytics?.logSignUp(signUpMethod: method);
     } catch (e) {
       _logger.error('Failed to log sign up', tag: 'ANALYTICS', error: e);
     }
@@ -135,7 +149,7 @@ class AnalyticsService {
     required String sellerName,
   }) async {
     try {
-      await _analytics.logEvent(
+      await _safeAnalytics?.logEvent(
         name: 'canteen_purchase',
         parameters: {
           'amount': amount,
@@ -157,7 +171,7 @@ class AnalyticsService {
     required String studentName,
   }) async {
     try {
-      await _analytics.logEvent(
+      await _safeAnalytics?.logEvent(
         name: 'balance_deposit',
         parameters: {
           'amount': amount,
@@ -172,7 +186,7 @@ class AnalyticsService {
   /// Log QR code scanned by seller
   Future<void> logQrScan(String studentId) async {
     try {
-      await _analytics.logEvent(
+      await _safeAnalytics?.logEvent(
         name: 'qr_scan',
         parameters: {
           'student_id': studentId,
@@ -186,7 +200,7 @@ class AnalyticsService {
   /// Log student checking their balance
   Future<void> logBalanceCheck(double balance) async {
     try {
-      await _analytics.logEvent(
+      await _safeAnalytics?.logEvent(
         name: 'balance_check',
         parameters: {
           'balance': balance,
@@ -201,7 +215,7 @@ class AnalyticsService {
   /// Log parent linking a child
   Future<void> logChildLinked(String studentId) async {
     try {
-      await _analytics.logEvent(
+      await _safeAnalytics?.logEvent(
         name: 'child_linked',
         parameters: {
           'student_id': studentId,
@@ -223,7 +237,7 @@ class AnalyticsService {
     Map<String, Object>? parameters,
   }) async {
     try {
-      await _analytics.logEvent(
+      await _safeAnalytics?.logEvent(
         name: name,
         parameters: parameters,
       );
@@ -239,7 +253,7 @@ class AnalyticsService {
   /// Log app open
   Future<void> logAppOpen() async {
     try {
-      await _analytics.logAppOpen();
+      await _safeAnalytics?.logAppOpen();
     } catch (e) {
       _logger.error('Failed to log app open', tag: 'ANALYTICS', error: e);
     }
