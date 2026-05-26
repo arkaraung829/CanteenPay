@@ -5,7 +5,9 @@ import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/scanner_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../services/haptic_service.dart';
 import '../../widgets/amount_keypad.dart';
+import '../../widgets/error_card.dart';
 
 /// Payment confirmation screen shown after scanning a student QR code.
 class PaymentConfirmScreen extends StatefulWidget {
@@ -18,6 +20,7 @@ class PaymentConfirmScreen extends StatefulWidget {
 class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   String _amount = '0';
   bool _isCharging = false;
+  String? _chargeError;
 
   int get _amountInt => int.tryParse(_amount) ?? 0;
 
@@ -26,6 +29,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
   }
 
   Future<void> _onCharge() async {
+    HapticService.heavy();
+
     final scanner = context.read<ScannerProvider>();
     final sales = context.read<SalesProvider>();
     final auth = context.read<AuthProvider>();
@@ -34,7 +39,38 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
     if (student == null || wallet == null || _amountInt <= 0) return;
 
-    setState(() => _isCharging = true);
+    // Confirmation dialog for large amounts (> 10,000 MMK)
+    if (_amountInt > 10000) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Confirm Large Amount'),
+          content: Text(
+            'You are about to charge ${CurrencyFormatter.formatMMK(_amountInt)}. '
+            'Are you sure this is correct?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.error,
+              ),
+              child: const Text('Confirm'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
+
+    setState(() {
+      _isCharging = true;
+      _chargeError = null;
+    });
 
     try {
       // Call the real Supabase RPC for purchase processing
@@ -76,14 +112,12 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
         });
       }
     } catch (e) {
+      HapticService.error();
       if (mounted) {
-        setState(() => _isCharging = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Payment failed: $e'),
-            backgroundColor: AppTheme.error,
-          ),
-        );
+        setState(() {
+          _isCharging = false;
+          _chargeError = 'Payment failed: $e';
+        });
       }
     }
   }
@@ -199,32 +233,25 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
             ),
           ),
 
-          // Balance warning
+          // Insufficient balance ErrorCard
           if (insufficientBalance && _amountInt > 0)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.error.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border:
-                    Border.all(color: AppTheme.error.withValues(alpha: 0.3)),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: ErrorCard(
+                message:
+                    'Insufficient balance! Student only has ${CurrencyFormatter.formatMMK(wallet.balance)}',
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber,
-                      color: AppTheme.error, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Insufficient balance! Student only has ${CurrencyFormatter.formatMMK(wallet.balance)}',
-                      style: const TextStyle(
-                        color: AppTheme.error,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ],
+            ),
+
+          // Charge error ErrorCard
+          if (_chargeError != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16)
+                  .copyWith(top: 8),
+              child: ErrorCard(
+                message: _chargeError!,
+                onDismiss: () => setState(() => _chargeError = null),
+                onRetry: _onCharge,
               ),
             ),
 

@@ -14,16 +14,21 @@ export 'package:canteen_common/services/notification_storage_service.dart'
 class NotificationProvider extends ChangeNotifier {
   List<NotificationItem> _notifications = [];
   int _unreadCount = 0;
+  bool _isLoading = false;
   StreamSubscription<Map<String, dynamic>>? _streamSubscription;
 
   List<NotificationItem> get notifications => _notifications;
   int get unreadCount => _unreadCount;
+  bool get isLoading => _isLoading;
 
   /// Load notifications from local storage and start listening for new ones.
   Future<void> loadNotifications() async {
+    _isLoading = true;
+    notifyListeners();
     try {
       _notifications = await NotificationStorageService.getNotifications();
       _unreadCount = await NotificationStorageService.getUnreadCount();
+      _isLoading = false;
       notifyListeners();
     } catch (e) {
       if (kDebugMode) {

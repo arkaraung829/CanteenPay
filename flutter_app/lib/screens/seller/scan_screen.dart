@@ -6,6 +6,8 @@ import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/scanner_provider.dart';
 import '../../providers/sales_provider.dart';
+import '../../services/haptic_service.dart';
+import '../../widgets/error_card.dart';
 
 /// Main scan screen with camera QR scanner.
 class ScanScreen extends StatefulWidget {
@@ -19,6 +21,7 @@ class _ScanScreenState extends State<ScanScreen> {
   MobileScannerController? _cameraController;
   bool _hasScanned = false;
   bool _hasLoadedSales = false;
+  String? _scanError;
 
   @override
   void initState() {
@@ -53,6 +56,7 @@ class _ScanScreenState extends State<ScanScreen> {
     if (barcode?.rawValue == null) return;
 
     _hasScanned = true;
+    HapticService.medium();
     _processScannedData(barcode!.rawValue!);
   }
 
@@ -62,14 +66,12 @@ class _ScanScreenState extends State<ScanScreen> {
 
     if (mounted) {
       if (scanner.scannedStudent != null) {
+        HapticService.success();
+        setState(() => _scanError = null);
         context.push('/seller/payment-confirm');
       } else if (scanner.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(scanner.error!),
-            backgroundColor: AppTheme.error,
-          ),
-        );
+        HapticService.error();
+        setState(() => _scanError = scanner.error);
         scanner.reset();
       }
     }
@@ -154,6 +156,17 @@ class _ScanScreenState extends State<ScanScreen> {
                   ],
                 ),
               ),
+
+              // Scan error displayed as ErrorCard
+              if (_scanError != null)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: ErrorCard(
+                    message: _scanError!,
+                    onDismiss: () => setState(() => _scanError = null),
+                    onRetry: _simulateDemoScan,
+                  ),
+                ),
 
               // Scanner area
               Expanded(

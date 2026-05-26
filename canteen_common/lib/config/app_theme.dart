@@ -8,6 +8,54 @@ class AppTheme {
   AppTheme._();
 
   // ============================================================================
+  // SPACING
+  // ============================================================================
+
+  static const double spacingXs = 4;
+  static const double spacingSm = 8;
+  static const double spacingMd = 16;
+  static const double spacingLg = 24;
+  static const double spacingXl = 32;
+  static const double spacing2xl = 48;
+
+  // ============================================================================
+  // SHADOWS
+  // ============================================================================
+
+  static List<BoxShadow> get shadowSm => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.05),
+          blurRadius: 4,
+          offset: const Offset(0, 1),
+        ),
+      ];
+
+  static List<BoxShadow> get shadowMd => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.08),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ];
+
+  static List<BoxShadow> get shadowLg => [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.12),
+          blurRadius: 16,
+          offset: const Offset(0, 4),
+        ),
+      ];
+
+  // ============================================================================
+  // BORDER RADIUS
+  // ============================================================================
+
+  static const double radiusSm = 8;
+  static const double radiusMd = 12;
+  static const double radiusLg = 16;
+  static const double radiusXl = 24;
+
+  // ============================================================================
   // BRAND COLORS
   // ============================================================================
 

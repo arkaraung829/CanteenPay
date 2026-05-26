@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/student_provider.dart';
+import '../../widgets/shimmer_loading.dart';
+import '../../widgets/animated_fade_in.dart';
 
 /// Transaction history screen.
 ///
@@ -24,65 +26,79 @@ class TransactionHistoryScreen extends StatelessWidget {
           backgroundColor: AppTheme.background,
           appBar: AppBar(title: const Text('Transaction History')),
           body: RefreshIndicator(
+            color: AppTheme.primary,
             onRefresh: provider.refresh,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // -- Summary card --
-                _SummaryCard(
-                  balance: wallet?.formattedBalance ?? '0 MMK',
-                  spentToday:
-                      CurrencyFormatter.formatMMK(provider.totalSpentToday),
-                ),
-                const SizedBox(height: 16),
-
-                // -- Grouped transactions --
-                if (transactions.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 48),
-                    child: Center(
-                      child: Text(
-                        'No transactions yet',
-                        style: TextStyle(color: AppTheme.textSecondary),
+            child: provider.isLoading && transactions.isEmpty
+                ? _buildLoadingSkeleton()
+                : ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // -- Summary card --
+                      AnimatedFadeIn(
+                        child: _SummaryCard(
+                          balance: wallet?.formattedBalance ?? '0 MMK',
+                          spentToday: CurrencyFormatter.formatMMK(
+                              provider.totalSpentToday),
+                        ),
                       ),
-                    ),
-                  )
-                else
-                  ...grouped.entries.map((entry) {
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 4,
-                          ),
-                          child: Text(
-                            entry.key,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ),
-                        Card(
-                          margin: EdgeInsets.zero,
+                      const SizedBox(height: 16),
+
+                      // -- Grouped transactions --
+                      if (transactions.isEmpty)
+                        EmptyStateWidget.noTransactions()
+                      else
+                        AnimatedFadeIn(
                           child: Column(
-                            children: entry.value
-                                .map((t) => TransactionTile(transaction: t))
-                                .toList(),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: grouped.entries.map((entry) {
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 8,
+                                      horizontal: 4,
+                                    ),
+                                    child: Text(
+                                      entry.key,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppTheme.textSecondary,
+                                      ),
+                                    ),
+                                  ),
+                                  Card(
+                                    margin: EdgeInsets.zero,
+                                    child: Column(
+                                      children: entry.value
+                                          .map((t) =>
+                                              TransactionTile(transaction: t))
+                                          .toList(),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 12),
+                                ],
+                              );
+                            }).toList(),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                      ],
-                    );
-                  }),
-              ],
-            ),
+                    ],
+                  ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildLoadingSkeleton() {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        ShimmerLoading.card(height: 80),
+        const SizedBox(height: 16),
+        for (int i = 0; i < 5; i++) ShimmerLoading.listTile(),
+      ],
     );
   }
 

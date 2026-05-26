@@ -29,6 +29,12 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  /// Clears the current error state.
+  void clearError() {
+    _error = null;
+    safeNotifyListeners();
+  }
+
   // Role checking getters
   bool get isAdmin => _user?.isAdmin ?? false;
   bool get isParent => _user?.isParent ?? false;

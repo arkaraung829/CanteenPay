@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 /// Card widget showing a child's summary on the home screen.
+/// Features layered shadow, gradient accent on balance, and time-ago formatting.
 class ChildCard extends StatelessWidget {
   final StudentModel child;
   final WalletModel? wallet;
@@ -16,80 +17,137 @@ class ChildCard extends StatelessWidget {
     this.onTap,
   });
 
+  String _timeAgo(DateTime? dateTime) {
+    if (dateTime == null) return '';
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dateTime.day}/${dateTime.month}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final balance = wallet?.balance ?? 0;
     final isLow = wallet?.isLowBalance ?? false;
     final initial = child.displayName.isNotEmpty ? child.displayName[0] : '?';
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              // Avatar
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                child: Text(
-                  initial,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.primary,
+    return Container(
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacingMd,
+        vertical: 6,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        boxShadow: AppTheme.shadowMd,
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          child: Padding(
+            padding: const EdgeInsets.all(AppTheme.spacingMd),
+            child: Row(
+              children: [
+                // Avatar
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              // Name & class
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      child.displayName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      child.gradeAndClass,
-                      style: const TextStyle(
-                        color: AppTheme.textSecondary,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (lastTransaction != null) ...[
-                      const SizedBox(height: 4),
+                const SizedBox(width: 14),
+                // Name & class
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        'Last: ${lastTransaction!.description ?? lastTransaction!.type}',
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 12,
+                        child.displayName,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 2),
+                      Text(
+                        child.gradeAndClass,
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 13,
+                        ),
+                      ),
+                      if (lastTransaction != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.access_time,
+                              size: 12,
+                              color: Colors.grey[400],
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                '${lastTransaction!.description ?? lastTransaction!.type} - ${_timeAgo(lastTransaction!.createdAt)}',
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
-              // Balance
-              Text(
-                CurrencyFormatter.formatMMK(balance),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                  color: isLow ? AppTheme.error : AppTheme.success,
+                const SizedBox(width: 8),
+                // Balance with gradient accent
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: isLow
+                          ? [
+                              AppTheme.error.withValues(alpha: 0.08),
+                              AppTheme.error.withValues(alpha: 0.15),
+                            ]
+                          : [
+                              AppTheme.success.withValues(alpha: 0.08),
+                              AppTheme.success.withValues(alpha: 0.15),
+                            ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  ),
+                  child: Text(
+                    CurrencyFormatter.formatMMK(balance),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: isLow ? AppTheme.error : AppTheme.success,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

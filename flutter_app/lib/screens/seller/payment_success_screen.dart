@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:canteen_common/canteen_common.dart';
 
+import '../../services/haptic_service.dart';
+import '../../widgets/success_animation.dart';
+
 /// Success screen displayed after a payment is processed.
 class PaymentSuccessScreen extends StatefulWidget {
   final String studentName;
@@ -24,17 +27,14 @@ class PaymentSuccessScreen extends StatefulWidget {
 }
 
 class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
-  bool _showCheck = false;
   Timer? _autoReturnTimer;
 
   @override
   void initState() {
     super.initState();
 
-    // Animate the checkmark in
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (mounted) setState(() => _showCheck = true);
-    });
+    // Haptic feedback on success
+    HapticService.success();
 
     // Auto-return to scan screen after 5 seconds
     _autoReturnTimer = Timer(const Duration(seconds: 5), () {
@@ -59,32 +59,9 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Animated checkmark
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.elasticOut,
-                  width: _showCheck ? 120 : 0,
-                  height: _showCheck ? 120 : 0,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.15),
-                        blurRadius: 20,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 400),
-                    opacity: _showCheck ? 1.0 : 0.0,
-                    child: const Icon(
-                      Icons.check,
-                      color: AppTheme.success,
-                      size: 64,
-                    ),
-                  ),
+                // Animated checkmark using SuccessAnimation widget
+                SuccessAnimation(
+                  size: 120,
                 ),
 
                 const SizedBox(height: 32),
@@ -100,7 +77,7 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
 
                 const SizedBox(height: 32),
 
-                // Transaction receipt card
+                // Transaction receipt card with enhanced shadow
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 32),
                   padding: const EdgeInsets.all(24),
@@ -109,9 +86,14 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 16,
-                        offset: const Offset(0, 4),
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                      BoxShadow(
+                        color: AppTheme.success.withValues(alpha: 0.2),
+                        blurRadius: 40,
+                        spreadRadius: 2,
                       ),
                     ],
                   ),

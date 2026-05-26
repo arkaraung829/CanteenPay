@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
+import '../../services/haptic_service.dart';
+import '../../widgets/error_card.dart';
+import '../../widgets/validated_text_field.dart';
+
 /// Login screen with email/password fields and quick demo buttons.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -11,7 +15,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _registerEmailController = TextEditingController();
@@ -20,10 +24,29 @@ class _LoginScreenState extends State<LoginScreen>
   String _registerRole = 'student';
   late TabController _tabController;
 
+  // Shake animation for login failure
+  late final AnimationController _shakeController;
+  late final Animation<double> _shakeAnimation;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 0, end: -10), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: -10, end: 10), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 10, end: -8), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: -8, end: 6), weight: 2),
+      TweenSequenceItem(tween: Tween(begin: 6, end: 0), weight: 1),
+    ]).animate(CurvedAnimation(
+      parent: _shakeController,
+      curve: Curves.easeInOut,
+    ));
   }
 
   @override
@@ -34,14 +57,34 @@ class _LoginScreenState extends State<LoginScreen>
     _registerPasswordController.dispose();
     _registerNameController.dispose();
     _tabController.dispose();
+    _shakeController.dispose();
     super.dispose();
   }
 
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) return 'Email is required';
+    final emailRegex = RegExp(r'^[\w\.\-]+@[\w\.\-]+\.\w{2,}$');
+    if (!emailRegex.hasMatch(value)) return 'Enter a valid email address';
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) return 'Password is required';
+    if (value.length < 6) return 'Password must be at least 6 characters';
+    return null;
+  }
+
   Future<void> _login() async {
+    HapticService.selection();
+
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
-    if (email.isEmpty || password.isEmpty) {
-      _showError('Please enter both email and password');
+
+    final emailError = _validateEmail(email);
+    final passwordError = _validatePassword(password);
+    if (emailError != null || passwordError != null) {
+      _showError(emailError ?? passwordError!);
+      _triggerShake();
       return;
     }
 
@@ -49,11 +92,19 @@ class _LoginScreenState extends State<LoginScreen>
     final success = await auth.signInWithEmail(email, password);
     if (!success && mounted) {
       _showError(auth.error ?? 'Login failed');
+      _triggerShake();
     }
     // On success, the router redirect handles navigation automatically
   }
 
+  void _triggerShake() {
+    HapticService.error();
+    _shakeController.forward(from: 0);
+  }
+
   Future<void> _register() async {
+    HapticService.selection();
+
     final email = _registerEmailController.text.trim();
     final password = _registerPasswordController.text.trim();
     final name = _registerNameController.text.trim();
@@ -66,6 +117,7 @@ class _LoginScreenState extends State<LoginScreen>
     final success = await auth.signUp(email, password, name, _registerRole);
     if (mounted) {
       if (success) {
+        HapticService.success();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Account created! Please check your email to verify, then log in.'),
@@ -73,6 +125,7 @@ class _LoginScreenState extends State<LoginScreen>
         );
         _tabController.animateTo(0);
       } else {
+        HapticService.error();
         _showError(auth.error ?? 'Registration failed');
       }
     }
@@ -86,6 +139,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _demoLogin(String email, String password) async {
+    HapticService.selection();
     final auth = context.read<AuthProvider>();
     final success = await auth.signInWithEmail(email, password);
     if (!success && mounted) {
@@ -139,22 +193,13 @@ class _LoginScreenState extends State<LoginScreen>
               ),
               const SizedBox(height: 24),
 
-              // Error banner
+              // Error banner using ErrorCard
               if (auth.error != null)
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.error.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppTheme.error.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Text(
-                    auth.error!,
-                    style: const TextStyle(color: AppTheme.error, fontSize: 13),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: ErrorCard(
+                    message: auth.error!,
+                    onDismiss: () => auth.clearError(),
                   ),
                 ),
 
@@ -182,13 +227,22 @@ class _LoginScreenState extends State<LoginScreen>
               ),
               const SizedBox(height: 20),
 
-              // Tab views
+              // Tab views with shake animation on the login form
               SizedBox(
-                height: 220,
+                height: 260,
                 child: TabBarView(
                   controller: _tabController,
                   children: [
-                    _buildLoginForm(auth),
+                    AnimatedBuilder(
+                      animation: _shakeAnimation,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: Offset(_shakeAnimation.value, 0),
+                          child: child,
+                        );
+                      },
+                      child: _buildLoginForm(auth),
+                    ),
                     _buildRegisterForm(auth),
                   ],
                 ),
@@ -256,22 +310,20 @@ class _LoginScreenState extends State<LoginScreen>
   Widget _buildLoginForm(AuthProvider auth) {
     return Column(
       children: [
-        TextField(
+        ValidatedTextField(
           controller: _emailController,
+          label: 'Email',
+          prefixIcon: Icons.email_outlined,
           keyboardType: TextInputType.emailAddress,
-          decoration: const InputDecoration(
-            labelText: 'Email',
-            prefixIcon: Icon(Icons.email_outlined),
-          ),
+          validator: _validateEmail,
         ),
         const SizedBox(height: 16),
-        TextField(
+        ValidatedTextField(
           controller: _passwordController,
+          label: 'Password',
+          prefixIcon: Icons.lock_outlined,
           obscureText: true,
-          decoration: const InputDecoration(
-            labelText: 'Password',
-            prefixIcon: Icon(Icons.lock_outlined),
-          ),
+          validator: _validatePassword,
         ),
         const SizedBox(height: 24),
         SizedBox(

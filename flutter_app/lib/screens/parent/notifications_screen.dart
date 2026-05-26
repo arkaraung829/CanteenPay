@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/notification_provider.dart';
+import '../../widgets/shimmer_loading.dart';
+import '../../widgets/animated_fade_in.dart';
 
 /// Notification list screen.
 class NotificationsScreen extends StatelessWidget {
@@ -62,45 +64,54 @@ class NotificationsScreen extends StatelessWidget {
             ),
         ],
       ),
-      body: notifications.isEmpty
-          ? const Center(child: Text('No notifications'))
-          : ListView.separated(
-              itemCount: notifications.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final notif = notifications[index];
-                final color = _colorForType(notif.type ?? 'system');
-                return ListTile(
-                  tileColor: notif.isRead
-                      ? null
-                      : AppTheme.primary.withValues(alpha: 0.04),
-                  leading: CircleAvatar(
-                    backgroundColor: color.withValues(alpha: 0.1),
-                    child: Icon(
-                      _iconForType(notif.type ?? 'system'),
-                      color: color,
-                      size: 20,
-                    ),
+      body: provider.isLoading
+          ? ListView(
+              children: [
+                for (int i = 0; i < 6; i++) ShimmerLoading.listTile(),
+              ],
+            )
+          : notifications.isEmpty
+              ? EmptyStateWidget.noNotifications()
+              : AnimatedFadeIn(
+                  child: ListView.separated(
+                    itemCount: notifications.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final notif = notifications[index];
+                      final color = _colorForType(notif.type ?? 'system');
+                      return ListTile(
+                        tileColor: notif.isRead
+                            ? null
+                            : AppTheme.primary.withValues(alpha: 0.04),
+                        leading: CircleAvatar(
+                          backgroundColor: color.withValues(alpha: 0.1),
+                          child: Icon(
+                            _iconForType(notif.type ?? 'system'),
+                            color: color,
+                            size: 20,
+                          ),
+                        ),
+                        title: Text(
+                          notif.title,
+                          style: TextStyle(
+                            fontWeight: notif.isRead
+                                ? FontWeight.normal
+                                : FontWeight.bold,
+                          ),
+                        ),
+                        subtitle: Text(notif.body),
+                        trailing: Text(
+                          _timeAgo(notif.timestamp),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                        onTap: () => provider.markAsRead(notif.id),
+                      );
+                    },
                   ),
-                  title: Text(
-                    notif.title,
-                    style: TextStyle(
-                      fontWeight:
-                          notif.isRead ? FontWeight.normal : FontWeight.bold,
-                    ),
-                  ),
-                  subtitle: Text(notif.body),
-                  trailing: Text(
-                    _timeAgo(notif.timestamp),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                  onTap: () => provider.markAsRead(notif.id),
-                );
-              },
-            ),
+                ),
     );
   }
 }

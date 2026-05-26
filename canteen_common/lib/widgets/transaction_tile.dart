@@ -1,7 +1,8 @@
 /// Transaction Tile Widget
 ///
 /// A ListTile for displaying a single transaction in a history list.
-/// Shows a directional icon, formatted amount, description, and time.
+/// Shows a directional icon, formatted amount, description, time,
+/// and a colored left border accent.
 import 'package:flutter/material.dart';
 
 import '../config/app_theme.dart';
@@ -20,43 +21,103 @@ class TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDebit = transaction.isDebit;
+    final accentColor = isDebit ? AppTheme.error : AppTheme.success;
 
-    return ListTile(
-      onTap: onTap,
-      leading: CircleAvatar(
-        backgroundColor:
-            (isDebit ? AppTheme.error : AppTheme.success).withValues(alpha: 0.1),
-        child: Icon(
-          isDebit ? Icons.arrow_downward : Icons.arrow_upward,
-          color: isDebit ? AppTheme.error : AppTheme.success,
-          size: 20,
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: accentColor,
+            width: 3,
+          ),
         ),
       ),
-      title: Text(
-        transaction.description ?? transaction.type,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontWeight: FontWeight.w500),
-      ),
-      subtitle: Text(
-        _timeAgo(transaction.createdAt),
-        style: TextStyle(
-          color: Colors.grey[600],
-          fontSize: 12,
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: accentColor.withValues(alpha: 0.1),
+          child: Icon(
+            isDebit ? Icons.arrow_downward : Icons.arrow_upward,
+            color: accentColor,
+            size: 20,
+          ),
         ),
-      ),
-      trailing: Text(
-        transaction.formattedAmount,
-        style: TextStyle(
-          color: isDebit ? AppTheme.error : AppTheme.success,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
+        title: Text(
+          transaction.description ?? transaction.type,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Row(
+            children: [
+              Icon(
+                Icons.access_time,
+                size: 12,
+                color: Colors.grey[500],
+              ),
+              const SizedBox(width: 4),
+              Text(
+                _timeAgo(transaction.createdAt),
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 12,
+                ),
+              ),
+              if (transaction.sellerName != null) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.storefront,
+                  size: 12,
+                  color: Colors.grey[500],
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    transaction.sellerName!,
+                    style: TextStyle(
+                      color: Colors.grey[500],
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              transaction.formattedAmount,
+              style: TextStyle(
+                color: accentColor,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+            ),
+            if (transaction.balanceAfter != null)
+              Text(
+                'Bal: ${transaction.balanceAfter}',
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 11,
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
 
-  /// Simple time ago formatter
+  /// Simple time ago formatter.
   String _timeAgo(DateTime? dateTime) {
     if (dateTime == null) return '';
     final diff = DateTime.now().difference(dateTime);

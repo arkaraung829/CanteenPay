@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:canteen_common/canteen_common.dart';
 
+import '../services/haptic_service.dart';
+
 /// Custom numeric keypad for entering payment amounts.
 class AmountKeypad extends StatelessWidget {
   final String currentAmount;
@@ -15,6 +17,7 @@ class AmountKeypad extends StatelessWidget {
   });
 
   void _onDigit(String digit) {
+    HapticService.selection();
     if (currentAmount == '0') {
       onAmountChanged(digit);
     } else {
@@ -27,6 +30,7 @@ class AmountKeypad extends StatelessWidget {
   }
 
   void _onBackspace() {
+    HapticService.light();
     if (currentAmount.length <= 1) {
       onAmountChanged('0');
     } else {
@@ -35,10 +39,12 @@ class AmountKeypad extends StatelessWidget {
   }
 
   void _onClear() {
+    HapticService.light();
     onAmountChanged('0');
   }
 
   void _onQuickAmount(int amount) {
+    HapticService.selection();
     onAmountChanged(amount.toString());
   }
 
@@ -156,7 +162,7 @@ class AmountKeypad extends StatelessWidget {
   }
 }
 
-class _KeypadButton extends StatelessWidget {
+class _KeypadButton extends StatefulWidget {
   final String label;
   final VoidCallback onPressed;
 
@@ -166,31 +172,68 @@ class _KeypadButton extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final isAction = label == 'C' || label == '<';
+  State<_KeypadButton> createState() => _KeypadButtonState();
+}
 
-    return Material(
-      color: isAction ? Colors.grey[200] : Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onPressed,
+class _KeypadButtonState extends State<_KeypadButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _scaleController;
+  late final Animation<double> _scaleAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 100),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _scaleController.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    _scaleController.forward().then((_) {
+      _scaleController.reverse();
+    });
+    widget.onPressed();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isAction = widget.label == 'C' || widget.label == '<';
+
+    return ScaleTransition(
+      scale: _scaleAnimation,
+      child: Material(
+        color: isAction ? Colors.grey[200] : Colors.white,
         borderRadius: BorderRadius.circular(12),
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[300]!),
-          ),
-          child: label == '<'
-              ? const Icon(Icons.backspace_outlined, size: 24)
-              : Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: isAction ? 18 : 24,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+        child: InkWell(
+          onTap: _handleTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey[300]!),
+            ),
+            child: widget.label == '<'
+                ? const Icon(Icons.backspace_outlined, size: 24)
+                : Text(
+                    widget.label,
+                    style: TextStyle(
+                      fontSize: isAction ? 18 : 24,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
                   ),
-                ),
+          ),
         ),
       ),
     );

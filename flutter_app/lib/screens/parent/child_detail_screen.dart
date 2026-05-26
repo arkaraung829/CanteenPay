@@ -5,12 +5,32 @@ import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/children_provider.dart';
 import '../../widgets/spending_chart.dart';
+import '../../widgets/shimmer_loading.dart';
+import '../../widgets/animated_fade_in.dart';
 
 /// Detail view for a single child.
 class ChildDetailScreen extends StatelessWidget {
   final String childId;
 
   const ChildDetailScreen({super.key, required this.childId});
+
+  Widget _buildLoadingSkeleton() {
+    return ListView(
+      children: [
+        const SizedBox(height: 16),
+        ShimmerLoading.balance(),
+        const SizedBox(height: 24),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: ShimmerLoading(width: 140, height: 20, borderRadius: 4),
+        ),
+        const SizedBox(height: 8),
+        ShimmerLoading.card(height: 250),
+        const SizedBox(height: 24),
+        for (int i = 0; i < 3; i++) ShimmerLoading.listTile(),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,89 +58,103 @@ class ChildDetailScreen extends StatelessWidget {
           tx.createdAt!.day == now.day;
     }).toList();
 
+    if (provider.isLoading && wallet == null) {
+      return Scaffold(
+        appBar: AppBar(title: Text(child.displayName)),
+        body: _buildLoadingSkeleton(),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(child.displayName),
       ),
-      body: ListView(
-        children: [
-          const SizedBox(height: 16),
-          // Balance card
-          if (wallet != null)
+      body: AnimatedFadeIn(
+        child: ListView(
+          children: [
+            const SizedBox(height: 16),
+            // Balance card
+            if (wallet != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: BalanceCard(wallet: wallet),
+              ),
+            const SizedBox(height: 24),
+
+            // Weekly spending chart
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Weekly Spending',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+            ),
+            const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: BalanceCard(wallet: wallet),
-            ),
-          const SizedBox(height: 24),
-
-          // Weekly spending chart
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              'Weekly Spending',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: SpendingChart(weeklyData: weeklySpending),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  boxShadow: AppTheme.shadowSm,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SpendingChart(weeklyData: weeklySpending),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // Today's Activity
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Text(
-              "Today's Activity (${todayTxns.length})",
-              style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-            ),
-          ),
-          const SizedBox(height: 8),
-          if (todayTxns.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            // Today's Activity
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'No transactions today.',
-                style: TextStyle(color: AppTheme.textSecondary),
+                "Today's Activity (${todayTxns.length})",
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
               ),
-            )
-          else
-            ...todayTxns.map((tx) => TransactionTile(transaction: tx)),
-          const SizedBox(height: 16),
-
-          // Action buttons
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push('/parent/alerts'),
-                    icon: const Icon(Icons.tune),
-                    label: const Text('Set Daily Limit'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () =>
-                        context.push('/parent/child/$childId/history'),
-                    icon: const Icon(Icons.history),
-                    label: const Text('Full History'),
-                  ),
-                ),
-              ],
             ),
-          ),
-          const SizedBox(height: 24),
-        ],
+            const SizedBox(height: 8),
+            if (todayTxns.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Text(
+                  'No transactions today.',
+                  style: TextStyle(color: AppTheme.textSecondary),
+                ),
+              )
+            else
+              ...todayTxns.map((tx) => TransactionTile(transaction: tx)),
+            const SizedBox(height: 16),
+
+            // Action buttons
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => context.push('/parent/alerts'),
+                      icon: const Icon(Icons.tune),
+                      label: const Text('Set Daily Limit'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () =>
+                          context.push('/parent/child/$childId/history'),
+                      icon: const Icon(Icons.history),
+                      label: const Text('Full History'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }

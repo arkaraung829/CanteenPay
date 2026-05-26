@@ -4,6 +4,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/children_provider.dart';
+import '../../services/haptic_service.dart';
+import '../../widgets/error_card.dart';
+import '../../widgets/success_animation.dart';
+import '../../widgets/validated_text_field.dart';
 
 /// Screen for linking a new child via student code.
 class LinkChildScreen extends StatefulWidget {
@@ -27,10 +31,26 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
     super.dispose();
   }
 
+  String? _validateStudentCode(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'Student code is required';
+    }
+    if (value.trim().length < 3) {
+      return 'Student code is too short';
+    }
+    return null;
+  }
+
   Future<void> _searchStudent() async {
     final code = _codeController.text.trim();
-    if (code.isEmpty) return;
+    final validationError = _validateStudentCode(code);
+    if (validationError != null) {
+      setState(() => _error = validationError);
+      HapticService.error();
+      return;
+    }
 
+    HapticService.selection();
     setState(() {
       _isSearching = true;
       _error = null;
@@ -47,15 +67,18 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
           .maybeSingle();
 
       if (response != null) {
+        HapticService.success();
         setState(() {
           _foundStudent = StudentModel.fromJson(response);
         });
       } else {
+        HapticService.error();
         setState(() {
           _error = 'No student found with code "$code"';
         });
       }
     } catch (e) {
+      HapticService.error();
       setState(() {
         _error = 'Search failed: $e';
       });
@@ -74,6 +97,7 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
       return;
     }
 
+    HapticService.selection();
     setState(() {
       _isLinking = true;
       _error = null;
@@ -89,6 +113,7 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
           .maybeSingle();
 
       if (existing != null) {
+        HapticService.error();
         setState(() {
           _error = 'This child is already linked to your account';
           _isLinking = false;
@@ -107,11 +132,13 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
         await context.read<ChildrenProvider>().loadChildren(parentId);
       }
 
+      HapticService.success();
       setState(() {
         _isLinked = true;
         _isLinking = false;
       });
     } catch (e) {
+      HapticService.error();
       setState(() {
         _error = 'Failed to link child: $e';
         _isLinking = false;
@@ -153,24 +180,21 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 32),
-        TextField(
+        ValidatedTextField(
           controller: _codeController,
+          label: 'Student Code',
+          prefixIcon: Icons.badge_outlined,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(
-            labelText: 'Student Code',
-            hintText: 'e.g. STU-2025-003',
-            prefixIcon: Icon(Icons.badge_outlined),
-          ),
+          validator: _validateStudentCode,
         ),
         const SizedBox(height: 16),
 
         if (_error != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
-            child: Text(
-              _error!,
-              style: const TextStyle(color: AppTheme.error, fontSize: 13),
-              textAlign: TextAlign.center,
+            child: ErrorCard(
+              message: _error!,
+              onDismiss: () => setState(() => _error = null),
             ),
           ),
 
@@ -255,7 +279,7 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.check_circle, size: 80, color: AppTheme.success),
+        const SuccessAnimation(size: 80),
         const SizedBox(height: 16),
         const Text(
           'Child Linked Successfully!',
