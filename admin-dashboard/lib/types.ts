@@ -1,4 +1,4 @@
-export type UserRole = 'student' | 'parent' | 'seller' | 'admin' | 'counter_staff';
+export type UserRole = 'student' | 'parent' | 'seller' | 'admin' | 'super_admin' | 'counter_staff';
 export type TransactionType = 'deposit' | 'purchase' | 'refund' | 'adjustment';
 
 export interface School {

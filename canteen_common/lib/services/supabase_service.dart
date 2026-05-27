@@ -161,7 +161,7 @@ class SupabaseService {
     try {
       final response = await _client
           .from('parent_student_links')
-          .select('*, students(*, wallets(*))')
+          .select('*, students(*, wallets(*), schools(name, name_my))')
           .eq('parent_id', parentId);
 
       return (response as List)

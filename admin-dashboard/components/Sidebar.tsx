@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
+import { useSchoolContext } from '@/lib/school-context';
+import SchoolSelector from '@/components/SchoolSelector';
 import {
   LayoutDashboard,
   Users,
@@ -13,6 +15,7 @@ import {
   Megaphone,
   Settings,
   LogOut,
+  School,
 } from 'lucide-react';
 
 const navigation = [
@@ -28,6 +31,7 @@ const navigation = [
 export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { userRole } = useSchoolContext();
 
   async function handleSignOut() {
     await supabase.auth.signOut();
@@ -47,8 +51,11 @@ export default function Sidebar() {
         </div>
       </div>
 
+      {/* School Selector */}
+      <SchoolSelector />
+
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
         {navigation.map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/dashboard' && pathname.startsWith(item.href));
@@ -67,6 +74,24 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        {/* Schools nav item - only for super_admin */}
+        {userRole === 'super_admin' && (
+          <Link
+            href="/dashboard/schools"
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              pathname === '/dashboard/schools' || pathname.startsWith('/dashboard/schools/')
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+            }`}
+          >
+            <School className={`h-5 w-5 ${
+              pathname === '/dashboard/schools' || pathname.startsWith('/dashboard/schools/')
+                ? 'text-blue-700' : 'text-gray-400'
+            }`} />
+            Schools
+          </Link>
+        )}
       </nav>
 
       {/* Footer */}

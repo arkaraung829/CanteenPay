@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Sidebar from '@/components/Sidebar';
 import { supabase } from '@/lib/supabase';
+import { SchoolProvider } from '@/lib/school-context';
 
 export default function DashboardLayout({
   children,
@@ -49,11 +50,13 @@ export default function DashboardLayout({
   if (!authenticated) return null;
 
   return (
-    <div className="flex min-h-screen">
-      <Sidebar />
-      <main className="ml-64 flex-1 p-8">
-        {children}
-      </main>
-    </div>
+    <SchoolProvider>
+      <div className="flex min-h-screen">
+        <Sidebar />
+        <main className="ml-64 flex-1 p-8">
+          {children}
+        </main>
+      </div>
+    </SchoolProvider>
   );
 }

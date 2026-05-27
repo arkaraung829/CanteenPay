@@ -45,6 +45,81 @@ class _HomeScreenState extends State<HomeScreen> {
     return 'Good evening, $firstName';
   }
 
+  /// Build children list, grouped by school if children are in different schools.
+  List<Widget> _buildChildrenList(ChildrenProvider childrenProvider) {
+    final children = childrenProvider.children;
+    final schoolNames = children
+        .map((c) => c.schoolName ?? '')
+        .toSet();
+    final hasMultipleSchools = schoolNames.length > 1;
+
+    if (!hasMultipleSchools) {
+      // All same school (or no school info) - flat list
+      return children.map((child) {
+        final wallet = childrenProvider.walletForChild(child.id);
+        final lastTx = childrenProvider.getLastTransaction(child.id);
+        return ChildCard(
+          child: child,
+          wallet: wallet,
+          lastTransaction: lastTx,
+          onTap: () => context.push('/parent/child/${child.id}'),
+        );
+      }).toList();
+    }
+
+    // Group by school
+    final grouped = <String, List<StudentModel>>{};
+    for (final child in children) {
+      final school = child.schoolName ?? 'Unknown School';
+      grouped.putIfAbsent(school, () => []).add(child);
+    }
+
+    final widgets = <Widget>[];
+    for (final entry in grouped.entries) {
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 12,
+            bottom: 4,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.school_outlined,
+                size: 16,
+                color: AppTheme.primary.withValues(alpha: 0.7),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                entry.key,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.primary.withValues(alpha: 0.8),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      for (final child in entry.value) {
+        final wallet = childrenProvider.walletForChild(child.id);
+        final lastTx = childrenProvider.getLastTransaction(child.id);
+        widgets.add(
+          ChildCard(
+            child: child,
+            wallet: wallet,
+            lastTransaction: lastTx,
+            onTap: () => context.push('/parent/child/${child.id}'),
+          ),
+        );
+      }
+    }
+    return widgets;
+  }
+
   Widget _buildLoadingSkeleton() {
     return ListView(
       children: [
@@ -204,19 +279,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             context.push('/parent/link-child'),
                       )
                     else
-                      ...childrenProvider.children.map((child) {
-                        final wallet =
-                            childrenProvider.walletForChild(child.id);
-                        final lastTx =
-                            childrenProvider.getLastTransaction(child.id);
-                        return ChildCard(
-                          child: child,
-                          wallet: wallet,
-                          lastTransaction: lastTx,
-                          onTap: () =>
-                              context.push('/parent/child/${child.id}'),
-                        );
-                      }),
+                      ..._buildChildrenList(childrenProvider),
                     const SizedBox(height: 24),
                   ],
                 ),

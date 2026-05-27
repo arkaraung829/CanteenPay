@@ -87,6 +87,31 @@ class ChildCard extends StatelessWidget {
                           fontSize: 13,
                         ),
                       ),
+                      if (child.schoolName != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.school_outlined,
+                              size: 12,
+                              color: AppTheme.primary.withValues(alpha: 0.7),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                child.schoolName!,
+                                style: TextStyle(
+                                  color: AppTheme.primary.withValues(alpha: 0.7),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       if (lastTransaction != null) ...[
                         const SizedBox(height: 6),
                         Row(

@@ -18,6 +18,8 @@ class StudentModel {
   final DateTime? createdAt;
   final String? dateOfBirth;
   final String? parentPhone;
+  final String? schoolName;
+  final String? schoolNameMy;
 
   StudentModel({
     required this.id,
@@ -36,10 +38,21 @@ class StudentModel {
     this.createdAt,
     this.dateOfBirth,
     this.parentPhone,
+    this.schoolName,
+    this.schoolNameMy,
   });
 
   /// Create StudentModel from JSON
   factory StudentModel.fromJson(Map<String, dynamic> json) {
+    // Extract school name from nested schools object or flat fields
+    final schoolsData = json['schools'];
+    String? schoolName = json['school_name'] ?? json['schoolName'];
+    String? schoolNameMy = json['school_name_my'] ?? json['schoolNameMy'];
+    if (schoolsData is Map<String, dynamic>) {
+      schoolName ??= schoolsData['name'] as String?;
+      schoolNameMy ??= schoolsData['name_my'] as String?;
+    }
+
     return StudentModel(
       id: json['id']?.toString() ?? '',
       profileId: json['profile_id']?.toString() ?? json['profileId']?.toString() ?? '',
@@ -61,6 +74,8 @@ class StudentModel {
               : null,
       dateOfBirth: json['date_of_birth'] ?? json['dateOfBirth'],
       parentPhone: json['parent_phone'] ?? json['parentPhone'],
+      schoolName: schoolName,
+      schoolNameMy: schoolNameMy,
     );
   }
 
@@ -83,6 +98,8 @@ class StudentModel {
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
       if (parentPhone != null) 'parent_phone': parentPhone,
+      if (schoolName != null) 'school_name': schoolName,
+      if (schoolNameMy != null) 'school_name_my': schoolNameMy,
     };
   }
 
@@ -113,6 +130,8 @@ class StudentModel {
     DateTime? createdAt,
     String? dateOfBirth,
     String? parentPhone,
+    String? schoolName,
+    String? schoolNameMy,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -131,6 +150,8 @@ class StudentModel {
       createdAt: createdAt ?? this.createdAt,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       parentPhone: parentPhone ?? this.parentPhone,
+      schoolName: schoolName ?? this.schoolName,
+      schoolNameMy: schoolNameMy ?? this.schoolNameMy,
     );
   }
 }

@@ -36,6 +36,7 @@ class ParentStudentLinkModel {
     WalletModel? wallet;
 
     if (studentData is Map<String, dynamic>) {
+      // StudentModel.fromJson handles the nested 'schools' object automatically
       student = StudentModel.fromJson(studentData);
 
       // Wallet is nested inside student data: students(*, wallets(*))
