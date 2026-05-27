@@ -48,9 +48,6 @@ dependencies:
   # Biometric auth
   local_auth: ^2.3.0
 
-  # Jailbreak detection
-  flutter_jailbreak_detection: ^1.4.0
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
