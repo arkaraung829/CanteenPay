@@ -139,7 +139,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { full_name, full_name_my, grade, class_name } = body;
+    const { full_name, full_name_my, grade, class_name, parent_phone, date_of_birth } = body;
     let { school_id } = body;
 
     if (!full_name) {
@@ -172,6 +172,18 @@ export async function POST(request: NextRequest) {
 
     const studentCode = `STU-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(3, '0')}`;
 
+    // Normalize parent phone: strip leading 0, ensure +95 prefix
+    let normalizedPhone: string | null = null;
+    if (parent_phone) {
+      let ph = parent_phone.replace(/\s+/g, '');
+      if (ph.startsWith('0')) {
+        ph = '+95' + ph.substring(1);
+      } else if (!ph.startsWith('+')) {
+        ph = '+' + ph;
+      }
+      normalizedPhone = ph;
+    }
+
     const { data, error } = await supabase
       .from('students')
       .insert({
@@ -183,6 +195,8 @@ export async function POST(request: NextRequest) {
         qr_data: crypto.randomUUID(),
         school_id,
         is_active: true,
+        parent_phone: normalizedPhone,
+        date_of_birth: date_of_birth || null,
       })
       .select()
       .single();
@@ -212,7 +226,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Only allow specific fields to be updated
-    const allowedFields = ['full_name', 'full_name_my', 'grade', 'class_name', 'is_active', 'daily_spending_limit'];
+    const allowedFields = ['full_name', 'full_name_my', 'grade', 'class_name', 'is_active', 'daily_spending_limit', 'parent_phone', 'date_of_birth'];
     const safeUpdates: Record<string, unknown> = {};
     for (const key of allowedFields) {
       if (key in updates) {

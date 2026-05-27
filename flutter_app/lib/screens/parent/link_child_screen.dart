@@ -19,6 +19,7 @@ class LinkChildScreen extends StatefulWidget {
 
 class _LinkChildScreenState extends State<LinkChildScreen> {
   final _codeController = TextEditingController();
+  final _dobController = TextEditingController();
   bool _isSearching = false;
   bool _isLinking = false;
   bool _isLinked = false;
@@ -28,6 +29,7 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
   @override
   void dispose() {
     _codeController.dispose();
+    _dobController.dispose();
     super.dispose();
   }
 
@@ -89,6 +91,21 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
 
   Future<void> _linkChild() async {
     if (_foundStudent == null) return;
+
+    // Verify DOB if the student has one set
+    if (_foundStudent!.dateOfBirth != null && _foundStudent!.dateOfBirth!.isNotEmpty) {
+      final enteredDob = _dobController.text.trim();
+      if (enteredDob.isEmpty) {
+        HapticService.error();
+        setState(() => _error = 'Please enter the date of birth to verify');
+        return;
+      }
+      if (enteredDob != _foundStudent!.dateOfBirth) {
+        HapticService.error();
+        setState(() => _error = "Date of birth doesn't match. Please contact school admin.");
+        return;
+      }
+    }
 
     final auth = context.read<AuthProvider>();
     final parentId = auth.user?.id;
@@ -257,6 +274,25 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
               ),
             ),
           ),
+          // DOB verification field (only shown if student has DOB set)
+          if (_foundStudent!.dateOfBirth != null && _foundStudent!.dateOfBirth!.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            ValidatedTextField(
+              controller: _dobController,
+              label: 'Date of Birth (YYYYMMDD, e.g. 20150315)',
+              prefixIcon: Icons.cake_outlined,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Date of birth is required for verification';
+                }
+                if (value.trim().length != 8 || int.tryParse(value.trim()) == null) {
+                  return 'Enter date in YYYYMMDD format';
+                }
+                return null;
+              },
+            ),
+          ],
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _isLinking ? null : _linkChild,

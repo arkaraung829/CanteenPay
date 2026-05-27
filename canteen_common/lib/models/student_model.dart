@@ -16,6 +16,8 @@ class StudentModel {
   final bool isActive;
   final int? dailySpendingLimit;
   final DateTime? createdAt;
+  final String? dateOfBirth;
+  final String? parentPhone;
 
   StudentModel({
     required this.id,
@@ -32,6 +34,8 @@ class StudentModel {
     this.isActive = true,
     this.dailySpendingLimit,
     this.createdAt,
+    this.dateOfBirth,
+    this.parentPhone,
   });
 
   /// Create StudentModel from JSON
@@ -55,6 +59,8 @@ class StudentModel {
           : json['createdAt'] != null
               ? DateTime.parse(json['createdAt'])
               : null,
+      dateOfBirth: json['date_of_birth'] ?? json['dateOfBirth'],
+      parentPhone: json['parent_phone'] ?? json['parentPhone'],
     );
   }
 
@@ -75,6 +81,8 @@ class StudentModel {
       'is_active': isActive,
       if (dailySpendingLimit != null) 'daily_spending_limit': dailySpendingLimit,
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
+      if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
+      if (parentPhone != null) 'parent_phone': parentPhone,
     };
   }
 
@@ -103,6 +111,8 @@ class StudentModel {
     bool? isActive,
     int? dailySpendingLimit,
     DateTime? createdAt,
+    String? dateOfBirth,
+    String? parentPhone,
   }) {
     return StudentModel(
       id: id ?? this.id,
@@ -119,6 +129,8 @@ class StudentModel {
       isActive: isActive ?? this.isActive,
       dailySpendingLimit: dailySpendingLimit ?? this.dailySpendingLimit,
       createdAt: createdAt ?? this.createdAt,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      parentPhone: parentPhone ?? this.parentPhone,
     );
   }
 }

@@ -246,6 +246,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       // Reload profile to get correct role
       await _loadUserProfile();
 
+      // After profile is loaded, check if any students have this phone number
+      if (_user?.role == 'parent' && _user?.phone != null) {
+        _autoLinkByPhone(_user!.phone!);
+      }
+
       return true;
     } on AuthException catch (e) {
       _error = e.message;
@@ -256,6 +261,51 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
     } finally {
       _isLoading = false;
       safeNotifyListeners();
+    }
+  }
+
+  /// Auto-link parent to students by matching phone number.
+  /// Runs silently in the background after OTP login.
+  Future<void> _autoLinkByPhone(String phone) async {
+    try {
+      // Normalize phone: strip leading 0, ensure +95 prefix
+      String normalized = phone.replaceAll(RegExp(r'\s+'), '');
+      if (normalized.startsWith('0')) {
+        normalized = '+95${normalized.substring(1)}';
+      } else if (!normalized.startsWith('+')) {
+        normalized = '+$normalized';
+      }
+
+      // Query students whose parent_phone matches
+      final students = await _supabase
+          .from('students')
+          .select('id')
+          .eq('parent_phone', normalized);
+
+      if ((students as List).isEmpty) return;
+
+      final parentId = _user!.id;
+
+      for (final student in students) {
+        final studentId = student['id'] as String;
+
+        // Check if link already exists
+        final existing = await _supabase
+            .from('parent_student_links')
+            .select('id')
+            .eq('parent_id', parentId)
+            .eq('student_id', studentId)
+            .maybeSingle();
+
+        if (existing == null) {
+          await _supabase.from('parent_student_links').insert({
+            'parent_id': parentId,
+            'student_id': studentId,
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('AuthProvider: Auto-link by phone failed: $e');
     }
   }
 

@@ -20,6 +20,8 @@ interface StudentDetail {
   daily_spending_limit: number | null;
   balance: number;
   school_name: string;
+  date_of_birth: string | null;
+  parent_phone: string | null;
 }
 
 interface TransactionRow {
@@ -45,7 +47,7 @@ export default function StudentDetailPage() {
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ full_name: '', full_name_my: '', grade: '', class_name: '', daily_spending_limit: '' });
+  const [editForm, setEditForm] = useState({ full_name: '', full_name_my: '', grade: '', class_name: '', daily_spending_limit: '', date_of_birth: '', parent_phone: '' });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -80,7 +82,7 @@ export default function StudentDetailPage() {
   const fetchStudent = useCallback(async () => {
     const { data, error } = await supabase
       .from('students')
-      .select('id, student_code, full_name, full_name_my, class_name, grade, is_active, qr_data, daily_spending_limit, wallets(balance), schools(name)')
+      .select('id, student_code, full_name, full_name_my, class_name, grade, is_active, qr_data, daily_spending_limit, date_of_birth, parent_phone, wallets(balance), schools(name)')
       .eq('id', id)
       .single();
 
@@ -118,6 +120,8 @@ export default function StudentDetailPage() {
       daily_spending_limit: data.daily_spending_limit as number | null,
       balance,
       school_name: schoolName,
+      date_of_birth: data.date_of_birth as string | null,
+      parent_phone: data.parent_phone as string | null,
     };
 
     setStudent(s);
@@ -127,6 +131,8 @@ export default function StudentDetailPage() {
       grade: s.grade || '',
       class_name: s.class_name || '',
       daily_spending_limit: s.daily_spending_limit ? String(s.daily_spending_limit) : '',
+      date_of_birth: s.date_of_birth || '',
+      parent_phone: s.parent_phone || '',
     });
     setLoading(false);
   }, [id]);
@@ -204,6 +210,8 @@ export default function StudentDetailPage() {
           grade: editForm.grade || null,
           class_name: editForm.class_name || null,
           daily_spending_limit: editForm.daily_spending_limit ? parseInt(editForm.daily_spending_limit) : null,
+          date_of_birth: editForm.date_of_birth || null,
+          parent_phone: editForm.parent_phone || null,
         }),
       });
       const json = await res.json();
@@ -340,6 +348,14 @@ export default function StudentDetailPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Daily Spending Limit (MMK)</label>
                   <input type="number" value={editForm.daily_spending_limit} onChange={(e) => setEditForm(f => ({ ...f, daily_spending_limit: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="Leave empty for no limit" />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone</label>
+                  <input type="tel" value={editForm.parent_phone} onChange={(e) => setEditForm(f => ({ ...f, parent_phone: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="09xxxxxxxxx" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                  <input type="text" value={editForm.date_of_birth} onChange={(e) => setEditForm(f => ({ ...f, date_of_birth: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="YYYYMMDD (e.g., 20150315)" maxLength={8} />
+                </div>
                 <div className="flex gap-3 pt-2">
                   <button onClick={() => { setEditing(false); setEditError(''); }} className="flex items-center gap-1 flex-1 justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     <X className="h-4 w-4" /> Cancel
@@ -372,6 +388,14 @@ export default function StudentDetailPage() {
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Daily Spending Limit</dt>
                   <dd className="text-sm text-gray-900">{student.daily_spending_limit ? formatMMK(student.daily_spending_limit) : 'No limit'}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500">Parent Phone</dt>
+                  <dd className="text-sm text-gray-900">{student.parent_phone || '-'}</dd>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500">Date of Birth</dt>
+                  <dd className="text-sm text-gray-900">{student.date_of_birth || '-'}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Status</dt>

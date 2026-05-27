@@ -151,6 +151,7 @@ export default function StudentsPage() {
   const [newGrade, setNewGrade] = useState('');
   const [newSection, setNewSection] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const [newDob, setNewDob] = useState('');
 
   // CSV import state
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -360,6 +361,8 @@ export default function StudentsPage() {
           full_name_my: newNameMy || null,
           grade: newGrade,
           class_name: className,
+          parent_phone: newPhone || null,
+          date_of_birth: newDob || null,
         }),
       });
 
@@ -376,6 +379,7 @@ export default function StudentsPage() {
       setNewGrade('1');
       setNewSection('A');
       setNewPhone('');
+      setNewDob('');
       fetchStudents();
     } catch {
       setAddError('Network error');
@@ -809,6 +813,10 @@ export default function StudentsPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone (optional)</label>
                 <input type="tel" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="09xxxxxxxxx" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth (optional)</label>
+                <input type="text" value={newDob} onChange={(e) => setNewDob(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="YYYYMMDD (e.g., 20150315)" maxLength={8} />
               </div>
               <div className="flex gap-3 pt-2">
                 <button type="button" onClick={() => { setShowAddModal(false); setAddError(''); }} className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
