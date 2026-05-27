@@ -4,10 +4,12 @@
 /// Manages authentication state and provides methods for login, logout,
 /// profile loading, and role checking.
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/user_model.dart';
+import '../services/phone_auth_service.dart';
 import 'safe_change_notifier.dart';
 
 class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
@@ -186,18 +188,19 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
     }
   }
 
-  /// Send OTP to phone number
+  /// Send OTP to phone number via Firebase (not Supabase)
   Future<bool> signInWithPhone(String phone) async {
-    try {
-      _isLoading = true;
-      _error = null;
-      safeNotifyListeners();
+    _isLoading = true;
+    _error = null;
+    safeNotifyListeners();
 
-      await _supabase.auth.signInWithOtp(phone: phone);
-      return true;
-    } on AuthException catch (e) {
-      _error = e.message;
-      return false;
+    try {
+      final result = await PhoneAuthService().sendOTP(phone);
+      if (!result.success) {
+        _error = result.error;
+        return false;
+      }
+      return true; // OTP sent, UI should show code input
     } catch (e) {
       _error = e.toString();
       return false;
@@ -207,58 +210,92 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
     }
   }
 
-  /// Verify OTP code
+  /// Verify OTP via Firebase, then sign into Supabase.
+  ///
+  /// Firebase handles SMS delivery and code verification.
+  /// After verification, we create/sign-in a Supabase user using a
+  /// deterministic email+password derived from the phone number.
   Future<bool> verifyOtp(String phone, String token, {String? fullName, String? role}) async {
+    _isLoading = true;
+    _error = null;
+    safeNotifyListeners();
+
     try {
-      _isLoading = true;
-      _error = null;
-      safeNotifyListeners();
-
-      await _supabase.auth.verifyOTP(
-        phone: phone,
-        token: token,
-        type: OtpType.sms,
-      );
-
-      // Update profile with name and role (trigger may have set defaults)
-      if (fullName != null || role != null) {
-        try {
-          final userId = _supabase.auth.currentUser?.id;
-          if (userId != null) {
-            // Update profiles table directly
-            final updates = <String, dynamic>{};
-            if (fullName != null && fullName.isNotEmpty) updates['full_name'] = fullName;
-            if (role != null && role.isNotEmpty) updates['role'] = role;
-            if (updates.isNotEmpty) {
-              await _supabase.from('profiles').update(updates).eq('id', userId);
-            }
-            // Also update auth metadata
-            await _supabase.auth.updateUser(
-              UserAttributes(data: {
-                if (fullName != null) 'full_name': fullName,
-                if (role != null) 'role': role,
-              }),
-            );
-          }
-        } catch (_) {}
+      // 1. Verify OTP with Firebase
+      final result = await PhoneAuthService().verifyOTP(token);
+      if (!result.success) {
+        _error = result.error;
+        return false;
       }
 
-      // Reload profile to get correct role
-      await _loadUserProfile();
+      // 2. Sign into Supabase with phone-based credentials
+      final normalizedPhone = PhoneAuthService().formatPhone(
+        phone,
+        PhoneAuthService.defaultCountry,
+      );
+      final fakeEmail =
+          '${normalizedPhone.replaceAll('+', '')}@phone.canteenpay.local';
+      final password = 'phone_${normalizedPhone}_canteenpay_2026';
 
-      // Auto-link by phone number based on role
-      if (_user?.phone != null) {
-        if (_user?.role == 'parent') {
-          _autoLinkParentByPhone(_user!.phone!);
-        } else if (_user?.role == 'seller') {
-          _autoLinkSellerByPhone(_user!.phone!);
+      // Try sign in first (existing user)
+      try {
+        await _supabase.auth.signInWithPassword(
+          email: fakeEmail,
+          password: password,
+        );
+      } on AuthException {
+        // User doesn't exist — sign up
+        await _supabase.auth.signUp(
+          email: fakeEmail,
+          password: password,
+          data: {
+            'full_name': fullName ?? 'User',
+            'role': role ?? 'parent',
+            'phone': normalizedPhone,
+          },
+        );
+        // Sign in after signup to establish session
+        await _supabase.auth.signInWithPassword(
+          email: fakeEmail,
+          password: password,
+        );
+      }
+
+      // 3. Update profile with phone number and metadata
+      final userId = _supabase.auth.currentUser?.id;
+      if (userId != null) {
+        final updates = <String, dynamic>{
+          'phone': normalizedPhone,
+        };
+        if (fullName != null && fullName.isNotEmpty) {
+          updates['full_name'] = fullName;
+        }
+        if (role != null && role.isNotEmpty) {
+          updates['role'] = role;
+        }
+        if (updates.length > 1) {
+          // More than just phone
+          await _supabase.from('profiles').update(updates).eq('id', userId);
+        } else {
+          await _supabase
+              .from('profiles')
+              .update({'phone': normalizedPhone}).eq('id', userId);
         }
       }
 
+      // 4. Sign out of Firebase (we only use it for OTP verification)
+      await firebase.FirebaseAuth.instance.signOut();
+
+      // 5. Load profile and auto-link
+      await _loadUserProfile();
+      if (_user?.role == 'parent' && normalizedPhone.isNotEmpty) {
+        _autoLinkParentByPhone(normalizedPhone);
+      }
+      if (_user?.role == 'seller' && normalizedPhone.isNotEmpty) {
+        _autoLinkSellerByPhone(normalizedPhone);
+      }
+
       return true;
-    } on AuthException catch (e) {
-      _error = e.message;
-      return false;
     } catch (e) {
       _error = e.toString();
       return false;
