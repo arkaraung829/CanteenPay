@@ -9,6 +9,7 @@ import {
   Check, X, AlertTriangle, Loader2, Users, FileText
 } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
+import { useSchoolContext } from '@/lib/school-context';
 
 interface StudentRow {
   id: string;
@@ -111,6 +112,7 @@ function TableSkeleton({ rows = 8 }: { rows?: number }) {
 export default function StudentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { selectedSchoolId } = useSchoolContext();
 
   // State from URL params
   const [page, setPage] = useState(parseInt(searchParams.get('page') || '0'));
@@ -181,9 +183,11 @@ export default function StudentsPage() {
   useEffect(() => {
     async function fetchGradesSections() {
       try {
+        const gradeParams = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
+        const sectionParams = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
         const [gradesRes, sectionsRes] = await Promise.all([
-          fetch('/api/settings/grades'),
-          fetch('/api/settings/sections'),
+          fetch(`/api/settings/grades${gradeParams}`),
+          fetch(`/api/settings/sections${sectionParams}`),
         ]);
         const gradesJson = await gradesRes.json();
         const sectionsJson = await sectionsRes.json();
@@ -203,7 +207,7 @@ export default function StudentsPage() {
     }
     fetchGradesSections();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedSchoolId]);
 
   // Sync URL params
   useEffect(() => {
@@ -234,6 +238,9 @@ export default function StudentsPage() {
         sort_by: sortBy,
         sort_dir: sortDir,
       });
+      if (selectedSchoolId) {
+        params.set('school_id', selectedSchoolId);
+      }
       const res = await fetch(`/api/students?${params}`);
       const json = await res.json();
       if (!json.success) {
@@ -250,7 +257,7 @@ export default function StudentsPage() {
       setError('Network error fetching students');
     }
     setLoading(false);
-  }, [page, debouncedSearch, gradeFilter, classFilter, statusFilter, sortBy, sortDir]);
+  }, [page, debouncedSearch, gradeFilter, classFilter, statusFilter, sortBy, sortDir, selectedSchoolId]);
 
   useEffect(() => {
     fetchStudents();
@@ -363,6 +370,7 @@ export default function StudentsPage() {
           class_name: className,
           parent_phone: newPhone || null,
           date_of_birth: newDob || null,
+          school_id: selectedSchoolId || undefined,
         }),
       });
 

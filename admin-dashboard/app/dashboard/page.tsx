@@ -5,6 +5,7 @@ import StatCard from '@/components/StatCard';
 import { Users, Banknote, ArrowLeftRight, Store, TrendingUp, TrendingDown } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import { useSchoolContext } from '@/lib/school-context';
 
 interface DashboardStats {
   totalStudents: number;
@@ -27,15 +28,40 @@ interface RecentTx {
 }
 
 export default function DashboardPage() {
+  const { selectedSchoolId, loading: schoolLoading } = useSchoolContext();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [recentTransactions, setRecentTransactions] = useState<RecentTx[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (schoolLoading) return;
+
     async function fetchDashboard() {
+      setLoading(true);
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayISO = today.toISOString();
+
+      // Build queries with optional school_id filter
+      let studentsQuery = supabase.from('students').select('id', { count: 'exact', head: true });
+      let sellersQuery = supabase.from('canteen_sellers').select('id', { count: 'exact', head: true }).eq('is_active', true);
+
+      if (selectedSchoolId) {
+        studentsQuery = studentsQuery.eq('school_id', selectedSchoolId);
+        sellersQuery = sellersQuery.eq('school_id', selectedSchoolId);
+      }
+
+      // For wallets and transactions, we need to filter via student/seller school_id
+      let walletsQuery = supabase.from('wallets').select('balance, student:students(school_id)');
+      let todayTxQuery = supabase.from('transactions').select('type, amount, wallet:wallets(student:students(school_id))').gte('created_at', todayISO);
+      let recentTxQuery = supabase.from('transactions').select(`
+        id,
+        type,
+        amount,
+        created_at,
+        wallet:wallets(student:students(full_name, school_id)),
+        seller:canteen_sellers(stall_name)
+      `).order('created_at', { ascending: false }).limit(10);
 
       const [
         studentsRes,
@@ -44,26 +70,36 @@ export default function DashboardPage() {
         sellersRes,
         recentTxRes,
       ] = await Promise.all([
-        supabase.from('students').select('id', { count: 'exact', head: true }),
-        supabase.from('wallets').select('balance'),
-        supabase.from('transactions').select('type, amount').gte('created_at', todayISO),
-        supabase.from('canteen_sellers').select('id', { count: 'exact', head: true }).eq('is_active', true),
-        supabase.from('transactions').select(`
-          id,
-          type,
-          amount,
-          created_at,
-          wallet:wallets(student:students(full_name)),
-          seller:canteen_sellers(stall_name)
-        `).order('created_at', { ascending: false }).limit(10),
+        studentsQuery,
+        walletsQuery,
+        todayTxQuery,
+        sellersQuery,
+        recentTxQuery,
       ]);
 
-      const totalBalance = (walletsRes.data || []).reduce((sum, w) => sum + (w.balance || 0), 0);
-      const todayTxData = todayTxRes.data || [];
-      const todayDeposits = todayTxData.filter(t => t.type === 'deposit').reduce((s, t) => s + t.amount, 0);
-      const todayDepositCount = todayTxData.filter(t => t.type === 'deposit').length;
-      const todayPurchases = todayTxData.filter(t => t.type === 'purchase').reduce((s, t) => s + t.amount, 0);
-      const todayPurchaseCount = todayTxData.filter(t => t.type === 'purchase').length;
+      // Filter wallets by school_id client-side (join filtering)
+      let walletData = walletsRes.data || [];
+      if (selectedSchoolId) {
+        walletData = walletData.filter((w: Record<string, unknown>) => {
+          const student = w.student as Record<string, unknown> | null;
+          return student?.school_id === selectedSchoolId;
+        });
+      }
+      const totalBalance = walletData.reduce((sum: number, w: Record<string, unknown>) => sum + ((w.balance as number) || 0), 0);
+
+      // Filter today's transactions by school_id
+      let todayTxData = todayTxRes.data || [];
+      if (selectedSchoolId) {
+        todayTxData = todayTxData.filter((tx: Record<string, unknown>) => {
+          const wallet = tx.wallet as Record<string, unknown> | null;
+          const student = wallet?.student as Record<string, unknown> | null;
+          return student?.school_id === selectedSchoolId;
+        });
+      }
+      const todayDeposits = todayTxData.filter((t: Record<string, unknown>) => t.type === 'deposit').reduce((s: number, t: Record<string, unknown>) => s + (t.amount as number), 0);
+      const todayDepositCount = todayTxData.filter((t: Record<string, unknown>) => t.type === 'deposit').length;
+      const todayPurchases = todayTxData.filter((t: Record<string, unknown>) => t.type === 'purchase').reduce((s: number, t: Record<string, unknown>) => s + (t.amount as number), 0);
+      const todayPurchaseCount = todayTxData.filter((t: Record<string, unknown>) => t.type === 'purchase').length;
 
       setStats({
         totalStudents: studentsRes.count || 0,
@@ -76,7 +112,17 @@ export default function DashboardPage() {
         todayPurchaseCount,
       });
 
-      const mapped: RecentTx[] = (recentTxRes.data || []).map((tx: Record<string, unknown>) => {
+      // Filter recent transactions by school_id
+      let recentData = recentTxRes.data || [];
+      if (selectedSchoolId) {
+        recentData = recentData.filter((tx: Record<string, unknown>) => {
+          const wallet = tx.wallet as Record<string, unknown> | null;
+          const student = wallet?.student as Record<string, unknown> | null;
+          return student?.school_id === selectedSchoolId;
+        });
+      }
+
+      const mapped: RecentTx[] = recentData.map((tx: Record<string, unknown>) => {
         const wallet = tx.wallet as Record<string, unknown> | null;
         const student = wallet?.student as Record<string, unknown> | null;
         const seller = tx.seller as Record<string, unknown> | null;
@@ -96,7 +142,7 @@ export default function DashboardPage() {
     }
 
     fetchDashboard();
-  }, []);
+  }, [selectedSchoolId, schoolLoading]);
 
   function getTimeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime();

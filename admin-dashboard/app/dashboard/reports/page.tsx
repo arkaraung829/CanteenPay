@@ -5,6 +5,7 @@ import { BarChart3, TrendingUp, Calendar } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import { formatMMK } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import { useSchoolContext } from '@/lib/school-context';
 
 interface DailyData {
   day: string;
@@ -21,6 +22,7 @@ interface TopSeller {
 }
 
 export default function ReportsPage() {
+  const { selectedSchoolId } = useSchoolContext();
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [topSellers, setTopSellers] = useState<TopSeller[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,11 +52,20 @@ export default function ReportsPage() {
       // Fetch all transactions for the week
       const { data: txData } = await supabase
         .from('transactions')
-        .select('type, amount, created_at, seller_id')
+        .select('type, amount, created_at, seller_id, wallet:wallets(student:students(school_id))')
         .gte('created_at', weekStart)
         .lte('created_at', weekEnd);
 
-      const transactions = txData || [];
+      let transactions = txData || [];
+
+      // Filter by school_id if selected
+      if (selectedSchoolId) {
+        transactions = transactions.filter((tx: Record<string, unknown>) => {
+          const wallet = tx.wallet as Record<string, unknown> | null;
+          const student = wallet?.student as Record<string, unknown> | null;
+          return student?.school_id === selectedSchoolId;
+        });
+      }
 
       // Group by day
       transactions.forEach((tx: Record<string, unknown>) => {
@@ -91,10 +102,14 @@ export default function ReportsPage() {
       let sellerNames: Record<string, string> = {};
 
       if (sellerIds.length > 0) {
-        const { data: sellersData } = await supabase
+        let sellersQuery = supabase
           .from('canteen_sellers')
           .select('id, stall_name')
           .in('id', sellerIds);
+        if (selectedSchoolId) {
+          sellersQuery = sellersQuery.eq('school_id', selectedSchoolId);
+        }
+        const { data: sellersData } = await sellersQuery;
 
         (sellersData || []).forEach((s: Record<string, unknown>) => {
           sellerNames[s.id as string] = s.stall_name as string;
@@ -117,7 +132,7 @@ export default function ReportsPage() {
     }
 
     fetchReports();
-  }, []);
+  }, [selectedSchoolId]);
 
   const totalDeposits = dailyData.reduce((sum, d) => sum + d.deposits, 0);
   const totalPurchases = dailyData.reduce((sum, d) => sum + d.purchases, 0);

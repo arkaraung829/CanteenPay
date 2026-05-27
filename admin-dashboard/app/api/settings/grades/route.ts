@@ -1,13 +1,20 @@
 import { createAdminClient } from '@/lib/supabase';
 import { NextRequest } from 'next/server';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const supabase = createAdminClient();
+  const schoolId = request.nextUrl.searchParams.get('school_id') || '';
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('school_grades')
     .select('*')
     .order('display_order', { ascending: true });
+
+  if (schoolId) {
+    query = query.eq('school_id', schoolId);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
@@ -22,19 +29,22 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { name } = body;
+    let { school_id } = body;
 
     if (!name || !name.trim()) {
       return Response.json({ success: false, error: 'Name is required' }, { status: 400 });
     }
 
-    // Get the school_id
-    const { data: schools } = await supabase
-      .from('schools')
-      .select('id')
-      .eq('is_active', true)
-      .limit(1);
+    // Get the school_id if not provided
+    if (!school_id) {
+      const { data: schools } = await supabase
+        .from('schools')
+        .select('id')
+        .eq('is_active', true)
+        .limit(1);
 
-    const school_id = schools?.[0]?.id;
+      school_id = schools?.[0]?.id;
+    }
     if (!school_id) {
       return Response.json({ success: false, error: 'No school found' }, { status: 400 });
     }

@@ -6,6 +6,7 @@ import {
   Loader2, Pencil, Check, X, GripVertical,
   Users, School, Eye, EyeOff,
 } from 'lucide-react';
+import { useSchoolContext } from '@/lib/school-context';
 
 type SettingsTab = 'school' | 'users';
 
@@ -597,6 +598,7 @@ function UserManagement() {
 }
 
 export default function SettingsPage() {
+  const { selectedSchoolId } = useSchoolContext();
   const [activeTab, setActiveTab] = useState<SettingsTab>('school');
   const [grades, setGrades] = useState<GradeItem[]>([]);
   const [sections, setSections] = useState<SectionItem[]>([]);
@@ -605,25 +607,27 @@ export default function SettingsPage() {
 
   const fetchGrades = useCallback(async () => {
     try {
-      const res = await fetch('/api/settings/grades');
+      const params = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
+      const res = await fetch(`/api/settings/grades${params}`);
       const json = await res.json();
       if (json.success) setGrades(json.data);
     } catch {
       // silently fail
     }
     setGradesLoading(false);
-  }, []);
+  }, [selectedSchoolId]);
 
   const fetchSections = useCallback(async () => {
     try {
-      const res = await fetch('/api/settings/sections');
+      const params = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
+      const res = await fetch(`/api/settings/sections${params}`);
       const json = await res.json();
       if (json.success) setSections(json.data);
     } catch {
       // silently fail
     }
     setSectionsLoading(false);
-  }, []);
+  }, [selectedSchoolId]);
 
   useEffect(() => {
     fetchGrades();
@@ -635,7 +639,7 @@ export default function SettingsPage() {
     await fetch('/api/settings/grades', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, school_id: selectedSchoolId || undefined }),
     });
     await fetchGrades();
   }
@@ -710,7 +714,7 @@ export default function SettingsPage() {
     await fetch('/api/settings/sections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, school_id: selectedSchoolId || undefined }),
     });
     await fetchSections();
   }

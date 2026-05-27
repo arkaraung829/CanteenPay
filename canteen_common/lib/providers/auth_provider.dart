@@ -246,9 +246,13 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       // Reload profile to get correct role
       await _loadUserProfile();
 
-      // After profile is loaded, check if any students have this phone number
-      if (_user?.role == 'parent' && _user?.phone != null) {
-        _autoLinkByPhone(_user!.phone!);
+      // Auto-link by phone number based on role
+      if (_user?.phone != null) {
+        if (_user?.role == 'parent') {
+          _autoLinkParentByPhone(_user!.phone!);
+        } else if (_user?.role == 'seller') {
+          _autoLinkSellerByPhone(_user!.phone!);
+        }
       }
 
       return true;
@@ -266,7 +270,7 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
 
   /// Auto-link parent to students by matching phone number.
   /// Runs silently in the background after OTP login.
-  Future<void> _autoLinkByPhone(String phone) async {
+  Future<void> _autoLinkParentByPhone(String phone) async {
     try {
       // Normalize phone: strip leading 0, ensure +95 prefix
       String normalized = phone.replaceAll(RegExp(r'\s+'), '');
@@ -306,6 +310,57 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       }
     } catch (e) {
       debugPrint('AuthProvider: Auto-link by phone failed: $e');
+    }
+  }
+
+  /// Auto-link seller to canteen_sellers record and school by phone.
+  /// When admin pre-creates a seller with a phone number, and the seller
+  /// later signs up via OTP, this links them automatically.
+  Future<void> _autoLinkSellerByPhone(String phone) async {
+    try {
+      String normalized = phone.replaceAll(RegExp(r'\s+'), '');
+      if (normalized.startsWith('0')) {
+        normalized = '+95${normalized.substring(1)}';
+      } else if (!normalized.startsWith('+')) {
+        normalized = '+$normalized';
+      }
+
+      // Find canteen_sellers record matching this phone
+      final sellers = await _supabase
+          .from('canteen_sellers')
+          .select('id, school_id, profile_id')
+          .eq('phone', normalized);
+
+      if ((sellers as List).isEmpty) return;
+
+      final userId = _user!.id;
+
+      for (final seller in sellers) {
+        final sellerId = seller['id'] as String;
+        final schoolId = seller['school_id'] as String?;
+        final existingProfileId = seller['profile_id'] as String?;
+
+        // Link this seller record to the user's profile
+        if (existingProfileId == null || existingProfileId != userId) {
+          await _supabase
+              .from('canteen_sellers')
+              .update({'profile_id': userId})
+              .eq('id', sellerId);
+        }
+
+        // Also update the user's profile school_id to match the seller's school
+        if (schoolId != null && _user?.schoolId != schoolId) {
+          await _supabase
+              .from('profiles')
+              .update({'school_id': schoolId})
+              .eq('id', userId);
+        }
+      }
+
+      // Reload profile to pick up school_id change
+      await _loadUserProfile();
+    } catch (e) {
+      debugPrint('AuthProvider: Auto-link seller by phone failed: $e');
     }
   }
 

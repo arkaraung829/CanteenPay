@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
   const grade = searchParams.get('grade') || '';
   const className = searchParams.get('class_name') || '';
   const status = searchParams.get('status') || ''; // 'active', 'inactive', or '' (all)
+  const schoolId = searchParams.get('school_id') || '';
   const sortBy = searchParams.get('sort_by') || 'full_name';
   const sortDir = searchParams.get('sort_dir') || 'asc';
   const page = parseInt(searchParams.get('page') || '0');
@@ -30,6 +31,10 @@ export async function GET(request: NextRequest) {
     query = query.order(safeSortBy, { ascending: safeSortDir });
   } else {
     query = query.order('full_name', { ascending: true });
+  }
+
+  if (schoolId) {
+    query = query.eq('school_id', schoolId);
   }
 
   if (search) {
@@ -89,31 +94,44 @@ export async function GET(request: NextRequest) {
   }
 
   // Also fetch grade and class lists for filter dropdowns
-  const { data: gradeData } = await supabase
+  let gradeQuery = supabase
     .from('students')
     .select('grade')
     .not('grade', 'is', null)
     .order('grade');
 
-  const { data: classData } = await supabase
+  let classQuery = supabase
     .from('students')
     .select('class_name')
     .not('class_name', 'is', null)
     .order('class_name');
 
-  const grades = [...new Set((gradeData || []).map((r: { grade: string }) => r.grade))];
-  const classes = [...new Set((classData || []).map((r: { class_name: string }) => r.class_name))];
-
-  // Fetch active/inactive counts
-  const { count: activeCount } = await supabase
+  let activeQuery = supabase
     .from('students')
     .select('id', { count: 'exact', head: true })
     .eq('is_active', true);
 
-  const { count: inactiveCount } = await supabase
+  let inactiveQuery = supabase
     .from('students')
     .select('id', { count: 'exact', head: true })
     .eq('is_active', false);
+
+  if (schoolId) {
+    gradeQuery = gradeQuery.eq('school_id', schoolId);
+    classQuery = classQuery.eq('school_id', schoolId);
+    activeQuery = activeQuery.eq('school_id', schoolId);
+    inactiveQuery = inactiveQuery.eq('school_id', schoolId);
+  }
+
+  const { data: gradeData } = await gradeQuery;
+  const { data: classData } = await classQuery;
+
+  const grades = [...new Set((gradeData || []).map((r: { grade: string }) => r.grade))];
+  const classes = [...new Set((classData || []).map((r: { class_name: string }) => r.class_name))];
+
+  // Fetch active/inactive counts
+  const { count: activeCount } = await activeQuery;
+  const { count: inactiveCount } = await inactiveQuery;
 
   return Response.json({
     success: true,

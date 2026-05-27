@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Store } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import { useSchoolContext } from '@/lib/school-context';
 
 interface SellerRow {
   id: string;
@@ -16,6 +17,7 @@ interface SellerRow {
 }
 
 export default function SellersPage() {
+  const { selectedSchoolId } = useSchoolContext();
   const [sellers, setSellers] = useState<SellerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -35,10 +37,16 @@ export default function SellersPage() {
     const todayISO = today.toISOString();
 
     // Fetch sellers with profile info
-    const { data: sellersData, error } = await supabase
+    let sellersQuery = supabase
       .from('canteen_sellers')
       .select('id, stall_name, stall_number, is_active, profile:profiles(full_name, phone)')
       .order('stall_name');
+
+    if (selectedSchoolId) {
+      sellersQuery = sellersQuery.eq('school_id', selectedSchoolId);
+    }
+
+    const { data: sellersData, error } = await sellersQuery;
 
     if (error) {
       console.error('Error fetching sellers:', error);
@@ -78,7 +86,7 @@ export default function SellersPage() {
 
     setSellers(mapped);
     setLoading(false);
-  }, []);
+  }, [selectedSchoolId]);
 
   useEffect(() => {
     fetchSellers();
@@ -88,23 +96,32 @@ export default function SellersPage() {
     setAddLoading(true);
     setAddError('');
 
-    // Get school id
-    const { data: schools } = await supabase.from('schools').select('id').limit(1);
-    const schoolId = schools?.[0]?.id;
+    // Get school id - use selected school or fall back to first school
+    let schoolId = selectedSchoolId;
+    if (!schoolId) {
+      const { data: schools } = await supabase.from('schools').select('id').limit(1);
+      schoolId = schools?.[0]?.id;
+    }
     if (!schoolId) {
       setAddError('No school found. Please create a school first.');
       setAddLoading(false);
       return;
     }
 
-    // Get current user as fallback profile_id
-    const { data: { user } } = await supabase.auth.getUser();
+    // Normalize phone
+    let normalizedPhone: string | null = null;
+    if (newPhone) {
+      let ph = newPhone.replace(/\s+/g, '');
+      if (ph.startsWith('0')) ph = '+95' + ph.substring(1);
+      else if (!ph.startsWith('+')) ph = '+' + ph;
+      normalizedPhone = ph;
+    }
 
     const { error } = await supabase.from('canteen_sellers').insert({
       stall_name: newStallName,
       stall_number: newStallNumber || null,
       school_id: schoolId,
-      profile_id: user?.id || '',
+      phone: normalizedPhone,
       is_active: true,
     });
 

@@ -7,7 +7,7 @@ import { supabase } from '@/lib/supabase';
 
 const QUICK_AMOUNTS = [2000, 5000, 10000, 20000, 50000];
 
-export default function DepositForm() {
+export default function DepositForm({ schoolId }: { schoolId?: string | null }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Student[]>([]);
   const [searching, setSearching] = useState(false);
@@ -30,12 +30,18 @@ export default function DepositForm() {
     }
 
     setSearching(true);
-    const { data, error } = await supabase
+    let searchQuery = supabase
       .from('students')
       .select('*, wallets(*)')
       .or(`full_name.ilike.%${query}%,student_code.ilike.%${query}%`)
       .eq('is_active', true)
       .limit(5);
+
+    if (schoolId) {
+      searchQuery = searchQuery.eq('school_id', schoolId);
+    }
+
+    const { data, error } = await searchQuery;
 
     if (!error && data) {
       const mapped: Student[] = data.map((s: Record<string, unknown>) => {

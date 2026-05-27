@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Search, Download } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import { useSchoolContext } from '@/lib/school-context';
 
 interface TxRow {
   id: string;
@@ -18,6 +19,7 @@ interface TxRow {
 }
 
 export default function TransactionsPage() {
+  const { selectedSchoolId } = useSchoolContext();
   const [transactions, setTransactions] = useState<TxRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -40,7 +42,7 @@ export default function TransactionsPage() {
         description,
         created_at,
         performed_by,
-        wallet:wallets(student:students(full_name)),
+        wallet:wallets(student:students(full_name, school_id)),
         performer:profiles!transactions_performed_by_fkey(full_name)
       `)
       .order('created_at', { ascending: false })
@@ -71,7 +73,7 @@ export default function TransactionsPage() {
           description,
           created_at,
           performed_by,
-          wallet:wallets(student:students(full_name))
+          wallet:wallets(student:students(full_name, school_id))
         `)
         .order('created_at', { ascending: false })
         .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -85,10 +87,19 @@ export default function TransactionsPage() {
 
     processData(data || []);
     setLoading(false);
-  }, [typeFilter, dateFilter, page]);
+  }, [typeFilter, dateFilter, page, selectedSchoolId]);
 
   function processData(data: Record<string, unknown>[]) {
-    const mapped: TxRow[] = data.map((tx) => {
+    // Filter by school_id if selected
+    let filtered = data;
+    if (selectedSchoolId) {
+      filtered = data.filter((tx) => {
+        const wallet = tx.wallet as Record<string, unknown> | null;
+        const student = wallet?.student as Record<string, unknown> | null;
+        return student?.school_id === selectedSchoolId;
+      });
+    }
+    const mapped: TxRow[] = filtered.map((tx) => {
       const wallet = tx.wallet as Record<string, unknown> | null;
       const student = wallet?.student as Record<string, unknown> | null;
       const performer = tx.performer as Record<string, unknown> | null;
