@@ -96,25 +96,27 @@ class PhoneAuthService {
 
   /// Validate phone number format
   bool isValidPhone(String phone, PhoneCountry country) {
-    String cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+    // Strip everything except digits
+    String digits = phone.replaceAll(RegExp(r'[^\d]'), '');
 
-    // For Myanmar, handle 09 prefix
-    if (country.code == 'MM') {
-      if (cleaned.startsWith('09')) {
-        cleaned = cleaned.substring(1);
-      }
-    } else if (cleaned.startsWith('0')) {
-      cleaned = cleaned.substring(1);
+    // Remove country code prefix if present (e.g., 959 → 9)
+    if (digits.startsWith('959')) {
+      digits = digits.substring(2); // keep the 9
     }
 
-    // Check if it's only digits
-    if (!RegExp(r'^\d+$').hasMatch(cleaned)) {
+    // Handle 09 prefix → 9
+    if (digits.startsWith('09')) {
+      digits = digits.substring(1);
+    }
+
+    // Must be digits only
+    if (digits.isEmpty || !RegExp(r'^\d+$').hasMatch(digits)) {
       return false;
     }
 
-    // Check length
-    return cleaned.length >= country.minLength &&
-        cleaned.length <= country.maxLength;
+    // Myanmar numbers: 9xxxxxxxx (8-10 digits after 9)
+    return digits.length >= country.minLength &&
+        digits.length <= country.maxLength;
   }
 
   /// Send OTP to phone number via Firebase
