@@ -346,17 +346,7 @@ class _LoginScreenState extends State<LoginScreen>
           child: Builder(
             builder: (context) {
               final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 100;
-              if (keyboardVisible) {
-                Future.delayed(const Duration(milliseconds: 100), () {
-                  if (_scrollController.hasClients && mounted) {
-                    _scrollController.animateTo(
-                      _scrollController.position.maxScrollExtent,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
-                    );
-                  }
-                });
-              }
+              // No auto-scroll here — handled by onTap
               return Column(
                 children: [
                   Expanded(
@@ -569,8 +559,11 @@ class _LoginScreenState extends State<LoginScreen>
           onTap: () {
             Future.delayed(const Duration(milliseconds: 400), () {
               if (_scrollController.hasClients && mounted) {
+                // Scroll just enough to show the card — not all the way to bottom
+                final target = (_scrollController.position.maxScrollExtent * 0.6)
+                    .clamp(0.0, _scrollController.position.maxScrollExtent);
                 _scrollController.animateTo(
-                  _scrollController.position.maxScrollExtent,
+                  target,
                   duration: const Duration(milliseconds: 300),
                   curve: Curves.easeOut,
                 );
