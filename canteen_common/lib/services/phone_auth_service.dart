@@ -60,38 +60,41 @@ class PhoneAuthService {
 
   /// Format phone number to international format
   String formatPhone(String phone, PhoneCountry country) {
-    // Remove spaces, dashes, parentheses, and other characters
-    String cleaned = phone.replaceAll(RegExp(r'[\s\-\(\)\.]'), '');
+    // Remove everything except digits and +
+    String cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
 
-    // If already has full country code with +
-    if (cleaned.startsWith(country.dialCode)) {
+    // Already formatted: +959xxxxxxxx
+    if (cleaned.startsWith('+959') && cleaned.length >= 12) {
       return cleaned;
     }
 
-    // If starts with country code without +
-    String dialCodeWithoutPlus = country.dialCode.substring(1);
-    if (cleaned.startsWith(dialCodeWithoutPlus) &&
-        cleaned.length > country.maxLength) {
-      return '+$cleaned';
-    }
-
-    // Handle Myanmar-specific formatting (09 -> 9)
-    if (country.code == 'MM') {
-      if (cleaned.startsWith('09')) {
-        cleaned = cleaned.substring(1); // Remove leading 0
-      }
-      if (cleaned.startsWith('9')) {
-        return '+959${cleaned.substring(1)}';
-      }
-      return '+959$cleaned';
-    }
-
-    // Handle other countries - remove leading 0 if present
-    if (cleaned.startsWith('0')) {
+    // Has + but wrong format — strip + and reprocess
+    if (cleaned.startsWith('+')) {
       cleaned = cleaned.substring(1);
     }
 
-    return '${country.dialCode}$cleaned';
+    // Starts with 959 (country code without +): 959xxxxxxxx
+    if (cleaned.startsWith('959') && cleaned.length >= 11) {
+      return '+$cleaned';
+    }
+
+    // Starts with 09: Myanmar local format
+    if (cleaned.startsWith('09')) {
+      return '+959${cleaned.substring(2)}';
+    }
+
+    // Starts with 9: already without 0
+    if (cleaned.startsWith('9') && cleaned.length >= 7) {
+      return '+959${cleaned.substring(1)}';
+    }
+
+    // Fallback: assume Myanmar number, prepend +959
+    return '+959$cleaned';
+  }
+
+  /// Legacy method kept for compatibility
+  String formatPhoneForDisplay(String phone, PhoneCountry country) {
+    return formatPhone(phone, country);
   }
 
   /// Validate phone number format
