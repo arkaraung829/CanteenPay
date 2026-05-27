@@ -560,7 +560,7 @@ class _LoginScreenState extends State<LoginScreen>
             Future.delayed(const Duration(milliseconds: 400), () {
               if (_scrollController.hasClients && mounted) {
                 // Scroll just enough to show the card — not all the way to bottom
-                final target = (_scrollController.position.maxScrollExtent * 0.85)
+                final target = _scrollController.position.maxScrollExtent
                     .clamp(0.0, _scrollController.position.maxScrollExtent);
                 _scrollController.animateTo(
                   target,
