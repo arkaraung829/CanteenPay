@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -26,9 +27,11 @@ class _LoginScreenState extends State<LoginScreen>
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _otpFocusNode = FocusNode();
   String _role = 'parent';
   _AuthStep _step = _AuthStep.phone;
   bool _obscurePassword = true;
+  int _resendCooldown = 0;
 
   late final AnimationController _shakeController;
   late final Animation<double> _shakeAnimation;
@@ -119,6 +122,7 @@ class _LoginScreenState extends State<LoginScreen>
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _otpFocusNode.dispose();
     _shakeController.dispose();
     super.dispose();
   }
@@ -128,6 +132,16 @@ class _LoginScreenState extends State<LoginScreen>
     if (phone.startsWith('0')) phone = '+95${phone.substring(1)}';
     if (!phone.startsWith('+')) phone = '+95$phone';
     return phone;
+  }
+
+  void _startResendCooldown() {
+    _resendCooldown = 30;
+    Future.doWhile(() async {
+      await Future.delayed(const Duration(seconds: 1));
+      if (!mounted) return false;
+      setState(() => _resendCooldown--);
+      return _resendCooldown > 0;
+    });
   }
 
   Future<void> _sendOtp() async {
@@ -144,7 +158,22 @@ class _LoginScreenState extends State<LoginScreen>
     if (mounted) {
       if (success) {
         HapticService.success();
+        _otpController.clear();
         setState(() => _step = _AuthStep.otp);
+        _startResendCooldown();
+        // Show green snackbar
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('OTP sent to $_formattedPhone'),
+            backgroundColor: AppTheme.success,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
+        // Auto-focus OTP field
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) _otpFocusNode.requestFocus();
+        });
       } else {
         _shake();
       }
@@ -468,8 +497,11 @@ class _LoginScreenState extends State<LoginScreen>
         TextField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
+          maxLength: 11,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 1),
           decoration: InputDecoration(
+            counterText: '',
             labelText: 'Phone Number',
             hintText: '09xxxxxxxxx',
             labelStyle: const TextStyle(fontSize: 14, color: AppTheme.textHint),
@@ -563,9 +595,11 @@ class _LoginScreenState extends State<LoginScreen>
         // OTP input
         TextField(
           controller: _otpController,
+          focusNode: _otpFocusNode,
           keyboardType: TextInputType.number,
           maxLength: 6,
           textAlign: TextAlign.center,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: 12),
           decoration: InputDecoration(
             counterText: '',
@@ -578,6 +612,11 @@ class _LoginScreenState extends State<LoginScreen>
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
           ),
           autofocus: true,
+          onChanged: (value) {
+            if (value.length == 6 && !auth.isLoading) {
+              _verifyOtp();
+            }
+          },
         ),
         const SizedBox(height: 20),
 
@@ -598,10 +637,44 @@ class _LoginScreenState extends State<LoginScreen>
         ),
 
         const SizedBox(height: 16),
-        GestureDetector(
-          onTap: auth.isLoading ? null : _sendOtp,
-          child: const Center(
-            child: Text('Resend Code', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primary)),
+
+        // Resend code with cooldown
+        Center(
+          child: _resendCooldown > 0
+              ? Text(
+                  'Resend code in ${_resendCooldown}s',
+                  style: const TextStyle(fontSize: 13, color: AppTheme.textHint),
+                )
+              : GestureDetector(
+                  onTap: auth.isLoading ? null : _sendOtp,
+                  child: RichText(
+                    text: const TextSpan(
+                      style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+                      children: [
+                        TextSpan(text: "Didn't receive the code? "),
+                        TextSpan(
+                          text: 'Resend',
+                          style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.primary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Change phone number
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              auth.clearError();
+              setState(() => _step = _AuthStep.phone);
+            },
+            child: const Text(
+              'Change Phone Number',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primary),
+            ),
           ),
         ),
       ],
