@@ -497,7 +497,10 @@ class _LoginScreenState extends State<LoginScreen>
         TextField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.send,
+          onSubmitted: (_) => _sendOtp(),
           maxLength: 11,
+          autofocus: true,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 1),
           decoration: InputDecoration(
