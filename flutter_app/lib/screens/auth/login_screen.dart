@@ -472,7 +472,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildBottomButton(AuthProvider auth, bool keyboardVisible) {
-    if (!keyboardVisible || _checkingBiometric) return const SizedBox.shrink();
+    if (_checkingBiometric) return const SizedBox.shrink();
 
     // Show contextual button based on current step
     String label;
@@ -556,20 +556,6 @@ class _LoginScreenState extends State<LoginScreen>
           keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.send,
           onSubmitted: (_) => _sendOtp(),
-          onTap: () {
-            Future.delayed(const Duration(milliseconds: 400), () {
-              if (_scrollController.hasClients && mounted) {
-                // Scroll just enough to show the card — not all the way to bottom
-                final target = _scrollController.position.maxScrollExtent
-                    .clamp(0.0, _scrollController.position.maxScrollExtent);
-                _scrollController.animateTo(
-                  target,
-                  duration: const Duration(milliseconds: 300),
-                  curve: Curves.easeOut,
-                );
-              }
-            });
-          },
           maxLength: 11,
           autofocus: false,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -599,25 +585,8 @@ class _LoginScreenState extends State<LoginScreen>
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
           ),
         ),
-        const SizedBox(height: 20),
 
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: auth.isLoading ? null : _sendOtp,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: auth.isLoading
-                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                : const Text('Send OTP Code', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ),
-        ),
-
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
 
         // Email login option
         Row(
