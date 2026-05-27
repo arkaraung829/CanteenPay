@@ -129,12 +129,7 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  String get _formattedPhone {
-    String phone = _phoneController.text.trim();
-    if (phone.startsWith('0')) phone = '+95${phone.substring(1)}';
-    if (!phone.startsWith('+')) phone = '+95$phone';
-    return phone;
-  }
+  String get _rawPhone => _phoneController.text.trim();
 
   void _startResendCooldown() {
     _resendCooldown = 30;
@@ -156,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     final auth = context.read<AuthProvider>();
-    final success = await auth.signInWithPhone(_formattedPhone);
+    final success = await auth.signInWithPhone(_rawPhone);
     if (mounted) {
       if (success) {
         HapticService.success();
@@ -166,7 +161,7 @@ class _LoginScreenState extends State<LoginScreen>
         // Show green snackbar
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('OTP sent to $_formattedPhone'),
+            content: Text('OTP sent to $_rawPhone'),
             backgroundColor: AppTheme.success,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -193,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     final auth = context.read<AuthProvider>();
     final success = await auth.verifyOtp(
-      _formattedPhone,
+      _rawPhone,
       code,
       fullName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
       role: _role,
