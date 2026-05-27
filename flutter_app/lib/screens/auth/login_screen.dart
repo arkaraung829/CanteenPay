@@ -28,6 +28,7 @@ class _LoginScreenState extends State<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _otpFocusNode = FocusNode();
+  final _scrollController = ScrollController();
   String _role = 'parent';
   _AuthStep _step = _AuthStep.phone;
   bool _obscurePassword = true;
@@ -123,6 +124,7 @@ class _LoginScreenState extends State<LoginScreen>
     _emailController.dispose();
     _passwordController.dispose();
     _otpFocusNode.dispose();
+    _scrollController.dispose();
     _shakeController.dispose();
     super.dispose();
   }
@@ -344,10 +346,22 @@ class _LoginScreenState extends State<LoginScreen>
           child: Builder(
             builder: (context) {
               final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 100;
+              if (keyboardVisible) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (_scrollController.hasClients) {
+                    _scrollController.animateTo(
+                      _scrollController.position.maxScrollExtent,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                    );
+                  }
+                });
+              }
               return Column(
                 children: [
                   Expanded(
                     child: SingleChildScrollView(
+                      controller: _scrollController,
                       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: Column(
@@ -468,7 +482,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildBottomButton(AuthProvider auth, bool keyboardVisible) {
-    if (!keyboardVisible) return const SizedBox.shrink();
+    if (!keyboardVisible || _checkingBiometric) return const SizedBox.shrink();
 
     // Show contextual button based on current step
     String label;
