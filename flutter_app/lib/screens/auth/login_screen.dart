@@ -341,19 +341,19 @@ class _LoginScreenState extends State<LoginScreen>
           ),
         ),
         child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
+          child: Builder(
+            builder: (context) {
               final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 100;
-              return SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.symmetric(horizontal: 28),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        SizedBox(height: keyboardVisible ? 8 : 24),
+              return Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: const EdgeInsets.symmetric(horizontal: 28),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(height: keyboardVisible ? 8 : 24),
 
                   // Logo — shrinks when keyboard is visible
                   if (!keyboardVisible) TweenAnimationBuilder<double>(
@@ -455,11 +455,64 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                 ),
+                // Action button pinned above keyboard
+                _buildBottomButton(auth, keyboardVisible),
+              ],
               );
             },
           ),
         ),
       ),
+      ),
+    );
+  }
+
+  Widget _buildBottomButton(AuthProvider auth, bool keyboardVisible) {
+    if (!keyboardVisible) return const SizedBox.shrink();
+
+    // Show contextual button based on current step
+    String label;
+    VoidCallback? onPressed;
+
+    switch (_step) {
+      case _AuthStep.phone:
+        label = 'Send OTP Code';
+        onPressed = auth.isLoading ? null : _sendOtp;
+      case _AuthStep.otp:
+        label = 'Verify & Sign In';
+        onPressed = auth.isLoading ? null : _verifyOtp;
+      case _AuthStep.profile:
+        label = 'Get Started';
+        onPressed = auth.isLoading ? null : _saveProfile;
+      case _AuthStep.emailLogin:
+        label = 'Sign In';
+        onPressed = auth.isLoading ? null : _emailLogin;
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(28, 12, 28, 12),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [const Color(0xFF0D47A1).withValues(alpha: 0.0), const Color(0xFF0D47A1)],
+        ),
+      ),
+      child: SizedBox(
+        height: 50,
+        width: double.infinity,
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: AppTheme.primary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 0,
+          ),
+          child: auth.isLoading
+              ? SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.primary))
+              : Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ),
       ),
     );
   }
