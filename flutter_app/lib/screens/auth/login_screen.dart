@@ -347,8 +347,8 @@ class _LoginScreenState extends State<LoginScreen>
             builder: (context) {
               final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 100;
               if (keyboardVisible) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (_scrollController.hasClients) {
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (_scrollController.hasClients && mounted) {
                     _scrollController.animateTo(
                       _scrollController.position.maxScrollExtent,
                       duration: const Duration(milliseconds: 300),
@@ -566,6 +566,17 @@ class _LoginScreenState extends State<LoginScreen>
           keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.send,
           onSubmitted: (_) => _sendOtp(),
+          onTap: () {
+            Future.delayed(const Duration(milliseconds: 400), () {
+              if (_scrollController.hasClients && mounted) {
+                _scrollController.animateTo(
+                  _scrollController.position.maxScrollExtent,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOut,
+                );
+              }
+            });
+          },
           maxLength: 11,
           autofocus: true,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
