@@ -578,7 +578,7 @@ class _LoginScreenState extends State<LoginScreen>
             });
           },
           maxLength: 11,
-          autofocus: true,
+          autofocus: false,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 1),
           decoration: InputDecoration(
