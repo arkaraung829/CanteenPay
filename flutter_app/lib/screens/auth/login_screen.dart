@@ -328,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen>
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        resizeToAvoidBottomInset: true,
+        resizeToAvoidBottomInset: false,
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -340,8 +340,8 @@ class _LoginScreenState extends State<LoginScreen>
         child: SafeArea(
           child: Builder(
             builder: (context) {
-              final keyboardVisible = MediaQuery.of(context).viewInsets.bottom > 100;
-              // No auto-scroll here — handled by onTap
+              final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+              final keyboardVisible = bottomInset > 100;
               return Column(
                 children: [
                   Expanded(
@@ -455,7 +455,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                 ),
                 // Action button pinned above keyboard
-                _buildBottomButton(auth, keyboardVisible),
+                _buildBottomButton(auth, keyboardVisible, bottomInset),
               ],
               );
             },
@@ -466,7 +466,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _buildBottomButton(AuthProvider auth, bool keyboardVisible) {
+  Widget _buildBottomButton(AuthProvider auth, bool keyboardVisible, double bottomInset) {
     if (_checkingBiometric) return const SizedBox.shrink();
 
     // Show contextual button based on current step
@@ -489,14 +489,19 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(28, 12, 28, 12),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [const Color(0xFF0D47A1).withValues(alpha: 0.0), const Color(0xFF0D47A1)],
-        ),
-      ),
+      padding: EdgeInsets.fromLTRB(28, 12, 28, bottomInset > 0 ? bottomInset + 8 : 16),
+      decoration: keyboardVisible
+          ? BoxDecoration(
+              color: const Color(0xFF0D47A1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            )
+          : null,
       child: SizedBox(
         height: 50,
         width: double.infinity,
