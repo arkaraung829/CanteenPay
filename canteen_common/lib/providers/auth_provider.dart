@@ -189,13 +189,13 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
   }
 
   /// Send OTP to phone number via Firebase (not Supabase)
-  Future<bool> signInWithPhone(String phone) async {
+  Future<bool> signInWithPhone(String phone, {PhoneCountry? country}) async {
     _isLoading = true;
     _error = null;
     safeNotifyListeners();
 
     try {
-      final result = await PhoneAuthService().sendOTP(phone);
+      final result = await PhoneAuthService().sendOTP(phone, country: country);
       if (!result.success) {
         _error = result.error;
         return false;
@@ -215,7 +215,7 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
   /// Firebase handles SMS delivery and code verification.
   /// After verification, we create/sign-in a Supabase user using a
   /// deterministic email+password derived from the phone number.
-  Future<bool> verifyOtp(String phone, String token, {String? fullName, String? role}) async {
+  Future<bool> verifyOtp(String phone, String token, {String? fullName, String? role, PhoneCountry? country}) async {
     _isLoading = true;
     _error = null;
     safeNotifyListeners();
@@ -231,7 +231,7 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       // 2. Sign into Supabase with phone-based credentials
       final normalizedPhone = PhoneAuthService().formatPhone(
         phone,
-        PhoneAuthService.defaultCountry,
+        country ?? PhoneAuthService.defaultCountry,
       );
       final fakeEmail =
           '${normalizedPhone.replaceAll('+', '')}@phone.canteenpay.local';

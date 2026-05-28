@@ -42,7 +42,7 @@ class PhoneAuthService {
   bool get isVerifying => _isVerifying;
   String? get verificationId => _verificationId;
 
-  /// Supported countries — Myanmar only for CanteenPay
+  /// Supported countries
   static const List<PhoneCountry> supportedCountries = [
     PhoneCountry(
       name: 'Myanmar',
@@ -52,6 +52,15 @@ class PhoneAuthService {
       placeholder: '09xxxxxxxxx',
       minLength: 7,
       maxLength: 11,
+    ),
+    PhoneCountry(
+      name: 'Canada',
+      code: 'CA',
+      dialCode: '+1',
+      flag: '\u{1F1E8}\u{1F1E6}',
+      placeholder: '(xxx) xxx-xxxx',
+      minLength: 10,
+      maxLength: 10,
     ),
   ];
 
@@ -63,33 +72,34 @@ class PhoneAuthService {
     // Remove everything except digits and +
     String cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
 
-    // Already formatted: +959xxxxxxxx
-    if (cleaned.startsWith('+959') && cleaned.length >= 12) {
+    // Already has + with country code
+    if (cleaned.startsWith('+') && cleaned.length >= 10) {
       return cleaned;
     }
 
-    // Has + but wrong format — strip + and reprocess
+    // Strip + for reprocessing
     if (cleaned.startsWith('+')) {
       cleaned = cleaned.substring(1);
     }
 
-    // Starts with 959 (country code without +): 959xxxxxxxx
-    if (cleaned.startsWith('959') && cleaned.length >= 11) {
-      return '+$cleaned';
+    if (country.code == 'MM') {
+      // Myanmar: 959xxx, 09xxx, 9xxx
+      if (cleaned.startsWith('959') && cleaned.length >= 11) return '+$cleaned';
+      if (cleaned.startsWith('09')) return '+959${cleaned.substring(2)}';
+      if (cleaned.startsWith('9') && cleaned.length >= 7) return '+959${cleaned.substring(1)}';
+      return '+959$cleaned';
     }
 
-    // Starts with 09: Myanmar local format
-    if (cleaned.startsWith('09')) {
-      return '+959${cleaned.substring(2)}';
+    if (country.code == 'CA') {
+      // Canada: 1xxx, xxx (10 digits)
+      if (cleaned.startsWith('1') && cleaned.length == 11) return '+$cleaned';
+      if (cleaned.length == 10) return '+1$cleaned';
+      return '+1$cleaned';
     }
 
-    // Starts with 9: already without 0
-    if (cleaned.startsWith('9') && cleaned.length >= 7) {
-      return '+959${cleaned.substring(1)}';
-    }
-
-    // Fallback: assume Myanmar number, prepend +959
-    return '+959$cleaned';
+    // Generic: prepend dial code
+    if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+    return '${country.dialCode}$cleaned';
   }
 
   /// Legacy method kept for compatibility
@@ -99,25 +109,21 @@ class PhoneAuthService {
 
   /// Validate phone number format
   bool isValidPhone(String phone, PhoneCountry country) {
-    // Strip everything except digits
     String digits = phone.replaceAll(RegExp(r'[^\d]'), '');
 
-    // Remove country code prefix if present (e.g., 959 → 9)
-    if (digits.startsWith('959')) {
-      digits = digits.substring(2); // keep the 9
+    if (country.code == 'MM') {
+      // Strip country code
+      if (digits.startsWith('959')) digits = digits.substring(2);
+      if (digits.startsWith('09')) digits = digits.substring(1);
+    } else if (country.code == 'CA') {
+      // Strip country code
+      if (digits.startsWith('1') && digits.length == 11) digits = digits.substring(1);
+    } else {
+      if (digits.startsWith('0')) digits = digits.substring(1);
     }
 
-    // Handle 09 prefix → 9
-    if (digits.startsWith('09')) {
-      digits = digits.substring(1);
-    }
+    if (digits.isEmpty) return false;
 
-    // Must be digits only
-    if (digits.isEmpty || !RegExp(r'^\d+$').hasMatch(digits)) {
-      return false;
-    }
-
-    // Myanmar numbers: 9xxxxxxxx (8-10 digits after 9)
     return digits.length >= country.minLength &&
         digits.length <= country.maxLength;
   }

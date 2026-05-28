@@ -32,6 +32,7 @@ class _LoginScreenState extends State<LoginScreen>
   String _role = 'parent';
   _AuthStep _step = _AuthStep.phone;
   bool _obscurePassword = true;
+  PhoneCountry _selectedCountry = PhoneAuthService.defaultCountry;
   int _resendCooldown = 0;
 
   late final AnimationController _shakeController;
@@ -151,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     final auth = context.read<AuthProvider>();
-    final success = await auth.signInWithPhone(_rawPhone);
+    final success = await auth.signInWithPhone(_rawPhone, country: _selectedCountry);
     if (mounted) {
       if (success) {
         HapticService.success();
@@ -192,6 +193,7 @@ class _LoginScreenState extends State<LoginScreen>
       code,
       fullName: _nameController.text.trim().isNotEmpty ? _nameController.text.trim() : null,
       role: _role,
+      country: _selectedCountry,
     );
     if (mounted) {
       if (success) {
@@ -551,32 +553,44 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 12),
         ],
 
-        // Phone input
+        // Phone input with country selector
         TextField(
           controller: _phoneController,
           keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.send,
           onSubmitted: (_) => _sendOtp(),
-          maxLength: 11,
+          maxLength: _selectedCountry.maxLength + 1,
           autofocus: false,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 1),
           decoration: InputDecoration(
             counterText: '',
             labelText: 'Phone Number',
-            hintText: '09xxxxxxxxx',
+            hintText: _selectedCountry.placeholder,
             labelStyle: const TextStyle(fontSize: 14, color: AppTheme.textHint),
-            prefixIcon: Container(
-              padding: const EdgeInsets.only(left: 16, right: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('🇲🇲', style: TextStyle(fontSize: 20)),
-                  const SizedBox(width: 6),
-                  Text('+95', style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-                  const SizedBox(width: 4),
-                  Container(width: 1, height: 24, color: Colors.grey[300]),
-                ],
+            prefixIcon: GestureDetector(
+              onTap: () {
+                // Cycle through countries
+                final idx = PhoneAuthService.supportedCountries.indexOf(_selectedCountry);
+                setState(() {
+                  _selectedCountry = PhoneAuthService.supportedCountries[(idx + 1) % PhoneAuthService.supportedCountries.length];
+                  _phoneController.clear();
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.only(left: 16, right: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_selectedCountry.flag, style: const TextStyle(fontSize: 20)),
+                    const SizedBox(width: 4),
+                    Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey[500]),
+                    const SizedBox(width: 2),
+                    Text(_selectedCountry.dialCode, style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500)),
+                    const SizedBox(width: 4),
+                    Container(width: 1, height: 24, color: Colors.grey[300]),
+                  ],
+                ),
               ),
             ),
             filled: true,
