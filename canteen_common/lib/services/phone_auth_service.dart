@@ -179,12 +179,7 @@ class PhoneAuthService {
             );
           }
 
-          // Disable app verification for testing (uses reCAPTCHA fallback instead of silent push)
-          // This avoids the APNS token crash in debug builds
-          if (kDebugMode) {
-            await _auth.setSettings(appVerificationDisabledForTesting: true);
-            debugPrint('PhoneAuthService: App verification disabled for testing');
-          }
+          // App verification enabled — uses silent push for real SMS delivery
           debugPrint('PhoneAuthService: calling verifyPhoneNumber...');
         } catch (e) {
           debugPrint('PhoneAuthService: APNS setup error: $e');
