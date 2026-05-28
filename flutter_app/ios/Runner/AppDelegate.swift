@@ -1,16 +1,15 @@
 import Flutter
 import UIKit
 import FirebaseCore
-import FirebaseAuth
 import FirebaseMessaging
 
 @main
-@objc class AppDelegate: FlutterAppDelegate {
+@objc class AppDelegate: FlutterAppDelegate, MessagingDelegate {
   override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Initialize Firebase
+    // Initialize Firebase (must be before other Firebase calls)
     FirebaseApp.configure()
 
     // Set up Firebase Messaging delegate
@@ -37,28 +36,23 @@ import FirebaseMessaging
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // Handle APNs device token
+  // Handle APNs device token — same as cuckoo
+  // With FirebaseAppDelegateProxyEnabled: true, Firebase swizzling
+  // automatically forwards this to Auth for phone verification
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    // Pass to Firebase Messaging (same as cuckoo)
     Messaging.messaging().apnsToken = deviceToken
-    // Also pass to Firebase Auth for phone auth
-    Auth.auth().setAPNSToken(deviceToken, type: .unknown)
   }
 
-  // Handle remote notification for phone auth silent verification
-  override func application(
-    _ application: UIApplication,
-    didReceiveRemoteNotification userInfo: [AnyHashable: Any],
-    fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
-  ) {
-    if Auth.auth().canHandleNotification(userInfo) {
-      completionHandler(.noData)
-      return
+  // Firebase Messaging delegate
+  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    #if DEBUG
+    if let token = fcmToken {
+      print("FCM token: \(token)")
     }
-    super.application(application, didReceiveRemoteNotification: userInfo, fetchCompletionHandler: completionHandler)
+    #endif
   }
 
   override func application(
@@ -67,16 +61,6 @@ import FirebaseMessaging
   ) {
     #if DEBUG
     print("Failed to register for remote notifications: \(error.localizedDescription)")
-    #endif
-  }
-}
-
-extension AppDelegate: MessagingDelegate {
-  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-    #if DEBUG
-    if let token = fcmToken {
-      print("FCM token: \(token)")
-    }
     #endif
   }
 }

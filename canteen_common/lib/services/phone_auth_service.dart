@@ -147,44 +147,22 @@ class PhoneAuthService {
         );
       }
 
-      // iOS: Ensure APNS token is available before phone auth
+      // iOS: Request notification permission for silent push verification
       if (Platform.isIOS) {
-        debugPrint('PhoneAuthService: requesting APNS token...');
         try {
-          // Request notification permission first
           final messaging = FirebaseMessaging.instance;
-          final settings = await messaging.requestPermission(
+          await messaging.requestPermission(
             alert: true,
             badge: true,
             sound: true,
-            provisional: false,
           );
-          debugPrint('PhoneAuthService: notification permission: ${settings.authorizationStatus}');
-
-          // Get APNS token and set it on Firebase Auth
-          String? apnsToken = await messaging.getAPNSToken();
-          debugPrint('PhoneAuthService: APNS token: ${apnsToken != null ? "available" : "NULL"}');
-
-          if (apnsToken == null) {
-            await Future.delayed(const Duration(seconds: 3));
-            apnsToken = await messaging.getAPNSToken();
-            debugPrint('PhoneAuthService: APNS token retry: ${apnsToken != null ? "available" : "still NULL"}');
-          }
-
-          if (apnsToken == null) {
-            _isVerifying = false;
-            return PhoneAuthResult(
-              success: false,
-              error: 'Push notifications not available. Please enable notifications in Settings and try again.',
-            );
-          }
-
-          // App verification enabled — uses silent push for real SMS delivery
-          debugPrint('PhoneAuthService: calling verifyPhoneNumber...');
+          // Wait for APNS token to be forwarded to Auth via swizzling
+          await Future.delayed(const Duration(seconds: 1));
         } catch (e) {
-          debugPrint('PhoneAuthService: APNS setup error: $e');
+          debugPrint('PhoneAuthService: notification permission error: $e');
         }
       }
+      debugPrint('PhoneAuthService: calling verifyPhoneNumber...');
 
       final completer = Completer<PhoneAuthResult>();
 
