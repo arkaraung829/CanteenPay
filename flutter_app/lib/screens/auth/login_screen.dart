@@ -327,6 +327,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.deferToChild,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         body: Container(
