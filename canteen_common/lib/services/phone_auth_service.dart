@@ -4,7 +4,9 @@
 /// CanteenPay uses Firebase only for OTP delivery/verification,
 /// then bridges to Supabase for session management.
 import 'dart:async';
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
 /// Supported country for phone authentication
@@ -145,8 +147,42 @@ class PhoneAuthService {
         );
       }
 
-      // Wait for APNS token to be available (iOS needs this for phone auth)
-      await Future.delayed(const Duration(seconds: 2));
+      // iOS: Ensure APNS token is available before phone auth
+      if (Platform.isIOS) {
+        debugPrint('PhoneAuthService: requesting APNS token...');
+        try {
+          // Request notification permission first
+          final messaging = FirebaseMessaging.instance;
+          final settings = await messaging.requestPermission(
+            alert: true,
+            badge: true,
+            sound: true,
+            provisional: false,
+          );
+          debugPrint('PhoneAuthService: notification permission: ${settings.authorizationStatus}');
+
+          // Get APNS token explicitly
+          final apnsToken = await messaging.getAPNSToken();
+          debugPrint('PhoneAuthService: APNS token: ${apnsToken != null ? "available" : "NULL"}');
+
+          if (apnsToken == null) {
+            // Wait and retry
+            await Future.delayed(const Duration(seconds: 3));
+            final retryToken = await messaging.getAPNSToken();
+            debugPrint('PhoneAuthService: APNS token retry: ${retryToken != null ? "available" : "still NULL"}');
+
+            if (retryToken == null) {
+              _isVerifying = false;
+              return PhoneAuthResult(
+                success: false,
+                error: 'Push notifications not available. Please enable notifications in Settings and try again.',
+              );
+            }
+          }
+        } catch (e) {
+          debugPrint('PhoneAuthService: APNS setup error: $e');
+        }
+      }
 
       final completer = Completer<PhoneAuthResult>();
 
