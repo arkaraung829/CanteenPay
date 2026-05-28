@@ -60,5 +60,16 @@
 		</array>
 		<key>FirebaseAppDelegateProxyEnabled</key>
 		<true/>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>app-1-1083173550425-ios-500ed1b5d52a3a303ff448</string>
+				</array>
+				<key>CFBundleURLName</key>
+				<string>firebase-phone-auth</string>
+			</dict>
+		</array>
 	</dict>
 </plist>
