@@ -136,6 +136,8 @@ class PhoneAuthService {
       final selectedCountry = country ?? defaultCountry;
       String formattedPhone = formatPhone(phoneNumber, selectedCountry);
 
+      debugPrint('PhoneAuthService: sending OTP to $formattedPhone');
+
       if (!isValidPhone(phoneNumber, selectedCountry)) {
         return PhoneAuthResult(
           success: false,
@@ -143,11 +145,15 @@ class PhoneAuthService {
         );
       }
 
+      // Wait for APNS token to be available (iOS needs this for phone auth)
+      await Future.delayed(const Duration(seconds: 2));
+
       final completer = Completer<PhoneAuthResult>();
 
-      await _auth.verifyPhoneNumber(
-        phoneNumber: formattedPhone,
-        timeout: const Duration(seconds: 60),
+      try {
+        await _auth.verifyPhoneNumber(
+          phoneNumber: formattedPhone,
+          timeout: const Duration(seconds: 60),
         verificationCompleted: (PhoneAuthCredential credential) async {
           // Auto-verification (Android only)
           if (!completer.isCompleted) {
@@ -184,11 +190,21 @@ class PhoneAuthService {
       );
 
       return await completer.future;
+      } catch (e) {
+        // Firebase Phone Auth crashed — likely APNS token not ready
+        _isVerifying = false;
+        debugPrint('PhoneAuthService: verifyPhoneNumber crashed: $e');
+        if (!completer.isCompleted) {
+          completer.complete(PhoneAuthResult(
+            success: false,
+            error: 'Phone verification failed. Please ensure notifications are enabled and try again.',
+          ));
+        }
+        return await completer.future;
+      }
     } catch (e) {
       _isVerifying = false;
-      if (kDebugMode) {
-        debugPrint('PhoneAuthService: sendOTP error: $e');
-      }
+      debugPrint('PhoneAuthService: sendOTP error: $e');
       return PhoneAuthResult(
         success: false,
         error: 'Failed to send OTP. Please try again.',
