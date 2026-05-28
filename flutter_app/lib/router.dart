@@ -73,6 +73,11 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
       // While auth is loading, stay on current page (don't flash)
       if (isLoading) return null;
 
+      // Ignore Firebase auth callback URLs
+      if (path.contains('__/auth/callback') || path.contains('firebaseapp.com')) {
+        return '/login';
+      }
+
       // Not logged in → go to login (but allow onboarding)
       if (!isAuthenticated && !isLoginRoute && !isRoleSelect && !isOnboarding) {
         return '/login';

@@ -44,6 +44,8 @@ import FirebaseMessaging
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
     Messaging.messaging().apnsToken = deviceToken
+    // Must call super so FlutterAppDelegate forwards token to Firebase Auth via swizzling
+    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
   // Firebase Messaging delegate
