@@ -234,7 +234,7 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         country ?? PhoneAuthService.defaultCountry,
       );
       final fakeEmail =
-          '${normalizedPhone.replaceAll('+', '')}@phone.canteenpay.local';
+          '${normalizedPhone.replaceAll('+', '')}@phone.canteenpay.com';
       final password = 'phone_${normalizedPhone}_canteenpay_2026';
 
       // Try sign in first (existing user)
