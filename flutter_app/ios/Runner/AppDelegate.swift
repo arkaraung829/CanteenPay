@@ -9,10 +9,13 @@ import FirebaseAuth
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    FirebaseApp.configure()
+    // Let Flutter's firebase_core plugin handle FirebaseApp.configure()
     GeneratedPluginRegistrant.register(with: self)
 
-    // Request APNS token for Firebase Phone Auth
+    // Request APNS token — required for Firebase Phone Auth
+    if #available(iOS 10.0, *) {
+      UNUserNotificationCenter.current().delegate = self
+    }
     application.registerForRemoteNotifications()
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
@@ -23,11 +26,16 @@ import FirebaseAuth
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    Auth.auth().setAPNSToken(deviceToken, type: .unknown)
+    // Set token type based on build config
+    #if DEBUG
+    Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
+    #else
+    Auth.auth().setAPNSToken(deviceToken, type: .prod)
+    #endif
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
-  // Handle push notification for silent verification
+  // Handle silent push for phone auth verification
   override func application(
     _ application: UIApplication,
     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
