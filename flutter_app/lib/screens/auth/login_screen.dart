@@ -39,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen>
   late final Animation<double> _shakeAnimation;
   bool _checkingBiometric = true;
   String _biometricType = 'face'; // 'face' or 'fingerprint'
+  bool _keyboardWasVisible = false;
 
   @override
   void initState() {
@@ -344,7 +345,10 @@ class _LoginScreenState extends State<LoginScreen>
           child: Builder(
             builder: (context) {
               final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-              final keyboardVisible = bottomInset > 100;
+              // Use sticky flag: once keyboard shows, keep logo hidden until fully closed
+              if (bottomInset > 100) _keyboardWasVisible = true;
+              if (bottomInset < 10) _keyboardWasVisible = false;
+              final keyboardVisible = _keyboardWasVisible;
               return Column(
                 children: [
                   Expanded(
