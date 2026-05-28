@@ -686,24 +686,6 @@ class _LoginScreenState extends State<LoginScreen>
             }
           },
         ),
-        const SizedBox(height: 20),
-
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: auth.isLoading ? null : _verifyOtp,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: auth.isLoading
-                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                : const Text('Verify & Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ),
-        ),
-
         const SizedBox(height: 16),
 
         // Resend code with cooldown
@@ -773,23 +755,6 @@ class _LoginScreenState extends State<LoginScreen>
             const SizedBox(width: 8),
             _roleChip('seller', 'Seller', Icons.storefront_rounded),
           ],
-        ),
-        const SizedBox(height: 20),
-
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: auth.isLoading ? null : _saveProfile,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: auth.isLoading
-                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                : const Text('Get Started', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ),
         ),
       ],
     );
