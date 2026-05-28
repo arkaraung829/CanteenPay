@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import FirebaseCore
 import FirebaseAuth
+import FirebaseMessaging
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -9,33 +10,45 @@ import FirebaseAuth
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Let Flutter's firebase_core plugin handle FirebaseApp.configure()
-    GeneratedPluginRegistrant.register(with: self)
+    // Initialize Firebase
+    FirebaseApp.configure()
 
-    // Request APNS token — required for Firebase Phone Auth
-    if #available(iOS 10.0, *) {
-      UNUserNotificationCenter.current().delegate = self
-    }
+    // Set up Firebase Messaging delegate
+    Messaging.messaging().delegate = self
+
+    // Request notification permissions
+    UNUserNotificationCenter.current().delegate = self
+    let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound, .provisional]
+    UNUserNotificationCenter.current().requestAuthorization(
+      options: authOptions,
+      completionHandler: { granted, error in
+        if granted {
+          DispatchQueue.main.async {
+            application.registerForRemoteNotifications()
+          }
+        }
+      }
+    )
+    // Also register immediately
     application.registerForRemoteNotifications()
+
+    GeneratedPluginRegistrant.register(with: self)
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // Pass APNS token to Firebase Auth
+  // Handle APNs device token
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    // Set token type based on build config
-    #if DEBUG
-    Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
-    #else
-    Auth.auth().setAPNSToken(deviceToken, type: .prod)
-    #endif
-    super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+    // Pass to Firebase Messaging (same as cuckoo)
+    Messaging.messaging().apnsToken = deviceToken
+    // Also pass to Firebase Auth for phone auth
+    Auth.auth().setAPNSToken(deviceToken, type: .unknown)
   }
 
-  // Handle silent push for phone auth verification
+  // Handle remote notification for phone auth silent verification
   override func application(
     _ application: UIApplication,
     didReceiveRemoteNotification userInfo: [AnyHashable: Any],
@@ -46,5 +59,24 @@ import FirebaseAuth
       return
     }
     super.application(application, didReceiveRemoteNotification: userInfo, fetchCompletionHandler: completionHandler)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    didFailToRegisterForRemoteNotificationsWithError error: Error
+  ) {
+    #if DEBUG
+    print("Failed to register for remote notifications: \(error.localizedDescription)")
+    #endif
+  }
+}
+
+extension AppDelegate: MessagingDelegate {
+  func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+    #if DEBUG
+    if let token = fcmToken {
+      print("FCM token: \(token)")
+    }
+    #endif
   }
 }
