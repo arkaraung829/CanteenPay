@@ -549,23 +549,13 @@ class _LoginScreenState extends State<LoginScreen>
         ],
 
         // Phone input with country selector
-        TextField(
-          controller: _phoneController,
-          keyboardType: TextInputType.phone,
-          textInputAction: TextInputAction.send,
-          onSubmitted: (_) => _sendOtp(),
-          maxLength: _selectedCountry.maxLength + 1,
-          autofocus: false,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 1),
-          decoration: InputDecoration(
-            counterText: '',
-            labelText: 'Phone Number',
-            hintText: _selectedCountry.placeholder,
-            labelStyle: const TextStyle(fontSize: 14, color: AppTheme.textHint),
-            prefixIcon: GestureDetector(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Country selector button (separate from TextField)
+            GestureDetector(
               onTap: () {
-                // Cycle through countries
+                HapticService.light();
                 final idx = PhoneAuthService.supportedCountries.indexOf(_selectedCountry);
                 setState(() {
                   _selectedCountry = PhoneAuthService.supportedCountries[(idx + 1) % PhoneAuthService.supportedCountries.length];
@@ -573,27 +563,52 @@ class _LoginScreenState extends State<LoginScreen>
                 });
               },
               child: Container(
-                padding: const EdgeInsets.only(left: 16, right: 8),
+                height: 52,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                margin: const EdgeInsets.only(right: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.background,
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(_selectedCountry.flag, style: const TextStyle(fontSize: 20)),
                     const SizedBox(width: 4),
-                    Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey[500]),
-                    const SizedBox(width: 2),
-                    Text(_selectedCountry.dialCode, style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500)),
-                    const SizedBox(width: 4),
-                    Container(width: 1, height: 24, color: Colors.grey[300]),
+                    Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey[500]),
                   ],
                 ),
               ),
             ),
-            filled: true,
-            fillColor: AppTheme.background,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
-          ),
+            // Phone number field
+            Expanded(
+              child: TextField(
+                controller: _phoneController,
+                keyboardType: TextInputType.phone,
+                textInputAction: TextInputAction.send,
+                onSubmitted: (_) => _sendOtp(),
+                maxLength: _selectedCountry.maxLength + 1,
+                autofocus: false,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 1),
+                decoration: InputDecoration(
+                  counterText: '',
+                  hintText: _selectedCountry.placeholder,
+                  hintStyle: TextStyle(fontSize: 16, color: Colors.grey[400], fontWeight: FontWeight.w400, letterSpacing: 0),
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 4),
+                    child: Text(_selectedCountry.dialCode, style: TextStyle(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+                  ),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+                  filled: true,
+                  fillColor: AppTheme.background,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
+                ),
+              ),
+            ),
+          ],
         ),
 
         const SizedBox(height: 16),
