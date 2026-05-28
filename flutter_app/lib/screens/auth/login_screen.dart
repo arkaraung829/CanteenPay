@@ -335,7 +335,7 @@ class _LoginScreenState extends State<LoginScreen>
       },
       behavior: HitTestBehavior.deferToChild,
       child: Scaffold(
-        resizeToAvoidBottomInset: false,
+        resizeToAvoidBottomInset: true,
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -358,7 +358,6 @@ class _LoginScreenState extends State<LoginScreen>
                   Expanded(
                     child: SingleChildScrollView(
                       controller: _scrollController,
-                      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                       padding: const EdgeInsets.symmetric(horizontal: 28),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -500,19 +499,7 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     return Container(
-      padding: EdgeInsets.fromLTRB(28, 12, 28, bottomInset > 0 ? bottomInset + 8 : 16),
-      decoration: keyboardVisible
-          ? BoxDecoration(
-              color: const Color(0xFF0D47A1),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            )
-          : null,
+      padding: const EdgeInsets.fromLTRB(28, 12, 28, 16),
       child: SizedBox(
         height: 50,
         width: double.infinity,
