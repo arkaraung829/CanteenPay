@@ -61,6 +61,7 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
     navigatorKey: _rootNavigatorKey,
     initialLocation: initialOnboarding ? '/onboarding' : '/login',
     refreshListenable: authProvider,
+    errorBuilder: (context, state) => const LoginScreen(),
     redirect: (context, state) {
       final isAuthenticated = authProvider.isAuthenticated;
       final isLoading = authProvider.isLoading;
