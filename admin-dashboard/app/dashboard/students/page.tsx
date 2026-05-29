@@ -139,6 +139,10 @@ export default function StudentsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [showBulkConfirm, setShowBulkConfirm] = useState<{ action: string; count: number } | null>(null);
+  const [showBulkLinkParent, setShowBulkLinkParent] = useState(false);
+  const [bulkParentPhone, setBulkParentPhone] = useState('');
+  const [bulkParentEmail, setBulkParentEmail] = useState('');
+  const [bulkLinkLoading, setBulkLinkLoading] = useState(false);
   const [showToggleConfirm, setShowToggleConfirm] = useState<StudentRow | null>(null);
 
   // Dynamic grades/sections from settings
@@ -586,6 +590,7 @@ export default function StudentsPage() {
           <div className="flex gap-2">
             <button onClick={() => handleBulkAction('activate')} className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700">Activate</button>
             <button onClick={() => handleBulkAction('deactivate')} className="rounded-md bg-yellow-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-yellow-700">Deactivate</button>
+            <button onClick={() => setShowBulkLinkParent(true)} className="rounded-md bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700">Link Parent</button>
             <button onClick={() => handleBulkAction('delete')} className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700">Delete</button>
           </div>
           <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-sm text-blue-600 hover:text-blue-800">Clear selection</button>
@@ -768,6 +773,59 @@ export default function StudentsPage() {
         onConfirm={performBulkAction}
         onCancel={() => setShowBulkConfirm(null)}
       />
+
+      {/* Bulk Link Parent Modal */}
+      {showBulkLinkParent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBulkLinkParent(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Link Parent to {selectedIds.size} Student(s)</h2>
+            <p className="text-sm text-gray-500 mb-4">Enter the parent&apos;s phone or email. When they sign up, they&apos;ll be auto-linked.</p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parent Phone</label>
+                <input type="tel" value={bulkParentPhone} onChange={(e) => setBulkParentPhone(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="09xxxxxxxxx" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Parent Email</label>
+                <input type="email" value={bulkParentEmail} onChange={(e) => setBulkParentEmail(e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="parent@gmail.com" />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => { setShowBulkLinkParent(false); setBulkParentPhone(''); setBulkParentEmail(''); }} className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button
+                  disabled={bulkLinkLoading || (!bulkParentPhone && !bulkParentEmail)}
+                  onClick={async () => {
+                    setBulkLinkLoading(true);
+                    const updates: Record<string, string | null> = {};
+                    if (bulkParentPhone) {
+                      let ph = bulkParentPhone.replace(/\s+/g, '');
+                      if (ph.startsWith('0')) ph = '+95' + ph.substring(1);
+                      else if (!ph.startsWith('+')) ph = '+' + ph;
+                      updates.parent_phone = ph;
+                    }
+                    if (bulkParentEmail) updates.parent_email = bulkParentEmail.toLowerCase();
+                    for (const sid of selectedIds) {
+                      await fetch('/api/students', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: sid, ...updates }),
+                      });
+                    }
+                    setBulkLinkLoading(false);
+                    setShowBulkLinkParent(false);
+                    setBulkParentPhone('');
+                    setBulkParentEmail('');
+                    setSelectedIds(new Set());
+                    fetchStudents();
+                  }}
+                  className="flex-1 rounded-lg bg-purple-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {bulkLinkLoading ? 'Saving...' : 'Link Parent'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add Student Modal */}
       {showAddModal && (

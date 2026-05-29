@@ -200,14 +200,24 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         _session = response.session;
         _isAuthenticated = true;
         debugPrint('AuthProvider: Google sign-in successful, loading profile...');
+
+        // Update profile with Google info
+        final userId = _supabase.auth.currentUser?.id;
+        if (userId != null) {
+          try {
+            await _supabase.from('profiles').update({
+              'full_name': googleUser.displayName ?? googleUser.email,
+            }).eq('id', userId);
+          } catch (_) {}
+        }
+
         await _loadUserProfile();
         debugPrint('AuthProvider: Profile loaded: ${_user?.role} ${_user?.fullName}');
 
-        // Auto-link by email — always try regardless of role
+        // Auto-link by email
         final email = googleUser.email;
         if (email.isNotEmpty) {
           await _autoLinkParentByEmail(email);
-          // Reload profile in case role/school changed
           await _loadUserProfile();
         }
 
