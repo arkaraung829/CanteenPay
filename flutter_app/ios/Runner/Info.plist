@@ -65,7 +65,7 @@
 			<dict>
 				<key>CFBundleURLSchemes</key>
 				<array>
-					<string>app-1-318431458336-ios-5cd5d3aba0ae03103a7845</string>
+					<string>app-1-1083173550425-ios-500ed1b5d52a3a303ff448</string>
 				</array>
 				<key>CFBundleURLName</key>
 				<string>firebase-phone-auth</string>
@@ -73,7 +73,7 @@
 			<dict>
 				<key>CFBundleURLSchemes</key>
 				<array>
-					<string>com.googleusercontent.apps.318431458336-8d2m9b9lvju8jt6mre44q4pr8uph9p6i</string>
+					<string>com.googleusercontent.apps.1083173550425-6mt4fhm4dp3i1phpm2nltfr417vgj5ol</string>
 				</array>
 				<key>CFBundleURLName</key>
 				<string>google-sign-in</string>

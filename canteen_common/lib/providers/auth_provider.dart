@@ -163,8 +163,8 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       _error = null;
       safeNotifyListeners();
 
-      // Web client ID from Google Cloud Console (same as cuckoo/oo-myanmar)
-      const webClientId = '318431458336-a5v4p7s6acfenu03jalvp631dvhj4b8s.apps.googleusercontent.com';
+      // Web client ID from Google Cloud Console (canteenpay-a64a1 project)
+      const webClientId = '1083173550425-oh4nuk1o8p9hbqicmksa0d5jonl6i5ch.apps.googleusercontent.com';
 
       final googleSignIn = GoogleSignIn(serverClientId: webClientId);
 
