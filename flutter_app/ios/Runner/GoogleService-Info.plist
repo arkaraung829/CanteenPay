@@ -3,17 +3,17 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyDUhgJV4ZMnYD6Ic1s2OaijKs8GIGESz-c</string>
+	<string>AIzaSyB-QdjAsB3kumQE7Q9YgZVlywNgZyFvdXY</string>
 	<key>GCM_SENDER_ID</key>
-	<string>1083173550425</string>
+	<string>318431458336</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.canteenpay.canteenPay</string>
+	<string>com.oomyanmar.marketplace</string>
 	<key>PROJECT_ID</key>
-	<string>canteenpay-a64a1</string>
+	<string>oo-myanmar</string>
 	<key>STORAGE_BUCKET</key>
-	<string>canteenpay-a64a1.firebasestorage.app</string>
+	<string>oo-myanmar.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +25,10 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1083173550425:ios:500ed1b5d52a3a303ff448</string>
+	<string>1:318431458336:ios:b54767e2470e1cd23a7845</string>
+	<key>CLIENT_ID</key>
+	<string>318431458336-evqr8ub2sba0hg87g8hrhbfhv497cvhi.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.318431458336-evqr8ub2sba0hg87g8hrhbfhv497cvhi</string>
 </dict>
 </plist>
