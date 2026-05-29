@@ -365,51 +365,45 @@ class _LoginScreenState extends State<LoginScreen>
                     padding: EdgeInsets.fromLTRB(28, 16, 28, isKeyboardVisible ? 16 : 24),
                     child: Column(
                       children: [
-                        // Logo -- hide when keyboard is visible
-                        if (!isKeyboardVisible)
-                          TweenAnimationBuilder<double>(
-                            tween: Tween(begin: 0.0, end: 1.0),
-                            duration: const Duration(milliseconds: 600),
-                            curve: Curves.easeOutBack,
-                            builder: (context, value, child) {
-                              return Transform.scale(
-                                scale: value,
-                                child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
-                              );
-                            },
-                            child: Column(
-                              children: [
-                                const SizedBox(height: 8),
-                                Container(
-                                  width: 88,
-                                  height: 88,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(22),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.2),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 8),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Icon(Icons.restaurant_rounded, size: 44, color: AppTheme.primary),
+                        // Logo — never removed from tree, just sized to 0
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          height: isKeyboardVisible ? 0 : null,
+                          clipBehavior: Clip.hardEdge,
+                          decoration: const BoxDecoration(),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 8),
+                              Container(
+                                width: 88,
+                                height: 88,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(22),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(alpha: 0.2),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'CanteenPay',
-                                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'School Cashless Payment',
-                                  style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.8)),
-                                ),
-                                const SizedBox(height: 28),
-                              ],
-                            ),
+                                child: const Icon(Icons.restaurant_rounded, size: 44, color: AppTheme.primary),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'CanteenPay',
+                                style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'School Cashless Payment',
+                                style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.8)),
+                              ),
+                              const SizedBox(height: 28),
+                            ],
                           ),
+                        ),
 
                         if (isKeyboardVisible) const SizedBox(height: 12),
 
@@ -436,31 +430,39 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
 
-                        // Info section -- hide when keyboard visible
-                        if (!isKeyboardVisible) ...[
-                          const SizedBox(height: 24),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Column(
-                              children: [
-                                _infoRow(Icons.qr_code_scanner_rounded, 'Students scan QR at canteen'),
-                                const SizedBox(height: 8),
-                                _infoRow(Icons.account_balance_wallet_rounded, 'Parents track spending in real-time'),
-                                const SizedBox(height: 8),
-                                _infoRow(Icons.security_rounded, 'Secure cashless payments'),
-                              ],
-                            ),
+                        // Info section
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          height: isKeyboardVisible ? 0 : null,
+                          clipBehavior: Clip.hardEdge,
+                          decoration: const BoxDecoration(),
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 24),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Column(
+                                  children: [
+                                    _infoRow(Icons.qr_code_scanner_rounded, 'Students scan QR at canteen'),
+                                    const SizedBox(height: 8),
+                                    _infoRow(Icons.account_balance_wallet_rounded, 'Parents track spending in real-time'),
+                                    const SizedBox(height: 8),
+                                    _infoRow(Icons.security_rounded, 'Secure cashless payments'),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Contact your school admin for access',
+                                style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'Contact your school admin for access',
-                            style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
-                          ),
-                        ],
+                        ),
 
                         const SizedBox(height: 24),
                       ],
