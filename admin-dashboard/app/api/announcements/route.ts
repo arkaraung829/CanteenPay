@@ -50,12 +50,33 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: 'No school found' }, { status: 400 });
     }
 
+    // Get author_id — use provided or find first admin
+    let authorId = author_id;
+    if (!authorId) {
+      const { data: admins } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('role', 'admin')
+        .eq('school_id', schoolId)
+        .limit(1);
+      authorId = admins?.[0]?.id;
+      // Fallback: any admin
+      if (!authorId) {
+        const { data: anyAdmin } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('role', 'admin')
+          .limit(1);
+        authorId = anyAdmin?.[0]?.id;
+      }
+    }
+
     // Insert announcement
     const { data, error } = await supabase
       .from('announcements')
       .insert({
         school_id: schoolId,
-        author_id: author_id || null,
+        author_id: authorId,
         title,
         title_my: title_my || null,
         body: bodyText,
