@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Printer, Edit3, Save, X, RefreshCw, User } from 'lucide-react';
+import { ArrowLeft, Printer, Edit3, Save, X, RefreshCw, User, Download } from 'lucide-react';
 import QRCode from 'qrcode';
 import { formatMMK } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
@@ -498,9 +498,22 @@ export default function StudentDetailPage() {
               {student.qr_data}
             </p>
             <button
+              onClick={() => {
+                if (!qrCanvasRef.current) return;
+                const url = qrCanvasRef.current.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${student.student_code}-qr.png`;
+                a.click();
+              }}
+              className="mt-4 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100"
+            >
+              <Download className="h-4 w-4" /> Download QR
+            </button>
+            <button
               onClick={() => setShowRegenConfirm(true)}
               disabled={regenerating}
-              className="mt-4 flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700 hover:bg-orange-100 disabled:opacity-50"
+              className="mt-2 flex items-center gap-2 rounded-lg border border-orange-200 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-700 hover:bg-orange-100 disabled:opacity-50"
             >
               <RefreshCw className={`h-4 w-4 ${regenerating ? 'animate-spin' : ''}`} />
               {regenerating ? 'Regenerating...' : 'Regenerate QR Code'}
