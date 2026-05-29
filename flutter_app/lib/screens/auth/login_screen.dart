@@ -689,6 +689,56 @@ class _LoginScreenState extends State<LoginScreen>
 
         const SizedBox(height: 16),
 
+        // Divider
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.grey[300])),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('or', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+            ),
+            Expanded(child: Divider(color: Colors.grey[300])),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Google Sign-In button
+        SizedBox(
+          height: 50,
+          child: OutlinedButton(
+            onPressed: auth.isLoading ? null : () async {
+              HapticService.selection();
+              final success = await auth.signInWithGoogle();
+              if (mounted && success) {
+                HapticService.success();
+                await enableBiometric();
+              }
+            },
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.grey[300]!),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              backgroundColor: Colors.white,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.network(
+                  'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
+                  height: 20,
+                  width: 20,
+                  errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 24),
+                ),
+                const SizedBox(width: 12),
+                const Text(
+                  'Continue with Google',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.black87),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
         // Email login option
         Row(
           mainAxisAlignment: MainAxisAlignment.center,

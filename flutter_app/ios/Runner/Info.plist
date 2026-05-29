@@ -70,6 +70,14 @@
 				<key>CFBundleURLName</key>
 				<string>firebase-phone-auth</string>
 			</dict>
+			<dict>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.318431458336-evqr8ub2sba0hg87g8hrhbfhv497cvhi</string>
+				</array>
+				<key>CFBundleURLName</key>
+				<string>google-sign-in</string>
+			</dict>
 		</array>
 	</dict>
 </plist>

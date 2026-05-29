@@ -6,6 +6,7 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as firebase;
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/user_model.dart';
@@ -148,6 +149,64 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       return false;
     } catch (e) {
       _error = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      safeNotifyListeners();
+    }
+  }
+
+  /// Sign in with Google (native Google Sign-In → Supabase ID token)
+  Future<bool> signInWithGoogle() async {
+    try {
+      _isLoading = true;
+      _error = null;
+      safeNotifyListeners();
+
+      // Web client ID from Google Cloud Console (same as cuckoo/oo-myanmar)
+      const webClientId = '318431458336-a5v4p7s6acfenu03jalvp631dvhj4b8s.apps.googleusercontent.com';
+
+      final googleSignIn = GoogleSignIn(serverClientId: webClientId);
+
+      // Sign out previous session
+      await googleSignIn.signOut();
+
+      final googleUser = await googleSignIn.signIn();
+      if (googleUser == null) {
+        _isLoading = false;
+        safeNotifyListeners();
+        return false; // User cancelled
+      }
+
+      debugPrint('AuthProvider: Google account: ${googleUser.email}');
+
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken;
+      final accessToken = googleAuth.accessToken;
+
+      if (idToken == null) {
+        _error = 'Failed to get Google authentication token';
+        return false;
+      }
+
+      // Sign into Supabase with Google ID token
+      final response = await _supabase.auth.signInWithIdToken(
+        provider: OAuthProvider.google,
+        idToken: idToken,
+        accessToken: accessToken,
+      );
+
+      if (response.session != null) {
+        debugPrint('AuthProvider: Google sign-in successful');
+        await _loadUserProfile();
+        return true;
+      } else {
+        _error = 'Sign-in failed. Please try again.';
+        return false;
+      }
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('AuthProvider: Google sign-in error: $e');
       return false;
     } finally {
       _isLoading = false;
