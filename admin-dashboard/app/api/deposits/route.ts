@@ -6,7 +6,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { student_id, amount, staff_profile_id, payment_method, note } = body;
+    const { student_id, amount, note } = body;
 
     if (!student_id || !amount || amount <= 0) {
       return Response.json(
@@ -15,60 +15,29 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get wallet
-    const { data: wallet, error: walletError } = await supabase
-      .from('wallets')
-      .select('id, balance')
-      .eq('student_id', student_id)
-      .single();
+    // Atomic deposit via Postgres function — no race conditions
+    const { data, error } = await supabase.rpc('admin_process_deposit', {
+      p_student_id: student_id,
+      p_amount: amount,
+      p_note: note || 'Admin deposit',
+    });
 
-    if (walletError || !wallet) {
+    if (error) {
+      return Response.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    if (!data.success) {
       return Response.json(
-        { success: false, error: 'Student wallet not found' },
-        { status: 404 }
+        { success: false, error: data.error },
+        { status: 400 }
       );
-    }
-
-    const newBalance = wallet.balance + amount;
-
-    // Update wallet balance
-    const { error: updateError } = await supabase
-      .from('wallets')
-      .update({ balance: newBalance })
-      .eq('id', wallet.id);
-
-    if (updateError) {
-      return Response.json({ success: false, error: updateError.message }, { status: 500 });
-    }
-
-    // Create transaction record
-    const { data: txData, error: txError } = await supabase
-      .from('transactions')
-      .insert({
-        wallet_id: wallet.id,
-        type: 'deposit',
-        amount,
-        balance_before: wallet.balance,
-        balance_after: newBalance,
-        description: note || `Cash deposit (${payment_method || 'cash'})`,
-        performed_by: staff_profile_id || null,
-        metadata: { payment_method: payment_method || 'cash' },
-      })
-      .select()
-      .single();
-
-    if (txError) {
-      // Rollback wallet
-      await supabase.from('wallets').update({ balance: wallet.balance }).eq('id', wallet.id);
-      return Response.json({ success: false, error: txError.message }, { status: 500 });
     }
 
     return Response.json({
       success: true,
       data: {
-        transaction_id: txData.id,
-        new_balance: newBalance,
-        reference_id: txData.id,
+        transaction_id: data.transaction_id,
+        new_balance: data.new_balance,
       },
     });
   } catch (err) {

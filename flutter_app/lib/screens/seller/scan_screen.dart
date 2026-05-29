@@ -84,11 +84,6 @@ class _ScanScreenState extends State<ScanScreen> {
     }
   }
 
-  /// Reset scan lock — called when returning from payment screen
-  void _resetScanLock() {
-    _hasScanned = false;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

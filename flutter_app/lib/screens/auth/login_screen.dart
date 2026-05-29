@@ -215,62 +215,6 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  Future<void> _saveProfile() async {
-    _dismissKeyboard();
-    HapticService.selection();
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      _showError('Please enter your name');
-      _shake();
-      return;
-    }
-    try {
-      final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser!.id;
-
-      // Update profiles table
-      await supabase.from('profiles').update({
-        'full_name': name,
-        'role': _role,
-      }).eq('id', userId);
-
-      // Update auth metadata
-      await supabase.auth.updateUser(
-        UserAttributes(data: {'full_name': name, 'role': _role}),
-      );
-
-      // Reload profile in AuthProvider
-      if (mounted) {
-        final auth = context.read<AuthProvider>();
-        await auth.reloadProfile();
-        HapticService.success();
-      }
-    } catch (e) {
-      _showError('Failed to save profile');
-    }
-  }
-
-  Future<void> _emailLogin() async {
-    _dismissKeyboard();
-    HapticService.selection();
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-    if (email.isEmpty || password.isEmpty) {
-      _showError('Please fill in email and password');
-      _shake();
-      return;
-    }
-    final auth = context.read<AuthProvider>();
-    final success = await auth.signInWithEmail(email, password);
-    if (mounted) {
-      if (success) {
-        await enableBiometric();
-      } else {
-        _shake();
-      }
-    }
-  }
-
   void _shake() {
     HapticService.error();
     _shakeController.forward(from: 0);
@@ -916,13 +860,4 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  Widget _infoRow(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 18, color: Colors.white.withValues(alpha: 0.7)),
-        const SizedBox(width: 10),
-        Expanded(child: Text(text, style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.8)))),
-      ],
-    );
-  }
 }
