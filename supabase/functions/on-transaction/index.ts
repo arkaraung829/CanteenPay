@@ -1,17 +1,12 @@
 // Supabase Edge Function: on-transaction
 // Triggered by database webhook on INSERT into transactions table
-// Sends push notification to parent's device when a purchase is made
-// Uses FCM v1 API with service account (no legacy API needed)
+// Sends push notification to parent's device via FCM v1 API
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-// FCM v1 API uses a service account JSON for auth
 const fcmServiceAccountJson = Deno.env.get('FCM_SERVICE_ACCOUNT');
-// Fallback: legacy server key (deprecated but still works)
-const fcmServerKey = Deno.env.get('FCM_SERVER_KEY');
 
 interface Transaction {
   id: string;
@@ -31,81 +26,95 @@ interface WebhookPayload {
 }
 
 // ---------------------------------------------------------------------------
-// FCM v1 auth helpers
+// JWT helper — self-contained, works in Deno Deploy
 // ---------------------------------------------------------------------------
 
-function base64url(data: Uint8Array): string {
-  return btoa(String.fromCharCode(...data))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+function base64UrlEncode(data: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < data.length; i++) {
+    binary += String.fromCharCode(data[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-async function getAccessToken(serviceAccount: {
-  client_email: string;
-  private_key: string;
-  token_uri: string;
-}): Promise<string> {
+function base64UrlEncodeStr(str: string): string {
+  return base64UrlEncode(new TextEncoder().encode(str));
+}
+
+async function createSignedJwt(
+  clientEmail: string,
+  privateKeyPem: string,
+): Promise<string> {
   const now = Math.floor(Date.now() / 1000);
-  const header = { alg: 'RS256', typ: 'JWT' };
-  const payload = {
-    iss: serviceAccount.client_email,
-    scope: 'https://www.googleapis.com/auth/firebase.messaging',
-    aud: serviceAccount.token_uri,
+
+  const header = base64UrlEncodeStr(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
+  const claims = base64UrlEncodeStr(JSON.stringify({
+    iss: clientEmail,
+    sub: clientEmail,
+    aud: 'https://oauth2.googleapis.com/token',
     iat: now,
     exp: now + 3600,
-  };
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+  }));
 
-  const enc = new TextEncoder();
-  const headerB64 = base64url(enc.encode(JSON.stringify(header)));
-  const payloadB64 = base64url(enc.encode(JSON.stringify(payload)));
-  const signingInput = `${headerB64}.${payloadB64}`;
+  const signingInput = `${header}.${claims}`;
 
-  // Import RSA private key
-  const pemBody = serviceAccount.private_key
-    .replace(/-----BEGIN PRIVATE KEY-----/, '')
-    .replace(/-----END PRIVATE KEY-----/, '')
-    .replace(/\n/g, '');
-  const keyData = Uint8Array.from(atob(pemBody), (c) => c.charCodeAt(0));
+  // Parse PEM to DER
+  const pemLines = privateKeyPem.split('\n');
+  const b64 = pemLines.filter(line =>
+    !line.startsWith('-----') && line.trim().length > 0
+  ).join('');
+  const der = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
 
+  // Import key
   const key = await crypto.subtle.importKey(
     'pkcs8',
-    keyData,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    der.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: { name: 'SHA-256' } },
     false,
-    ['sign']
+    ['sign'],
   );
 
-  const signature = await crypto.subtle.sign(
+  // Sign
+  const sig = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
     key,
-    enc.encode(signingInput)
+    new TextEncoder().encode(signingInput),
   );
 
-  const jwt = `${signingInput}.${base64url(new Uint8Array(signature))}`;
+  return `${signingInput}.${base64UrlEncode(new Uint8Array(sig))}`;
+}
 
-  // Exchange JWT for access token
-  const tokenRes = await fetch(serviceAccount.token_uri, {
+async function getAccessToken(sa: { client_email: string; private_key: string }): Promise<string> {
+  const jwt = await createSignedJwt(sa.client_email, sa.private_key);
+
+  const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
   });
 
-  const tokenData = await tokenRes.json();
-  return tokenData.access_token;
+  const data = await res.json();
+  if (data.error) {
+    throw new Error(`OAuth2 error: ${data.error} - ${data.error_description}`);
+  }
+  return data.access_token;
 }
 
 // ---------------------------------------------------------------------------
-// Send via FCM v1 API (one message per token)
+// FCM v1 send
 // ---------------------------------------------------------------------------
 
-async function sendViaV1(
+async function sendNotification(
   projectId: string,
   accessToken: string,
   token: string,
   title: string,
   body: string,
-  data: Record<string, string>
+  data: Record<string, string>,
 ): Promise<unknown> {
   const res = await fetch(
     `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`,
@@ -124,34 +133,8 @@ async function sendViaV1(
           apns: { payload: { aps: { sound: 'default', badge: 1 } } },
         },
       }),
-    }
-  );
-  return res.json();
-}
-
-// ---------------------------------------------------------------------------
-// Send via legacy API (fallback)
-// ---------------------------------------------------------------------------
-
-async function sendViaLegacy(
-  serverKey: string,
-  tokens: string[],
-  title: string,
-  body: string,
-  data: Record<string, string>
-): Promise<unknown> {
-  const res = await fetch('https://fcm.googleapis.com/fcm/send', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `key=${serverKey}`,
     },
-    body: JSON.stringify({
-      registration_ids: tokens,
-      notification: { title, body },
-      data,
-    }),
-  });
+  );
   return res.json();
 }
 
@@ -164,12 +147,18 @@ Deno.serve(async (req) => {
     const payload: WebhookPayload = await req.json();
     const transaction = payload.record;
 
-    // Only notify on purchases
     if (transaction.type !== 'purchase') {
       return new Response(JSON.stringify({ message: 'Skipped: not a purchase' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
+    }
+
+    if (!fcmServiceAccountJson) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'FCM_SERVICE_ACCOUNT not configured' }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -191,7 +180,6 @@ Deno.serve(async (req) => {
       .eq('id', wallet.student_id)
       .single();
 
-    // Get seller stall name
     let sellerName = 'Canteen';
     if (transaction.seller_id) {
       const { data: seller } = await supabase
@@ -236,7 +224,7 @@ Deno.serve(async (req) => {
     const formattedBalance = transaction.balance_after.toLocaleString();
     const title = `Purchase: ${formattedAmount} MMK`;
     const body = `${student?.full_name || 'Student'} spent ${formattedAmount} MMK at ${sellerName}. Balance: ${formattedBalance} MMK`;
-    const data = {
+    const notifData = {
       type: 'purchase',
       transaction_id: transaction.id,
       student_id: wallet.student_id,
@@ -244,43 +232,22 @@ Deno.serve(async (req) => {
       balance_after: transaction.balance_after.toString(),
     };
 
-    // Try FCM v1 API first, fall back to legacy
-    let results: unknown[] = [];
+    // Authenticate and send
+    const sa = JSON.parse(fcmServiceAccountJson);
+    const accessToken = await getAccessToken(sa);
 
-    if (fcmServiceAccountJson) {
-      try {
-        const sa = JSON.parse(fcmServiceAccountJson);
-        const accessToken = await getAccessToken(sa);
-
-        results = await Promise.all(
-          tokens.map((token: string) =>
-            sendViaV1(sa.project_id, accessToken, token, title, body, data)
-          )
-        );
-      } catch (e) {
-        console.error('FCM v1 failed, trying legacy:', e);
-        // Fall through to legacy
-      }
-    }
-
-    if (results.length === 0 && fcmServerKey) {
-      const legacyResult = await sendViaLegacy(fcmServerKey, tokens, title, body, data);
-      results = [legacyResult];
-    }
-
-    if (results.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, message: 'No FCM credentials configured' }),
-        { status: 200, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
+    const results = await Promise.all(
+      tokens.map((token: string) =>
+        sendNotification(sa.project_id, accessToken, token, title, body, notifData)
+      ),
+    );
 
     return new Response(JSON.stringify({ success: true, fcm: results }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: (error as Error).message }), {
+    return new Response(JSON.stringify({ error: (error as Error).message, stack: (error as Error).stack }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' },
     });
