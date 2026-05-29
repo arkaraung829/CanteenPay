@@ -273,7 +273,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Only allow specific fields to be updated
-    const allowedFields = ['full_name', 'full_name_my', 'grade', 'class_name', 'is_active', 'daily_spending_limit', 'parent_phone', 'parent_email', 'date_of_birth'];
+    const allowedFields = ['full_name', 'full_name_my', 'grade', 'class_name', 'is_active', 'daily_spending_limit', 'parent_phone', 'parent_email', 'date_of_birth', 'pin_code'];
     const safeUpdates: Record<string, unknown> = {};
     for (const key of allowedFields) {
       if (key in updates) {

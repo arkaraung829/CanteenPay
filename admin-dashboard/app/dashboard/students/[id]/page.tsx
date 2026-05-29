@@ -50,7 +50,7 @@ export default function StudentDetailPage() {
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ full_name: '', full_name_my: '', grade: '', class_name: '', daily_spending_limit: '', date_of_birth: '', parent_phone: '', parent_email: '' });
+  const [editForm, setEditForm] = useState({ full_name: '', full_name_my: '', grade: '', class_name: '', daily_spending_limit: '', date_of_birth: '', parent_phone: '', parent_email: '', pin_code: '' });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -147,6 +147,7 @@ export default function StudentDetailPage() {
       date_of_birth: s.date_of_birth || '',
       parent_phone: s.parent_phone || '',
       parent_email: s.parent_email || '',
+      pin_code: s.pin_code || '',
     });
     setLoading(false);
   }, [id]);
@@ -273,6 +274,7 @@ export default function StudentDetailPage() {
           date_of_birth: editForm.date_of_birth || null,
           parent_phone: editForm.parent_phone || null,
           parent_email: editForm.parent_email ? editForm.parent_email.toLowerCase() : null,
+          pin_code: editForm.pin_code || null,
         }),
       });
       const json = await res.json();
@@ -404,6 +406,10 @@ export default function StudentDetailPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
                     <input type="text" value={editForm.class_name} onChange={(e) => setEditForm(f => ({ ...f, class_name: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="e.g. Grade 5-A" />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">PIN Code (4 digits)</label>
+                  <input type="text" value={editForm.pin_code} onChange={(e) => setEditForm(f => ({ ...f, pin_code: e.target.value.replace(/\D/g, '').slice(0, 4) }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm font-mono tracking-widest focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="e.g. 1234" maxLength={4} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Daily Spending Limit (MMK)</label>
