@@ -353,47 +353,54 @@ class _LoginScreenState extends State<LoginScreen>
           child: SafeArea(
             child: Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
                 child: Column(
                   children: [
-                    // Logo — compact, one line
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(10),
+                    // Logo
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.15),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
                           ),
-                          child: const Icon(Icons.restaurant_rounded, size: 22, color: AppTheme.primary),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'CanteenPay',
-                          style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white),
-                        ),
-                      ],
+                        ],
+                      ),
+                      child: const Icon(Icons.restaurant_rounded, size: 36, color: AppTheme.primary),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'CanteenPay',
+                      style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'School Cashless Payment',
+                      style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
+                    ),
+                    const SizedBox(height: 28),
 
-                    // Form card
+                    // Form card — only phone/OTP/profile content
                     AnimatedBuilder(
                       animation: _shakeAnimation,
                       builder: (context, child) {
                         return Transform.translate(offset: Offset(_shakeAnimation.value, 0), child: child);
                       },
                       child: Container(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(22),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(18),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.15),
-                              blurRadius: 30,
-                              offset: const Offset(0, 10),
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
                             ),
                           ],
                         ),
@@ -401,10 +408,44 @@ class _LoginScreenState extends State<LoginScreen>
                       ),
                     ),
 
+                    // Google sign-in — outside card, only on phone step
+                    if (_step == _AuthStep.phone) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton(
+                          onPressed: auth.isLoading ? null : () async {
+                            HapticService.selection();
+                            final success = await auth.signInWithGoogle();
+                            if (mounted && success) {
+                              HapticService.success();
+                              await enableBiometric();
+                            }
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.g_mobiledata, size: 22, color: Colors.white.withValues(alpha: 0.9)),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Continue with Google',
+                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.9)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 20),
                     Text(
                       'Contact your school admin for access',
-                      style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
+                      style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.45)),
                     ),
                   ],
                 ),
@@ -525,55 +566,6 @@ class _LoginScreenState extends State<LoginScreen>
             child: auth.isLoading
                 ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
                 : const Text('Send OTP Code', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Divider
-        Row(
-          children: [
-            Expanded(child: Divider(color: Colors.grey[300])),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text('or', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-            ),
-            Expanded(child: Divider(color: Colors.grey[300])),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // Google Sign-In — small text link
-        GestureDetector(
-          onTap: auth.isLoading ? null : () async {
-            HapticService.selection();
-            final success = await auth.signInWithGoogle();
-            if (mounted && success) {
-              HapticService.success();
-              await enableBiometric();
-            }
-          },
-          child: Center(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.g_mobiledata, size: 20, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Text('Sign in with Google', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[600])),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        // Email login — small text link
-        Center(
-          child: GestureDetector(
-            onTap: () {
-              HapticService.light();
-              auth.clearError();
-              setState(() => _step = _AuthStep.emailLogin);
-            },
-            child: Text('Use Email instead', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
           ),
         ),
       ],
