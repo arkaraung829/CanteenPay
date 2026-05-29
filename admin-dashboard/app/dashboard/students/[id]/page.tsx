@@ -39,6 +39,7 @@ interface ParentLink {
   id: string;
   full_name: string;
   phone: string | null;
+  email: string | null;
 }
 
 export default function StudentDetailPage() {
@@ -59,6 +60,13 @@ export default function StudentDetailPage() {
 
   const [regenerating, setRegenerating] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
+
+  // Link parent state
+  const [showLinkParent, setShowLinkParent] = useState(false);
+  const [linkParentPhone, setLinkParentPhone] = useState('');
+  const [linkParentEmail, setLinkParentEmail] = useState('');
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState('');
 
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const printQrCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -170,7 +178,7 @@ export default function StudentDetailPage() {
   const fetchParents = useCallback(async () => {
     const { data } = await supabase
       .from('parent_student')
-      .select('profiles(id, full_name, phone)')
+      .select('profiles(id, full_name, phone, email:metadata->email)')
       .eq('student_id', id);
 
     if (data) {
@@ -178,8 +186,8 @@ export default function StudentDetailPage() {
       for (const row of data) {
         const profile = row.profiles as unknown;
         if (profile && typeof profile === 'object' && 'id' in profile) {
-          const p = profile as { id: string; full_name: string; phone: string | null };
-          mapped.push({ id: p.id, full_name: p.full_name, phone: p.phone });
+          const p = profile as { id: string; full_name: string; phone: string | null; email: string | null };
+          mapped.push({ id: p.id, full_name: p.full_name, phone: p.phone, email: p.email });
         }
       }
       setParents(mapped);
@@ -197,6 +205,52 @@ export default function StudentDetailPage() {
       generateQR(student.qr_data);
     }
   }, [student, generateQR]);
+
+  async function handleLinkParent() {
+    if (!linkParentPhone && !linkParentEmail) {
+      setLinkError('Enter at least a phone or email');
+      return;
+    }
+    setLinkLoading(true);
+    setLinkError('');
+
+    try {
+      const updates: Record<string, string | null> = {};
+      if (linkParentPhone) {
+        let ph = linkParentPhone.replace(/\s+/g, '');
+        if (ph.startsWith('0')) ph = '+95' + ph.substring(1);
+        else if (!ph.startsWith('+')) ph = '+' + ph;
+        updates.parent_phone = ph;
+      }
+      if (linkParentEmail) {
+        updates.parent_email = linkParentEmail.toLowerCase();
+      }
+
+      const { error } = await supabase
+        .from('students')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) {
+        setLinkError(error.message);
+      } else {
+        // Refresh student data
+        if (student) {
+          setStudent({
+            ...student,
+            parent_phone: updates.parent_phone || student.parent_phone,
+            parent_email: updates.parent_email || student.parent_email,
+          });
+        }
+        setShowLinkParent(false);
+        setLinkParentPhone('');
+        setLinkParentEmail('');
+      }
+    } catch {
+      setLinkError('Failed to save');
+    }
+    setLinkLoading(false);
+  }
 
   async function handleSaveEdit() {
     setEditLoading(true);
@@ -442,13 +496,71 @@ export default function StudentDetailPage() {
           </div>
         </div>
 
-        {/* Linked Parents */}
+        {/* Linked Parents + Link New Parent */}
         <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Linked Parents</h2>
-          {parents.length === 0 ? (
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Linked Parents</h2>
+            <button
+              onClick={() => setShowLinkParent(!showLinkParent)}
+              className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
+            >
+              {showLinkParent ? 'Cancel' : '+ Link Parent'}
+            </button>
+          </div>
+
+          {/* Link Parent Form */}
+          {showLinkParent && (
+            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+              <p className="text-sm font-medium text-gray-700">
+                Enter parent&apos;s phone or email. When they sign up with this info, they&apos;ll be auto-linked to this student.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Parent Phone</label>
+                  <input
+                    type="tel"
+                    value={linkParentPhone}
+                    onChange={(e) => setLinkParentPhone(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="09xxxxxxxxx"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Parent Email</label>
+                  <input
+                    type="email"
+                    value={linkParentEmail}
+                    onChange={(e) => setLinkParentEmail(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    placeholder="parent@gmail.com"
+                  />
+                </div>
+              </div>
+              {linkError && <p className="text-xs text-red-600">{linkError}</p>}
+              <button
+                onClick={handleLinkParent}
+                disabled={linkLoading}
+                className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {linkLoading ? 'Saving...' : 'Save Parent Info'}
+              </button>
+            </div>
+          )}
+
+          {/* Current parent info */}
+          {(student.parent_phone || student.parent_email) && parents.length === 0 && (
+            <div className="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
+              <p className="text-xs font-medium text-amber-700 mb-1">Pre-registered (waiting for parent to sign up)</p>
+              {student.parent_phone && <p className="text-xs text-amber-600">Phone: {student.parent_phone}</p>}
+              {student.parent_email && <p className="text-xs text-amber-600">Email: {student.parent_email}</p>}
+            </div>
+          )}
+
+          {/* Linked parents list */}
+          {parents.length === 0 && !student.parent_phone && !student.parent_email ? (
             <div className="flex items-center gap-3 py-4 text-gray-400">
               <User className="h-5 w-5" />
-              <span className="text-sm">No parents linked to this student</span>
+              <span className="text-sm">No parents linked. Click &quot;+ Link Parent&quot; to add.</span>
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
@@ -461,8 +573,10 @@ export default function StudentDetailPage() {
                     <div>
                       <p className="text-sm font-medium text-gray-900">{parent.full_name}</p>
                       {parent.phone && <p className="text-xs text-gray-500">{parent.phone}</p>}
+                      {parent.email && <p className="text-xs text-gray-500">{parent.email}</p>}
                     </div>
                   </div>
+                  <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Linked</span>
                 </div>
               ))}
             </div>
