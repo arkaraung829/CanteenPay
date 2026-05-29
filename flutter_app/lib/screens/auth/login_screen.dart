@@ -39,7 +39,6 @@ class _LoginScreenState extends State<LoginScreen>
   late final Animation<double> _shakeAnimation;
   bool _checkingBiometric = true;
   String _biometricType = 'face'; // 'face' or 'fingerprint'
-  bool _keyboardShown = false; // sticky flag to prevent logo flash
 
   @override
   void initState() {

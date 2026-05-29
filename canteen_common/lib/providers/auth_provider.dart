@@ -203,10 +203,12 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         await _loadUserProfile();
         debugPrint('AuthProvider: Profile loaded: ${_user?.role} ${_user?.fullName}');
 
-        // Auto-link parent by email
+        // Auto-link by email — always try regardless of role
         final email = googleUser.email;
-        if (_user?.role == 'parent' && email.isNotEmpty) {
-          _autoLinkParentByEmail(email);
+        if (email.isNotEmpty) {
+          await _autoLinkParentByEmail(email);
+          // Reload profile in case role/school changed
+          await _loadUserProfile();
         }
 
         return true;
@@ -393,14 +395,13 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
           .select('id')
           .eq('parent_phone', normalized);
 
-      if ((students as List).isEmpty) return;
+      if ((students as List).isEmpty || _user == null) return;
 
       final parentId = _user!.id;
 
       for (final student in students) {
         final studentId = student['id'] as String;
 
-        // Check if link already exists
         final existing = await _supabase
             .from('parent_student_links')
             .select('id')
@@ -438,7 +439,7 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
           .select('id, school_id, profile_id')
           .eq('phone', normalized);
 
-      if ((sellers as List).isEmpty) return;
+      if ((sellers as List).isEmpty || _user == null) return;
 
       final userId = _user!.id;
 
@@ -479,7 +480,7 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
           .select('id')
           .eq('parent_email', email.toLowerCase());
 
-      if ((students as List).isEmpty) return;
+      if ((students as List).isEmpty || _user == null) return;
 
       final parentId = _user!.id;
 

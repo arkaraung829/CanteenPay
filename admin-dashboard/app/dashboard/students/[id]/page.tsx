@@ -177,8 +177,8 @@ export default function StudentDetailPage() {
   // Fetch linked parents
   const fetchParents = useCallback(async () => {
     const { data } = await supabase
-      .from('parent_student')
-      .select('profiles(id, full_name, phone, email:metadata->email)')
+      .from('parent_student_links')
+      .select('parent_id, profiles!parent_student_links_parent_id_fkey(id, full_name, phone)')
       .eq('student_id', id);
 
     if (data) {
