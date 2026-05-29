@@ -104,7 +104,7 @@ abstract class CanteenLocalizations {
   /// The application title
   ///
   /// In en, this message translates to:
-  /// **'CanteenPay'**
+  /// **'Paynow MM'**
   String get appTitle;
 
   /// No description provided for @login.

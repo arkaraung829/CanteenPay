@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/children_provider.dart';
 
@@ -15,15 +18,61 @@ class _SpendingAlertsScreenState extends State<SpendingAlertsScreen> {
   bool _notifyEveryPurchase = true;
   bool _dailySummary = true;
   final Map<String, TextEditingController> _limitControllers = {};
-  final _thresholdController = TextEditingController(text: '2000');
+  bool _saving = false;
 
   @override
   void dispose() {
     for (final c in _limitControllers.values) {
       c.dispose();
     }
-    _thresholdController.dispose();
     super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+
+    try {
+      final children = context.read<ChildrenProvider>().children;
+
+      for (final child in children) {
+        final controller = _limitControllers[child.id];
+        if (controller == null) continue;
+
+        final text = controller.text.trim();
+        final newLimit = text.isEmpty ? null : int.tryParse(text);
+        final currentLimit = child.dailySpendingLimit;
+
+        // Only update if changed
+        if (newLimit != currentLimit) {
+          await SupabaseService.instance.updateDailySpendingLimit(
+            child.id,
+            newLimit,
+          );
+        }
+      }
+
+      if (mounted) {
+        // Refresh children data to reflect updated limits
+        final provider = context.read<ChildrenProvider>();
+        final userId = Supabase.instance.client.auth.currentUser?.id;
+        if (userId != null) {
+          await provider.loadChildren(userId);
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Settings saved')),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -65,12 +114,17 @@ class _SpendingAlertsScreenState extends State<SpendingAlertsScreen> {
             'Daily Spending Limit',
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
+          const SizedBox(height: 4),
+          Text(
+            'Leave empty for no limit',
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+          ),
           const SizedBox(height: 8),
           ...children.map((child) {
             _limitControllers.putIfAbsent(
               child.id,
               () => TextEditingController(
-                text: (child.dailySpendingLimit ?? 5000).toString(),
+                text: child.dailySpendingLimit?.toString() ?? '',
               ),
             );
             return Card(
@@ -83,8 +137,12 @@ class _SpendingAlertsScreenState extends State<SpendingAlertsScreen> {
                   child: TextField(
                     controller: _limitControllers[child.id],
                     keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                    ],
                     decoration: const InputDecoration(
                       suffixText: 'MMK',
+                      hintText: 'No limit',
                       isDense: true,
                     ),
                   ),
@@ -94,35 +152,15 @@ class _SpendingAlertsScreenState extends State<SpendingAlertsScreen> {
           }),
           const SizedBox(height: 24),
 
-          // Low balance threshold
-          const Text(
-            'Low Balance Threshold',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                controller: _thresholdController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Warn when balance below',
-                  suffixText: 'MMK',
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 24),
-
           ElevatedButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Settings saved')),
-              );
-              Navigator.of(context).pop();
-            },
-            child: const Text('Save Settings'),
+            onPressed: _saving ? null : _save,
+            child: _saving
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save Settings'),
           ),
         ],
       ),

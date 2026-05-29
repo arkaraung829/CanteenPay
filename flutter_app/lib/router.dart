@@ -26,6 +26,7 @@ import 'screens/parent/profile_screen.dart' as parent_profile;
 
 // Seller screens
 import 'screens/seller/scan_screen.dart';
+import 'screens/seller/pin_verify_screen.dart';
 import 'screens/seller/payment_confirm_screen.dart';
 import 'screens/seller/payment_success_screen.dart';
 import 'screens/seller/sales_history_screen.dart';
@@ -221,6 +222,11 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
         ],
       ),
       // Seller full-screen routes (no bottom nav)
+      GoRoute(
+        path: '/seller/pin-verify',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PinVerifyScreen(),
+      ),
       GoRoute(
         path: '/seller/payment-confirm',
         parentNavigatorKey: _rootNavigatorKey,

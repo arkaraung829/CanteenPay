@@ -190,6 +190,25 @@ export async function POST(request: NextRequest) {
 
     const studentCode = `STU-${new Date().getFullYear()}-${String((count || 0) + 1).padStart(3, '0')}`;
 
+    // Generate unique 4-digit PIN within this school
+    let pinCode = '';
+    for (let i = 0; i < 10; i++) {
+      const candidate = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+      const { data: existing } = await supabase
+        .from('students')
+        .select('id')
+        .eq('school_id', school_id)
+        .eq('pin_code', candidate)
+        .limit(1);
+      if (!existing || existing.length === 0) {
+        pinCode = candidate;
+        break;
+      }
+    }
+    if (!pinCode) {
+      pinCode = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+    }
+
     // Normalize parent phone: strip leading 0, ensure +95 prefix
     let normalizedPhone: string | null = null;
     if (parent_phone) {
@@ -211,6 +230,7 @@ export async function POST(request: NextRequest) {
         class_name: class_name || null,
         student_code: studentCode,
         qr_data: crypto.randomUUID(),
+        pin_code: pinCode,
         school_id,
         is_active: true,
         parent_phone: normalizedPhone,

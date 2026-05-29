@@ -9,7 +9,7 @@ class CanteenLocalizationsEn extends CanteenLocalizations {
   CanteenLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appTitle => 'CanteenPay';
+  String get appTitle => 'Paynow MM';
 
   @override
   String get login => 'Login';

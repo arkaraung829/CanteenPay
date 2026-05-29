@@ -72,7 +72,7 @@ class _ScanScreenState extends State<ScanScreen> {
       if (scanner.scannedStudent != null) {
         HapticService.success();
         setState(() => _scanError = null);
-        await context.push('/seller/payment-confirm');
+        await context.push('/seller/pin-verify');
         // Returned from payment — reset for next scan
         _hasScanned = false;
       } else if (scanner.error != null) {

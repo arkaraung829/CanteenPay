@@ -143,6 +143,44 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
 
+                            // -- PIN Code --
+                            if (student?.pinCode != null) ...[
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 10,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: AppTheme.primary.withValues(alpha: 0.2),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.pin_outlined,
+                                      size: 18,
+                                      color: AppTheme.primary.withValues(alpha: 0.7),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'PIN: ${student!.pinCode}',
+                                      style: const TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primary,
+                                        letterSpacing: 4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+
                             const SizedBox(height: 28),
 
                             // -- QR Code with shadow --

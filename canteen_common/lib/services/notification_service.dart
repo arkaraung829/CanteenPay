@@ -230,9 +230,9 @@ class NotificationService {
   Future<void> _createAndroidNotificationChannel() async {
     try {
       const channel = AndroidNotificationChannel(
-        'canteen_pay',
-        'CanteenPay',
-        description: 'Notifications from CanteenPay',
+        'paynow_mm',
+        'Paynow MM',
+        description: 'Notifications from Paynow MM',
         importance: Importance.high,
         playSound: true,
         enableVibration: true,
@@ -367,7 +367,7 @@ class NotificationService {
         if (Platform.isAndroid) {
           showLocalNotification(
             id: message.hashCode,
-            title: message.notification!.title ?? 'CanteenPay',
+            title: message.notification!.title ?? 'Paynow MM',
             body: message.notification!.body ?? '',
             payload: jsonEncode(message.data),
           );
@@ -425,9 +425,9 @@ class NotificationService {
   }) async {
     try {
       const androidDetails = AndroidNotificationDetails(
-        'canteen_pay',
-        'CanteenPay',
-        channelDescription: 'Notifications from CanteenPay',
+        'paynow_mm',
+        'Paynow MM',
+        channelDescription: 'Notifications from Paynow MM',
         importance: Importance.high,
         priority: Priority.high,
         playSound: true,

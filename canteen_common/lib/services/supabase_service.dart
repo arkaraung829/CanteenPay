@@ -173,6 +173,22 @@ class SupabaseService {
     }
   }
 
+  /// Update a student's daily spending limit
+  Future<void> updateDailySpendingLimit(
+    String studentId,
+    int? limit,
+  ) async {
+    try {
+      await _client
+          .from('students')
+          .update({'daily_spending_limit': limit})
+          .eq('id', studentId);
+    } catch (e) {
+      debugPrint('SupabaseService: updateDailySpendingLimit failed: $e');
+      rethrow;
+    }
+  }
+
   /// Search students by name or student code within a school
   Future<List<StudentModel>> searchStudents(
     String query,

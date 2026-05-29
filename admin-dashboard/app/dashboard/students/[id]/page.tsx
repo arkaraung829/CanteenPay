@@ -17,6 +17,7 @@ interface StudentDetail {
   grade: string | null;
   is_active: boolean;
   qr_data: string;
+  pin_code: string;
   daily_spending_limit: number | null;
   balance: number;
   school_name: string;
@@ -91,7 +92,7 @@ export default function StudentDetailPage() {
   const fetchStudent = useCallback(async () => {
     const { data, error } = await supabase
       .from('students')
-      .select('id, student_code, full_name, full_name_my, class_name, grade, is_active, qr_data, daily_spending_limit, date_of_birth, parent_phone, parent_email, wallets(balance), schools(name)')
+      .select('id, student_code, full_name, full_name_my, class_name, grade, is_active, qr_data, pin_code, daily_spending_limit, date_of_birth, parent_phone, parent_email, wallets(balance), schools(name)')
       .eq('id', id)
       .single();
 
@@ -126,6 +127,7 @@ export default function StudentDetailPage() {
       grade: data.grade as string | null,
       is_active: data.is_active as boolean,
       qr_data: data.qr_data as string,
+      pin_code: (data.pin_code as string) || '',
       daily_spending_limit: data.daily_spending_limit as number | null,
       balance,
       school_name: schoolName,
@@ -434,6 +436,10 @@ export default function StudentDetailPage() {
                   <dd className="text-sm font-mono font-medium text-gray-900">{student.student_code}</dd>
                 </div>
                 <div className="flex justify-between">
+                  <dt className="text-sm text-gray-500">PIN Code</dt>
+                  <dd className="text-sm font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">{student.pin_code}</dd>
+                </div>
+                <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Class</dt>
                   <dd className="text-sm text-gray-900">{student.class_name || '-'}</dd>
                 </div>
@@ -658,6 +664,7 @@ export default function StudentDetailPage() {
             <p className="text-sm font-semibold text-gray-900">{student.full_name}</p>
             <p className="text-xs text-gray-500">{student.class_name || ''}</p>
             <p className="text-xs font-mono text-gray-400">{student.student_code}</p>
+            <p className="text-xs font-mono font-bold text-gray-700 mt-0.5">PIN: {student.pin_code}</p>
           </div>
         </div>
       </div>
