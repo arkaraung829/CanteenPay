@@ -132,7 +132,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _dismissKeyboard() {
-    debugPrint('>>> _dismissKeyboard called');
     FocusScope.of(context).unfocus();
   }
 
@@ -149,7 +148,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _sendOtp() async {
-    _dismissKeyboard();
     HapticService.selection();
     final phone = _phoneController.text.trim();
     if (phone.isEmpty || phone.length < 7) {
