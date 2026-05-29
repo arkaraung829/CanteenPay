@@ -17,6 +17,7 @@ interface Announcement {
   published_at?: string;
   created_at: string;
   profiles?: { full_name: string };
+  schools?: { name: string };
 }
 
 const audienceLabels: Record<string, string> = {
@@ -347,6 +348,7 @@ export default function AnnouncementsPage() {
                   )}
                   <div className="mt-2 flex items-center gap-3 text-xs text-gray-400">
                     <span>{formatDate(a.published_at || a.created_at)}</span>
+                    {a.schools?.name && <span>{a.schools.name}</span>}
                     {a.profiles?.full_name && <span>by {a.profiles.full_name}</span>}
                   </div>
                 </div>

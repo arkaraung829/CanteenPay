@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('announcements')
-    .select('*, profiles!announcements_author_id_fkey(full_name)')
+    .select('*, profiles!announcements_author_id_fkey(full_name), schools(name)')
     .order('created_at', { ascending: false });
 
   if (schoolId) {
@@ -95,7 +95,17 @@ export async function POST(request: NextRequest) {
     // Send push notification if requested
     let pushResult = null;
     if (send_push) {
-      pushResult = await sendPushToAudience(supabase, schoolId, target_audience || ['all'], title, bodyText);
+      // Get school name for the notification
+      let schoolName = 'School';
+      const { data: school } = await supabase
+        .from('schools')
+        .select('name')
+        .eq('id', schoolId)
+        .single();
+      if (school) schoolName = school.name;
+
+      const pushTitle = `${schoolName}: ${title}`;
+      pushResult = await sendPushToAudience(supabase, schoolId, target_audience || ['all'], pushTitle, bodyText);
     }
 
     return Response.json({ success: true, data, push: pushResult });
