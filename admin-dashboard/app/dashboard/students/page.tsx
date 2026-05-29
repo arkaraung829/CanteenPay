@@ -21,6 +21,7 @@ interface StudentRow {
   is_active: boolean;
   daily_spending_limit: number | null;
   balance: number;
+  parent_name: string | null;
 }
 
 interface Pagination {
@@ -724,7 +725,12 @@ export default function StudentsPage() {
                         }`}>
                           {student.full_name.charAt(0)}
                         </div>
-                        <span className="text-sm font-medium text-gray-900">{student.full_name}</span>
+                        <div>
+                          <span className="text-sm font-medium text-gray-900">{student.full_name}</span>
+                          {student.parent_name && (
+                            <p className="text-xs text-gray-400">Parent: {student.parent_name}</p>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-4 text-sm text-gray-500 font-mono">{student.student_code}</td>

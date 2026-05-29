@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   let query = supabase
     .from('students')
-    .select('id, student_code, full_name, full_name_my, class_name, grade, is_active, daily_spending_limit, wallets(balance)', { count: 'exact' });
+    .select('id, student_code, full_name, full_name_my, class_name, grade, is_active, daily_spending_limit, parent_phone, wallets(balance), parent_student_links(profiles!parent_student_links_parent_id_fkey(full_name))', { count: 'exact' });
 
   // Apply sort (not for balance - handled client-side after fetch)
   if (!isSortByBalance) {
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  // Map wallet balance into each student row
+  // Map wallet balance and parent name into each student row
   const mapped = (data || []).map((s: Record<string, unknown>) => {
     const wallets = s.wallets as Array<{ balance: number }> | { balance: number } | null;
     let balance = 0;
@@ -73,6 +73,14 @@ export async function GET(request: NextRequest) {
     } else if (wallets && !Array.isArray(wallets)) {
       balance = wallets.balance || 0;
     }
+
+    // Extract parent name from linked parents
+    let parentName: string | null = null;
+    const links = s.parent_student_links as Array<{ profiles: { full_name: string } | null }> | null;
+    if (Array.isArray(links) && links.length > 0 && links[0].profiles) {
+      parentName = links[0].profiles.full_name;
+    }
+
     return {
       id: s.id,
       student_code: s.student_code,
@@ -83,6 +91,7 @@ export async function GET(request: NextRequest) {
       is_active: s.is_active,
       daily_spending_limit: s.daily_spending_limit,
       balance,
+      parent_name: parentName,
     };
   });
 
