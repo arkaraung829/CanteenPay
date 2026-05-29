@@ -1,7 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../services/haptic_service.dart';
 
@@ -18,6 +20,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final _emailController = TextEditingController();
   bool _saving = false;
   bool _hasChanges = false;
+  File? _pickedPhoto;
+  String? _currentPhotoUrl;
 
   @override
   void initState() {
@@ -27,6 +31,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _nameController.text = user?.fullName ?? supabaseUser?.userMetadata?['full_name'] ?? '';
     _phoneController.text = user?.phone ?? supabaseUser?.phone ?? '';
     _emailController.text = user?.email ?? supabaseUser?.email ?? '';
+    _currentPhotoUrl = user?.avatarUrl;
 
     _nameController.addListener(_onChanged);
     _phoneController.addListener(_onChanged);
@@ -35,8 +40,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void _onChanged() {
     final user = context.read<AuthProvider>().user;
     final changed = _nameController.text.trim() != (user?.fullName ?? '') ||
-        _phoneController.text.trim() != (user?.phone ?? '');
+        _phoneController.text.trim() != (user?.phone ?? '') ||
+        _pickedPhoto != null;
     if (changed != _hasChanges) setState(() => _hasChanges = changed);
+  }
+
+  Future<void> _pickPhoto() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 80,
+    );
+    if (picked != null) {
+      setState(() {
+        _pickedPhoto = File(picked.path);
+        _hasChanges = true;
+      });
+    }
   }
 
   @override
@@ -64,10 +86,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final userId = supabase.auth.currentUser?.id;
       if (userId == null) return;
 
-      await supabase.from('profiles').update({
+      // Upload photo if picked
+      String? photoUrl;
+      if (_pickedPhoto != null) {
+        photoUrl = await PhotoUploadService.instance.upload(_pickedPhoto!, folder: 'profiles');
+      }
+
+      final updates = <String, dynamic>{
         'full_name': name,
         'phone': _phoneController.text.trim().isNotEmpty ? _phoneController.text.trim() : null,
-      }).eq('id', userId);
+      };
+      if (photoUrl != null) updates['avatar_url'] = photoUrl;
+
+      await supabase.from('profiles').update(updates).eq('id', userId);
 
       // Update auth metadata too
       await supabase.auth.updateUser(
@@ -129,32 +160,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         body: ListView(
           padding: const EdgeInsets.all(AppTheme.spacingMd),
           children: [
-            // Avatar
+            // Avatar with photo picker
             Center(
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 48,
-                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                    child: Text(
-                      (user?.fullName ?? 'U').isNotEmpty ? (user?.fullName ?? 'U')[0].toUpperCase() : 'U',
-                      style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: AppTheme.primary),
+              child: GestureDetector(
+                onTap: _pickPhoto,
+                child: Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 48,
+                      backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                      backgroundImage: _pickedPhoto != null
+                          ? FileImage(_pickedPhoto!)
+                          : (_currentPhotoUrl != null && _currentPhotoUrl!.isNotEmpty)
+                              ? NetworkImage(_currentPhotoUrl!) as ImageProvider
+                              : null,
+                      child: (_pickedPhoto == null && (_currentPhotoUrl == null || _currentPhotoUrl!.isEmpty))
+                          ? Text(
+                              (user?.fullName ?? 'U').isNotEmpty ? (user?.fullName ?? 'U')[0].toUpperCase() : 'U',
+                              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: AppTheme.primary),
+                            )
+                          : null,
                     ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
                       ),
-                      child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 8),

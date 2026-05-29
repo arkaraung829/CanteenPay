@@ -22,6 +22,7 @@ import 'screens/parent/transaction_history_screen.dart' as parent_history;
 import 'screens/parent/link_child_screen.dart';
 import 'screens/parent/spending_alerts_screen.dart';
 import 'screens/parent/notifications_screen.dart';
+import 'screens/parent/chat_screen.dart';
 import 'screens/parent/profile_screen.dart' as parent_profile;
 
 // Seller screens
@@ -188,6 +189,11 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
         path: '/parent/alerts',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const SpendingAlertsScreen(),
+      ),
+      GoRoute(
+        path: '/parent/chat',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const ChatScreen(),
       ),
 
       // ========== Shared Routes ==========

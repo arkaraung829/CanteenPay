@@ -137,6 +137,23 @@ class ProfileScreen extends StatelessWidget {
               }),
             const SizedBox(height: AppTheme.spacingLg),
 
+            // Chat with school
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/parent/chat'),
+                icon: const Icon(Icons.chat_bubble_outline),
+                label: const Text('Chat with School'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingMd),
+
             // Language toggle
             Container(
               decoration: BoxDecoration(

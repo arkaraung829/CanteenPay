@@ -74,6 +74,7 @@ export 'services/error_handler_service.dart';
 export 'services/device_id_service.dart';
 export 'services/phone_auth_service.dart';
 export 'services/secure_storage_service.dart';
+export 'services/photo_upload_service.dart';
 
 // ============================================================================
 // UTILS

@@ -13,6 +13,7 @@ import {
   Store,
   BarChart3,
   Megaphone,
+  MessageCircle,
   Settings,
   LogOut,
   School,
@@ -26,6 +27,7 @@ const navigation = [
   { name: 'Sellers', href: '/dashboard/sellers', icon: Store },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
   { name: 'Announcements', href: '/dashboard/announcements', icon: Megaphone },
+  { name: 'Messages', href: '/dashboard/chat', icon: MessageCircle },
 ];
 
 export default function Sidebar() {
