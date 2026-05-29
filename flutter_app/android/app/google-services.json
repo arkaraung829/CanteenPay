@@ -1,38 +1,41 @@
 {
   "project_info": {
-    "project_number": "318431458336",
-    "project_id": "oo-myanmar",
-    "storage_bucket": "oo-myanmar.firebasestorage.app"
+    "project_number": "1083173550425",
+    "project_id": "canteenpay-a64a1",
+    "storage_bucket": "canteenpay-a64a1.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:318431458336:android:650d4ae65b9f2f3a3a7845",
+        "mobilesdk_app_id": "1:1083173550425:android:05bf664d71622aca3ff448",
         "android_client_info": {
-          "package_name": "com.oomyanmar.marketplace"
+          "package_name": "com.canteenpay.canteenPay"
         }
       },
       "oauth_client": [
         {
-          "client_id": "318431458336-ou2j9vjtr39g6vsh2aiktt6256fnqps4.apps.googleusercontent.com",
-          "client_type": 1
-        },
-        {
-          "client_id": "318431458336-a5v4p7s6acfenu03jalvp631dvhj4b8s.apps.googleusercontent.com",
+          "client_id": "1083173550425-oh4nuk1o8p9hbqicmksa0d5jonl6i5ch.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyBMGzQBJq6ZiKh1IhnkzaTi2fD1Q4tTK9k"
+          "current_key": "AIzaSyDEUpYncsoLtIY4VUH-u_UJuCiNL2LyMfs"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "318431458336-a5v4p7s6acfenu03jalvp631dvhj4b8s.apps.googleusercontent.com",
+              "client_id": "1083173550425-oh4nuk1o8p9hbqicmksa0d5jonl6i5ch.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "1083173550425-6mt4fhm4dp3i1phpm2nltfr417vgj5ol.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.canteenpay.canteenPay"
+              }
             }
           ]
         }
