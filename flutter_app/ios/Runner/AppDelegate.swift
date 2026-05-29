@@ -1,6 +1,7 @@
 import Flutter
 import UIKit
 import FirebaseCore
+import FirebaseAuth
 import FirebaseMessaging
 
 @main
@@ -9,43 +10,55 @@ import FirebaseMessaging
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Initialize Firebase (must be before other Firebase calls)
     FirebaseApp.configure()
-
-    // Set up Firebase Messaging delegate
     Messaging.messaging().delegate = self
 
-    // Request notification permissions
+    // Request notification permission
     UNUserNotificationCenter.current().delegate = self
     let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound, .provisional]
     UNUserNotificationCenter.current().requestAuthorization(
       options: authOptions,
-      completionHandler: { granted, error in
-        if granted {
-          DispatchQueue.main.async {
-            application.registerForRemoteNotifications()
-          }
-        }
-      }
+      completionHandler: { _, _ in }
     )
-    // Also register immediately
     application.registerForRemoteNotifications()
 
     GeneratedPluginRegistrant.register(with: self)
-
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // Handle APNs device token — same as cuckoo
-  // With FirebaseAppDelegateProxyEnabled: true, Firebase swizzling
-  // automatically forwards this to Auth for phone verification
+  // 1. Pass APNs token to BOTH Messaging and Auth
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
     Messaging.messaging().apnsToken = deviceToken
-    // Must call super so FlutterAppDelegate forwards token to Firebase Auth via swizzling
+    Auth.auth().setAPNSToken(deviceToken, type: .unknown)
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
+  }
+
+  // 2. Handle silent push notification for phone auth
+  override func application(
+    _ application: UIApplication,
+    didReceiveRemoteNotification notification: [AnyHashable: Any],
+    fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+  ) {
+    if Auth.auth().canHandleNotification(notification) {
+      completionHandler(.noData)
+      return
+    }
+    super.application(application, didReceiveRemoteNotification: notification, fetchCompletionHandler: completionHandler)
+  }
+
+  // 3. Handle custom scheme redirect URL from reCAPTCHA
+  override func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    if Auth.auth().canHandle(url) {
+      return true
+    }
+    return super.application(app, open: url, options: options)
   }
 
   // Firebase Messaging delegate
