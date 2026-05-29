@@ -178,18 +178,16 @@ async function sendPushToAudience(
     // Get service account from env
     const fcmServiceAccountJson = process.env.FCM_SERVICE_ACCOUNT;
     if (!fcmServiceAccountJson) {
-      // Call the edge function instead
-      const { data: fnResult, error: fnError } = await supabase.functions.invoke('send-announcement', {
-        body: { tokens, title, body },
-      });
-      if (fnError) {
-        return { sent: 0, error: fnError.message };
-      }
-      return { sent: tokens.length, result: fnResult };
+      return { sent: 0, error: 'FCM_SERVICE_ACCOUNT not configured' };
     }
 
     // Use FCM v1 API directly
-    const sa = JSON.parse(fcmServiceAccountJson);
+    let sa;
+    try {
+      sa = JSON.parse(fcmServiceAccountJson);
+    } catch {
+      return { sent: 0, error: 'FCM_SERVICE_ACCOUNT is not valid JSON' };
+    }
     const accessToken = await getGoogleAccessToken(sa);
 
     const results = await Promise.all(
@@ -225,7 +223,7 @@ async function sendPushToAudience(
       (r: Record<string, unknown>) => r.name && !r.error
     ).length;
 
-    return { sent: successCount, total: tokens.length, results };
+    return { sent: successCount, total: tokens.length };
   } catch (e) {
     return { sent: 0, error: (e as Error).message };
   }
