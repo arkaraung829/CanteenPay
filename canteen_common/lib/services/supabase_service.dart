@@ -35,7 +35,11 @@ class SupabaseService {
         'p_seller_profile_id': sellerProfileId,
         'p_description': description,
       });
-      return Map<String, dynamic>.from(response as Map);
+      final result = Map<String, dynamic>.from(response as Map);
+      if (result['success'] == false) {
+        throw Exception(result['error'] ?? 'Purchase failed');
+      }
+      return result;
     } catch (e) {
       debugPrint('SupabaseService: processPurchase failed: $e');
       rethrow;
