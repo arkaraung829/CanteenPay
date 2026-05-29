@@ -184,7 +184,7 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
 
     await scanner.processScan(qr);
     if (scanner.scannedStudent != null) {
-      _router!.go('/seller/pin-verify');
+      _router!.go('/seller/payment-confirm');
     }
   }
 

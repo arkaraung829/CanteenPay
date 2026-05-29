@@ -225,7 +225,10 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
       GoRoute(
         path: '/seller/pin-verify',
         parentNavigatorKey: _rootNavigatorKey,
-        builder: (context, state) => const PinVerifyScreen(),
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          return PinVerifyScreen(amount: extra?['amount'] ?? 0);
+        },
       ),
       GoRoute(
         path: '/seller/payment-confirm',

@@ -4,12 +4,14 @@ import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/scanner_provider.dart';
+import '../../providers/sales_provider.dart';
 import '../../services/haptic_service.dart';
 
-/// PIN verification screen shown after scanning a student QR code.
-/// The seller must enter the student's 4-digit PIN to proceed to payment.
+/// PIN verification screen — the student/buyer sees the amount
+/// and enters their 4-digit PIN to confirm the purchase.
 class PinVerifyScreen extends StatefulWidget {
-  const PinVerifyScreen({super.key});
+  final int amount;
+  const PinVerifyScreen({super.key, required this.amount});
 
   @override
   State<PinVerifyScreen> createState() => _PinVerifyScreenState();
@@ -18,36 +20,35 @@ class PinVerifyScreen extends StatefulWidget {
 class _PinVerifyScreenState extends State<PinVerifyScreen> {
   String _pin = '';
   bool _isWrong = false;
+  bool _isCharging = false;
   int _attempts = 0;
 
   void _onDigit(String digit) {
-    if (_pin.length >= 4) return;
+    if (_pin.length >= 4 || _isCharging) return;
     setState(() {
       _pin += digit;
       _isWrong = false;
     });
     if (_pin.length == 4) {
-      _verifyPin();
+      _verifyAndCharge();
     }
   }
 
   void _onBackspace() {
-    if (_pin.isEmpty) return;
+    if (_pin.isEmpty || _isCharging) return;
     setState(() {
       _pin = _pin.substring(0, _pin.length - 1);
       _isWrong = false;
     });
   }
 
-  void _verifyPin() {
+  Future<void> _verifyAndCharge() async {
     final scanner = context.read<ScannerProvider>();
     final student = scanner.scannedStudent;
     if (student == null) return;
 
-    if (_pin == student.pinCode) {
-      HapticService.success();
-      context.go('/seller/payment-confirm');
-    } else {
+    // Verify PIN
+    if (_pin != student.pinCode) {
       HapticService.error();
       _attempts++;
       setState(() {
@@ -55,15 +56,78 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
         _pin = '';
       });
       if (_attempts >= 3) {
-        // After 3 wrong attempts, go back to scanner
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Too many wrong attempts. Please scan again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          scanner.reset();
+          context.go('/seller');
+        }
+      }
+      return;
+    }
+
+    // PIN correct — process the charge
+    HapticService.success();
+    setState(() => _isCharging = true);
+
+    try {
+      final sales = context.read<SalesProvider>();
+      final auth = context.read<AuthProvider>();
+      final wallet = scanner.scannedWallet;
+
+      if (wallet == null) return;
+
+      final result = await SupabaseService.instance.processPurchase(
+        qrData: student.qrData ?? '',
+        amount: widget.amount,
+        sellerProfileId: auth.user?.id ?? '',
+        description: 'Canteen Purchase',
+      );
+
+      final referenceId = result['reference_id']?.toString() ??
+          result['transaction_id']?.toString() ?? '';
+      final newBalance = (result['new_balance'] as num?)?.toInt() ??
+          (wallet.balance - widget.amount);
+      final txnId = result['transaction_id']?.toString() ?? '';
+
+      final transaction = TransactionModel(
+        id: txnId,
+        walletId: wallet.id,
+        type: 'purchase',
+        amount: widget.amount,
+        balanceBefore: wallet.balance,
+        balanceAfter: newBalance,
+        description: 'Canteen Purchase',
+        referenceId: referenceId,
+        performedBy: auth.user?.id,
+        sellerName: auth.user?.displayName ?? 'Seller',
+        createdAt: DateTime.now(),
+      );
+
+      sales.addSale(transaction);
+      scanner.reset();
+
+      if (mounted) {
+        context.go('/seller/payment-success', extra: {
+          'studentName': student.displayName,
+          'amountCharged': widget.amount,
+          'referenceId': referenceId,
+        });
+      }
+    } catch (e) {
+      HapticService.error();
+      if (mounted) {
+        setState(() => _isCharging = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Too many wrong attempts. Please scan again.'),
+          SnackBar(
+            content: Text('Payment failed: $e'),
             backgroundColor: Colors.red,
           ),
         );
-        scanner.reset();
-        context.go('/seller');
       }
     }
   }
@@ -75,7 +139,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
 
     if (student == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Verify PIN')),
+        appBar: AppBar(title: const Text('Confirm Payment')),
         body: const Center(child: Text('No student data')),
       );
     }
@@ -83,77 +147,85 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Verify Student'),
+        title: const Text('Confirm Payment'),
         leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () {
-            scanner.reset();
-            context.go('/seller');
-          },
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-            // Student info
+            // Amount display — prominent
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(vertical: 20),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                 boxShadow: AppTheme.shadowMd,
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                    child: Text(
-                      student.displayName.isNotEmpty
-                          ? student.displayName[0].toUpperCase()
-                          : '?',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.primary,
-                      ),
+                  Text(
+                    CurrencyFormatter.formatMMK(widget.amount),
+                    style: const TextStyle(
+                      fontSize: 36,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.primary,
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          student.displayName,
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircleAvatar(
+                        radius: 14,
+                        backgroundColor:
+                            AppTheme.primary.withValues(alpha: 0.1),
+                        child: Text(
+                          student.displayName.isNotEmpty
+                              ? student.displayName[0].toUpperCase()
+                              : '?',
                           style: const TextStyle(
-                            fontSize: 18,
+                            fontSize: 12,
                             fontWeight: FontWeight.bold,
+                            color: AppTheme.primary,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          student.gradeAndClass,
-                          style: const TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 14,
-                          ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        student.displayName,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: AppTheme.textPrimary,
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    student.gradeAndClass,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
-            // Instruction
+            // Instruction for student
             Text(
-              'Enter student\'s 4-digit PIN',
+              _isCharging
+                  ? 'Processing payment...'
+                  : 'Student: enter your 4-digit PIN',
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
@@ -171,7 +243,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
               ),
             ],
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // PIN dots
             Row(
@@ -191,9 +263,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
                             ? AppTheme.primary
                             : Colors.transparent,
                     border: Border.all(
-                      color: _isWrong
-                          ? AppTheme.error
-                          : AppTheme.primary,
+                      color: _isWrong ? AppTheme.error : AppTheme.primary,
                       width: 2,
                     ),
                   ),
@@ -201,68 +271,74 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
               }),
             ),
 
+            if (_isCharging) ...[
+              const SizedBox(height: 20),
+              const CircularProgressIndicator(),
+            ],
+
             const Spacer(),
 
             // Number pad
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48),
-              child: Column(
-                children: [
-                  for (final row in [
-                    ['1', '2', '3'],
-                    ['4', '5', '6'],
-                    ['7', '8', '9'],
-                    ['', '0', 'del'],
-                  ])
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: row.map((key) {
-                          if (key.isEmpty) {
-                            return const SizedBox(width: 72, height: 56);
-                          }
-                          if (key == 'del') {
+            if (!_isCharging)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 48),
+                child: Column(
+                  children: [
+                    for (final row in [
+                      ['1', '2', '3'],
+                      ['4', '5', '6'],
+                      ['7', '8', '9'],
+                      ['', '0', 'del'],
+                    ])
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: row.map((key) {
+                            if (key.isEmpty) {
+                              return const SizedBox(width: 72, height: 56);
+                            }
+                            if (key == 'del') {
+                              return SizedBox(
+                                width: 72,
+                                height: 56,
+                                child: TextButton(
+                                  onPressed: _onBackspace,
+                                  child: const Icon(
+                                    Icons.backspace_outlined,
+                                    size: 24,
+                                    color: AppTheme.textSecondary,
+                                  ),
+                                ),
+                              );
+                            }
                             return SizedBox(
                               width: 72,
                               height: 56,
                               child: TextButton(
-                                onPressed: _onBackspace,
-                                child: const Icon(
-                                  Icons.backspace_outlined,
-                                  size: 24,
-                                  color: AppTheme.textSecondary,
+                                onPressed: () => _onDigit(key),
+                                style: TextButton.styleFrom(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  backgroundColor: Colors.white,
+                                ),
+                                child: Text(
+                                  key,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppTheme.textPrimary,
+                                  ),
                                 ),
                               ),
                             );
-                          }
-                          return SizedBox(
-                            width: 72,
-                            height: 56,
-                            child: TextButton(
-                              onPressed: () => _onDigit(key),
-                              style: TextButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                backgroundColor: Colors.white,
-                              ),
-                              child: Text(
-                                key,
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ),
-                          );
-                        }).toList(),
+                          }).toList(),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
             const SizedBox(height: 24),
           ],
