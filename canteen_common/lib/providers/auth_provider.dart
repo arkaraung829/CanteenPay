@@ -10,6 +10,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/user_model.dart';
+import '../services/notification_service.dart';
 import '../services/phone_auth_service.dart';
 import 'safe_change_notifier.dart';
 
@@ -487,6 +488,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
     try {
       _isLoading = true;
       safeNotifyListeners();
+
+      // Clear FCM token before signing out
+      try {
+        await NotificationService.instance.clearToken();
+      } catch (_) {}
 
       await _supabase.auth.signOut();
     } catch (e) {
