@@ -39,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen>
   late final Animation<double> _shakeAnimation;
   bool _checkingBiometric = true;
   String _biometricType = 'face'; // 'face' or 'fingerprint'
+  bool _keyboardShown = false; // sticky flag to prevent logo flash
 
   @override
   void initState() {
@@ -131,6 +132,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   void _dismissKeyboard() {
+    debugPrint('>>> _dismissKeyboard called');
     FocusScope.of(context).unfocus();
   }
 
@@ -294,7 +296,9 @@ class _LoginScreenState extends State<LoginScreen>
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
-    final isKeyboardVisible = bottomPadding > 0;
+    if (bottomPadding > 100) _keyboardShown = true;
+    if (bottomPadding < 10) _keyboardShown = false;
+    final isKeyboardVisible = _keyboardShown;
 
     // Show biometric check screen
     if (_checkingBiometric) {
