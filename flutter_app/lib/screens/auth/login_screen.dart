@@ -652,6 +652,7 @@ class _LoginScreenState extends State<LoginScreen>
           keyboardType: TextInputType.number,
           textInputAction: TextInputAction.done,
           textAlign: TextAlign.center,
+          autofocus: true,
           enabled: !auth.isLoading,
           onFieldSubmitted: (_) => _verifyOtp(),
           onChanged: (value) {
