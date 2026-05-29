@@ -30,6 +30,7 @@ import 'screens/seller/pin_verify_screen.dart';
 import 'screens/seller/payment_confirm_screen.dart';
 import 'screens/seller/payment_success_screen.dart';
 import 'screens/seller/sales_history_screen.dart';
+import 'screens/seller/analytics_screen.dart';
 import 'screens/seller/profile_screen.dart' as seller_profile;
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -214,6 +215,12 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
             ),
           ),
           GoRoute(
+            path: '/seller/analytics',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: AnalyticsScreen(),
+            ),
+          ),
+          GoRoute(
             path: '/seller/profile',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: seller_profile.ProfileScreen(),
@@ -357,7 +364,8 @@ class _SellerShell extends StatelessWidget {
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.path;
     if (location.startsWith('/seller/sales')) return 1;
-    if (location.startsWith('/seller/profile')) return 2;
+    if (location.startsWith('/seller/analytics')) return 2;
+    if (location.startsWith('/seller/profile')) return 3;
     return 0;
   }
 
@@ -375,6 +383,8 @@ class _SellerShell extends StatelessWidget {
             case 1:
               context.go('/seller/sales');
             case 2:
+              context.go('/seller/analytics');
+            case 3:
               context.go('/seller/profile');
           }
         },
@@ -388,6 +398,11 @@ class _SellerShell extends StatelessWidget {
             icon: Icon(Icons.list_alt_outlined),
             selectedIcon: Icon(Icons.list_alt),
             label: 'Sales',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Analytics',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outlined),
