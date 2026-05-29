@@ -733,6 +733,57 @@ class _LoginScreenState extends State<LoginScreen>
               ),
           ],
         ),
+
+        const SizedBox(height: 16),
+
+        // Divider
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.grey[300])),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('or', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+            ),
+            Expanded(child: Divider(color: Colors.grey[300])),
+          ],
+        ),
+        const SizedBox(height: 12),
+
+        // Google Sign-In fallback
+        GestureDetector(
+          onTap: auth.isLoading ? null : () async {
+            HapticService.selection();
+            final success = await auth.signInWithGoogle();
+            if (mounted && success) {
+              HapticService.success();
+              await enableBiometric();
+            }
+          },
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.g_mobiledata, size: 20, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text('Sign in with Google instead', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[600])),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Change phone number
+        Center(
+          child: GestureDetector(
+            onTap: () {
+              HapticService.light();
+              auth.clearError();
+              _otpController.clear();
+              setState(() => _step = _AuthStep.phone);
+            },
+            child: Text('Change Phone Number', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+          ),
+        ),
       ],
     );
   }
