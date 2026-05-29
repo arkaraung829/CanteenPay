@@ -153,6 +153,15 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         email: email,
         password: password,
       );
+
+      // Auto-link by email (same as Google sign-in)
+      await _loadUserProfile();
+      if (email.isNotEmpty) {
+        await _autoLinkParentByEmail(email);
+        await _autoLinkSellerByEmail(email);
+        await _loadUserProfile();
+      }
+
       return true;
     } on AuthException catch (e) {
       _error = e.message;
@@ -443,10 +452,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
   }
 
   /// Auto-link seller to canteen_sellers record and school by phone.
-  /// When admin pre-creates a seller with a phone number, and the seller
-  /// later signs up via OTP, this links them automatically.
+  /// Uses RPC (SECURITY DEFINER) to bypass RLS restriction on role/school_id.
   Future<void> _autoLinkSellerByPhone(String phone) async {
     try {
+      if (_user == null) return;
+
       String normalized = phone.replaceAll(RegExp(r'\s+'), '');
       if (normalized.startsWith('0')) {
         normalized = '+95${normalized.substring(1)}';
@@ -454,39 +464,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         normalized = '+$normalized';
       }
 
-      // Find canteen_sellers record matching this phone
-      final sellers = await _supabase
-          .from('canteen_sellers')
-          .select('id, school_id, profile_id')
-          .eq('phone', normalized);
+      await _supabase.rpc('auto_link_seller', params: {
+        'p_user_id': _user!.id,
+        'p_phone': normalized,
+      });
 
-      if ((sellers as List).isEmpty || _user == null) return;
-
-      final userId = _user!.id;
-
-      for (final seller in sellers) {
-        final sellerId = seller['id'] as String;
-        final schoolId = seller['school_id'] as String?;
-        final existingProfileId = seller['profile_id'] as String?;
-
-        // Link this seller record to the user's profile
-        if (existingProfileId == null || existingProfileId != userId) {
-          await _supabase
-              .from('canteen_sellers')
-              .update({'profile_id': userId})
-              .eq('id', sellerId);
-        }
-
-        // Also update the user's profile school_id to match the seller's school
-        if (schoolId != null && _user?.schoolId != schoolId) {
-          await _supabase
-              .from('profiles')
-              .update({'school_id': schoolId})
-              .eq('id', userId);
-        }
-      }
-
-      // Reload profile to pick up school_id change
       await _loadUserProfile();
     } catch (e) {
       debugPrint('AuthProvider: Auto-link seller by phone failed: $e');
@@ -494,36 +476,15 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
   }
 
   /// Auto-link seller by matching email address.
+  /// Uses RPC (SECURITY DEFINER) to bypass RLS restriction on role/school_id.
   Future<void> _autoLinkSellerByEmail(String email) async {
     try {
-      final sellers = await _supabase
-          .from('canteen_sellers')
-          .select('id, school_id, profile_id')
-          .eq('email', email.toLowerCase());
+      if (_user == null) return;
 
-      if ((sellers as List).isEmpty || _user == null) return;
-
-      final userId = _user!.id;
-
-      for (final seller in sellers) {
-        final sellerId = seller['id'] as String;
-        final schoolId = seller['school_id'] as String?;
-        final existingProfileId = seller['profile_id'] as String?;
-
-        if (existingProfileId == null || existingProfileId != userId) {
-          await _supabase
-              .from('canteen_sellers')
-              .update({'profile_id': userId})
-              .eq('id', sellerId);
-        }
-
-        if (schoolId != null) {
-          await _supabase
-              .from('profiles')
-              .update({'school_id': schoolId, 'role': 'seller'})
-              .eq('id', userId);
-        }
-      }
+      await _supabase.rpc('auto_link_seller', params: {
+        'p_user_id': _user!.id,
+        'p_email': email.toLowerCase(),
+      });
 
       await _loadUserProfile();
     } catch (e) {
