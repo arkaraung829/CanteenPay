@@ -8,6 +8,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
 import 'package:canteen_common/canteen_common.dart';
+import 'package:canteen_common/l10n/generated/app_localizations.dart';
 import 'package:app_links/app_links.dart';
 
 import 'providers/scanner_provider.dart';
@@ -15,6 +16,7 @@ import 'providers/sales_provider.dart';
 import 'providers/children_provider.dart';
 import 'providers/notification_provider.dart';
 import 'providers/student_provider.dart';
+import 'providers/locale_provider.dart';
 import 'router.dart';
 import 'screens/auth/onboarding_screen.dart';
 import 'widgets/session_wrapper.dart';
@@ -205,10 +207,12 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
           create: (_) => NotificationProvider()..loadNotifications(),
         ),
         ChangeNotifierProvider(create: (_) => StudentProvider()),
+        ChangeNotifierProvider(create: (_) => LocaleProvider()..load()),
       ],
       child: Builder(
         builder: (context) {
           final authProvider = context.watch<AuthProvider>();
+          final localeProvider = context.watch<LocaleProvider>();
           _router ??= createRouter(authProvider, initialOnboarding: widget.showOnboarding);
           final router = _router!;
 
@@ -233,6 +237,9 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
               title: 'Paynow MM',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightTheme,
+              locale: localeProvider.locale,
+              supportedLocales: const [Locale('en'), Locale('my')],
+              localizationsDelegates: CanteenLocalizations.localizationsDelegates,
               routerConfig: router,
             ),
           );

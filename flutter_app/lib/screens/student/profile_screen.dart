@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/student_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../widgets/animated_fade_in.dart';
 
 /// Student profile screen with real data from Supabase.
@@ -124,6 +125,25 @@ class ProfileScreen extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // -- Language Toggle --
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    boxShadow: AppTheme.shadowSm,
+                  ),
+                  child: ListTile(
+                    leading: const Icon(Icons.language),
+                    title: const Text('Language'),
+                    subtitle: Text(context.watch<LocaleProvider>().isMyanmar ? 'Myanmar' : 'English'),
+                    trailing: Switch(
+                      value: context.watch<LocaleProvider>().isMyanmar,
+                      onChanged: (_) => context.read<LocaleProvider>().toggle(),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),

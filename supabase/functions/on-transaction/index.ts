@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
       balance_after: transaction.balance_after.toString(),
     };
 
-    // Authenticate and send
+    // Authenticate and send purchase notification
     const sa = JSON.parse(fcmServiceAccountJson);
     const accessToken = await getAccessToken(sa);
 
@@ -241,6 +241,24 @@ Deno.serve(async (req) => {
         sendNotification(sa.project_id, accessToken, token, title, body, notifData)
       ),
     );
+
+    // Low balance alert — notify if balance dropped below 2000 MMK
+    const LOW_BALANCE_THRESHOLD = 2000;
+    if (transaction.balance_after < LOW_BALANCE_THRESHOLD) {
+      const lowTitle = `Low Balance Alert`;
+      const lowBody = `${student?.full_name || 'Student'}'s balance is ${formattedBalance} MMK. Please top up soon.`;
+      const lowData = {
+        type: 'low_balance',
+        student_id: wallet.student_id,
+        balance: transaction.balance_after.toString(),
+      };
+
+      await Promise.all(
+        tokens.map((token: string) =>
+          sendNotification(sa.project_id, accessToken, token, lowTitle, lowBody, lowData)
+        ),
+      );
+    }
 
     return new Response(JSON.stringify({ success: true, fcm: results }), {
       status: 200,

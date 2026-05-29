@@ -794,7 +794,78 @@ class _LoginScreenState extends State<LoginScreen>
             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
           ),
         ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: GestureDetector(
+            onTap: () => _showForgotPassword(context),
+            child: const Text(
+              'Forgot Password?',
+              style: TextStyle(fontSize: 13, color: AppTheme.primary, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  void _showForgotPassword(BuildContext context) {
+    final resetController = TextEditingController(text: _emailController.text);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reset Password'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Enter your email and we\'ll send a password reset link.',
+              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: resetController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                prefixIcon: const Icon(Icons.email_rounded, size: 20),
+                filled: true,
+                fillColor: AppTheme.background,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final email = resetController.text.trim();
+              if (email.isEmpty) return;
+              try {
+                await Supabase.instance.client.auth.resetPasswordForEmail(email);
+                if (ctx.mounted) {
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Password reset link sent! Check your email.')),
+                  );
+                }
+              } catch (e) {
+                if (ctx.mounted) {
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Send Reset Link'),
+          ),
+        ],
+      ),
     );
   }
 

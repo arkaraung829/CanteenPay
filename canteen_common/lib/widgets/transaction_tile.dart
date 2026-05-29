@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../config/app_theme.dart';
 import '../models/transaction_model.dart';
+import 'transaction_detail_sheet.dart';
 
 class TransactionTile extends StatelessWidget {
   final TransactionModel transaction;
@@ -33,7 +34,7 @@ class TransactionTile extends StatelessWidget {
         ),
       ),
       child: ListTile(
-        onTap: onTap,
+        onTap: onTap ?? () => TransactionDetailSheet.show(context, transaction),
         leading: CircleAvatar(
           backgroundColor: accentColor.withValues(alpha: 0.1),
           child: Icon(

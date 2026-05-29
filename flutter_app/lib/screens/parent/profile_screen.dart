@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/children_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../widgets/animated_fade_in.dart';
 
 /// Parent profile screen with real auth data.
@@ -135,6 +136,25 @@ class ProfileScreen extends StatelessWidget {
                 );
               }),
             const SizedBox(height: AppTheme.spacingLg),
+
+            // Language toggle
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                boxShadow: AppTheme.shadowSm,
+              ),
+              child: ListTile(
+                leading: const Icon(Icons.language),
+                title: const Text('Language'),
+                subtitle: Text(context.watch<LocaleProvider>().isMyanmar ? 'Myanmar' : 'English'),
+                trailing: Switch(
+                  value: context.watch<LocaleProvider>().isMyanmar,
+                  onChanged: (_) => context.read<LocaleProvider>().toggle(),
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingMd),
 
             // Account Info
             OutlinedButton.icon(
