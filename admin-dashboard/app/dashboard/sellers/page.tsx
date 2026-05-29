@@ -177,19 +177,27 @@ export default function SellersPage() {
       normalizedPhone = ph;
     }
 
-    const { error } = await supabase
-      .from('canteen_sellers')
-      .update({
-        stall_name: editStallName,
-        stall_number: editStallNumber || null,
-        phone: normalizedPhone,
-        email: editEmail ? editEmail.toLowerCase() : null,
-        is_active: editActive,
-      })
-      .eq('id', editSeller.id);
-
-    if (error) {
-      setEditError(error.message);
+    try {
+      const res = await fetch('/api/sellers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editSeller.id,
+          stall_name: editStallName,
+          stall_number: editStallNumber || null,
+          phone: normalizedPhone,
+          email: editEmail ? editEmail.toLowerCase() : null,
+          is_active: editActive,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setEditError(json.error || 'Failed to update seller');
+        setEditLoading(false);
+        return;
+      }
+    } catch {
+      setEditError('Network error');
       setEditLoading(false);
       return;
     }
@@ -203,13 +211,20 @@ export default function SellersPage() {
     if (!editSeller || !confirm('Are you sure you want to delete this seller? This cannot be undone.')) return;
     setEditLoading(true);
 
-    const { error } = await supabase
-      .from('canteen_sellers')
-      .delete()
-      .eq('id', editSeller.id);
-
-    if (error) {
-      setEditError(error.message);
+    try {
+      const res = await fetch('/api/sellers', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editSeller.id }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setEditError(json.error || 'Failed to delete seller');
+        setEditLoading(false);
+        return;
+      }
+    } catch {
+      setEditError('Network error');
       setEditLoading(false);
       return;
     }
