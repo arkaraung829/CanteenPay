@@ -12,6 +12,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../services/notification_service.dart';
 import '../services/phone_auth_service.dart';
+import '../services/rate_limiter.dart';
 import 'safe_change_notifier.dart';
 
 class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
@@ -143,8 +144,17 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
     }
   }
 
+  final RateLimiter _rateLimiter = RateLimiter();
+
   /// Sign in with email and password
   Future<bool> signInWithEmail(String email, String password) async {
+    // Rate limit login attempts (brute-force protection)
+    if (!_rateLimiter.canProceed('auth_login')) {
+      _error = 'Too many login attempts. Please wait a moment.';
+      safeNotifyListeners();
+      return false;
+    }
+
     try {
       _isLoading = true;
       _error = null;

@@ -16,6 +16,7 @@ class SessionWrapper extends StatefulWidget {
 
 class _SessionWrapperState extends State<SessionWrapper> {
   final SessionService _sessionService = SessionService();
+  bool _securityWarningShown = false;
 
   @override
   void initState() {
@@ -23,6 +24,38 @@ class _SessionWrapperState extends State<SessionWrapper> {
 
     // Listen for session expiration
     _sessionService.onSessionExpired = _handleSessionExpired;
+
+    // Show security warning if device is compromised
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkSecurityWarning();
+    });
+  }
+
+  void _checkSecurityWarning() {
+    if (_securityWarningShown) return;
+    final warning = SecurityService().securityWarning;
+    if (warning != null && mounted) {
+      _securityWarningShown = true;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange),
+              SizedBox(width: 8),
+              Text('Security Warning'),
+            ],
+          ),
+          content: Text(warning),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('I Understand'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   @override

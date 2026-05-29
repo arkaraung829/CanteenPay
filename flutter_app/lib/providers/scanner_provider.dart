@@ -16,8 +16,17 @@ class ScannerProvider extends ChangeNotifier {
   bool get isProcessing => _isProcessing;
   String? get error => _error;
 
+  final RateLimiter _rateLimiter = RateLimiter();
+
   /// Process a scanned QR code using real Supabase lookups.
   Future<void> processScan(String qrData) async {
+    // Rate limit scans to prevent abuse
+    if (!_rateLimiter.canProceed('scan_qr')) {
+      _error = 'Too many scans. Please wait a moment.';
+      notifyListeners();
+      return;
+    }
+
     _isProcessing = true;
     _error = null;
     _scanResult = qrData;
