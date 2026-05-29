@@ -340,7 +340,7 @@ class _LoginScreenState extends State<LoginScreen>
 
     return GestureDetector(
       onTap: _dismissKeyboard,
-      behavior: HitTestBehavior.opaque,
+      behavior: HitTestBehavior.deferToChild,
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         body: Container(
@@ -658,30 +658,11 @@ class _LoginScreenState extends State<LoginScreen>
           decoration: InputDecoration(
             labelText: 'Phone Number',
             hintText: _selectedCountry.placeholder,
-            prefixIcon: Container(
-              padding: const EdgeInsets.only(left: 16, right: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _selectedCountry.flag,
-                    style: const TextStyle(fontSize: 20),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _selectedCountry.dialCode,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Container(
-                    height: 24,
-                    width: 1,
-                    margin: const EdgeInsets.only(left: 8),
-                    color: Colors.grey.shade300,
-                  ),
-                ],
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(left: 16, right: 4),
+              child: Text(
+                _selectedCountry.dialCode,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[700]),
               ),
             ),
             prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
