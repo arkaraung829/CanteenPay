@@ -23,9 +23,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().user;
-    _nameController.text = user?.fullName ?? '';
-    _phoneController.text = user?.phone ?? '';
-    _emailController.text = user?.email ?? '';
+    final supabaseUser = Supabase.instance.client.auth.currentUser;
+    _nameController.text = user?.fullName ?? supabaseUser?.userMetadata?['full_name'] ?? '';
+    _phoneController.text = user?.phone ?? supabaseUser?.phone ?? '';
+    _emailController.text = user?.email ?? supabaseUser?.email ?? '';
 
     _nameController.addListener(_onChanged);
     _phoneController.addListener(_onChanged);

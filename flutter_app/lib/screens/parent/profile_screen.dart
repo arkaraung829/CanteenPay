@@ -112,6 +112,7 @@ class ProfileScreen extends StatelessWidget {
                     boxShadow: AppTheme.shadowSm,
                   ),
                   child: ListTile(
+                    onTap: () => context.push('/parent/child/${child.id}'),
                     shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(AppTheme.radiusMd),

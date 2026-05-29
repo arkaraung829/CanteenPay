@@ -118,6 +118,16 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
 
       if (response != null) {
         _user = UserModel.fromJson(response);
+        // Fill in email/phone from auth session if not in profile
+        final authUser = _session?.user;
+        if (authUser != null) {
+          if ((_user!.email == null || _user!.email!.isEmpty) && authUser.email != null) {
+            _user = _user!.copyWith(email: authUser.email);
+          }
+          if ((_user!.phone == null || _user!.phone!.isEmpty) && authUser.phone != null) {
+            _user = _user!.copyWith(phone: authUser.phone);
+          }
+        }
       } else {
         // Create a basic user from auth data
         _user = UserModel(
