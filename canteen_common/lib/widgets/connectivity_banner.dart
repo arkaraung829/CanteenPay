@@ -56,26 +56,29 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Offline banner
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          height: !_isOnline ? 32 : (_showBackOnline ? 32 : 0),
-          color: !_isOnline ? Colors.red.shade700 : Colors.green.shade600,
-          child: Center(
-            child: Text(
-              !_isOnline ? 'No internet connection' : 'Back online',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Column(
+        children: [
+          // Offline banner
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 300),
+            height: !_isOnline ? 32 : (_showBackOnline ? 32 : 0),
+            color: !_isOnline ? Colors.red.shade700 : Colors.green.shade600,
+            child: Center(
+              child: Text(
+                !_isOnline ? 'No internet connection' : 'Back online',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
-        ),
-        Expanded(child: widget.child),
-      ],
+          Expanded(child: widget.child),
+        ],
+      ),
     );
   }
 }
