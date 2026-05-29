@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>318431458336-ou2j9vjtr39g6vsh2aiktt6256fnqps4.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyB-QdjAsB3kumQE7Q9YgZVlywNgZyFvdXY</string>
 	<key>GCM_SENDER_ID</key>
@@ -9,7 +11,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.oomyanmar.marketplace</string>
+	<string>com.canteenpay.canteenPay</string>
 	<key>PROJECT_ID</key>
 	<string>oo-myanmar</string>
 	<key>STORAGE_BUCKET</key>
@@ -25,10 +27,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:318431458336:ios:b54767e2470e1cd23a7845</string>
-	<key>CLIENT_ID</key>
-	<string>318431458336-evqr8ub2sba0hg87g8hrhbfhv497cvhi.apps.googleusercontent.com</string>
-	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.318431458336-evqr8ub2sba0hg87g8hrhbfhv497cvhi</string>
+	<string>1:318431458336:ios:5cd5d3aba0ae03103a7845</string>
 </dict>
 </plist>
