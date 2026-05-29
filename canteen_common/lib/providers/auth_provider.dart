@@ -197,8 +197,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       );
 
       if (response.session != null) {
-        debugPrint('AuthProvider: Google sign-in successful');
+        _session = response.session;
+        _isAuthenticated = true;
+        debugPrint('AuthProvider: Google sign-in successful, loading profile...');
         await _loadUserProfile();
+        debugPrint('AuthProvider: Profile loaded: ${_user?.role} ${_user?.fullName}');
         return true;
       } else {
         _error = 'Sign-in failed. Please try again.';
