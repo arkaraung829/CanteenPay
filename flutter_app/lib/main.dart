@@ -171,7 +171,7 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
 
           return SessionWrapper(
             child: MaterialApp.router(
-              title: 'CanteenPay',
+              title: 'Paynow MM',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.lightTheme,
               routerConfig: router,

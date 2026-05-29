@@ -5,7 +5,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Canteen Pay</string>
+		<string>Paynow MM</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -48,9 +48,9 @@
 		<key>UIStatusBarHidden</key>
 		<true/>
 		<key>NSFaceIDUsageDescription</key>
-		<string>CanteenPay uses Face ID to securely unlock the app</string>
+		<string>Paynow MM uses Face ID to securely unlock the app</string>
 		<key>NSCameraUsageDescription</key>
-		<string>CanteenPay uses the camera to scan student QR codes</string>
+		<string>Paynow MM uses the camera to scan student QR codes</string>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
 		<key>UIBackgroundModes</key>

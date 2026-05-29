@@ -85,8 +85,8 @@ class _LoginScreenState extends State<LoginScreen>
       // Prompt Face ID / Touch ID
       final type = await biometric.getBiometricType();
       final reason = type == 'face'
-          ? 'Unlock CanteenPay with Face ID'
-          : 'Unlock CanteenPay with fingerprint';
+          ? 'Unlock Paynow MM with Face ID'
+          : 'Unlock Paynow MM with fingerprint';
 
       setState(() => _biometricType = type);
 
@@ -374,7 +374,7 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                     const SizedBox(height: 14),
                     const Text(
-                      'CanteenPay',
+                      'Paynow MM',
                       style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
                     ),
                     const SizedBox(height: 4),

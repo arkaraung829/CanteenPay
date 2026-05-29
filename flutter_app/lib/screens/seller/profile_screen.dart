@@ -130,7 +130,7 @@ class ProfileScreen extends StatelessWidget {
           // App version
           const Center(
             child: Text(
-              'CanteenPay v1.0.0',
+              'Paynow MM v1.0.0',
               style: TextStyle(
                 color: AppTheme.textHint,
                 fontSize: 13,

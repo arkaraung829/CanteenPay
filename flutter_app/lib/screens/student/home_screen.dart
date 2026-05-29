@@ -155,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: QrCard(
                                   qrData: student!.qrData!,
                                   size: 220,
-                                  schoolName: 'CanteenPay',
+                                  schoolName: 'Paynow MM',
                                 ),
                               ),
 

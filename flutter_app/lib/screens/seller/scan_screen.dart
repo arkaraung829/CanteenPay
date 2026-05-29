@@ -112,7 +112,7 @@ class _ScanScreenState extends State<ScanScreen> {
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'CanteenPay Seller',
+                        'Paynow MM Seller',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
