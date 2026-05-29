@@ -232,9 +232,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         phone,
         country ?? PhoneAuthService.defaultCountry,
       );
-      final fakeEmail =
-          '${normalizedPhone.replaceAll('+', '')}@phone.canteenpay.com';
-      final password = 'phone_${normalizedPhone}_canteenpay_2026';
+      // Create clean email from phone digits only
+      final phoneDigits = normalizedPhone.replaceAll(RegExp(r'[^\d]'), '');
+      final fakeEmail = 'phone$phoneDigits@canteenpay.com';
+      final password = 'cp_${phoneDigits}_2026';
+      debugPrint('AuthProvider: Supabase email=$fakeEmail');
 
       // Try sign in first (existing user)
       try {
