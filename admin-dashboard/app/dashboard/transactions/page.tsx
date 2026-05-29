@@ -9,6 +9,8 @@ import { useSchoolContext } from '@/lib/school-context';
 interface TxRow {
   id: string;
   student: string;
+  student_code: string;
+  seller_name: string;
   type: string;
   amount: number;
   balance_after: number;
@@ -42,7 +44,7 @@ export default function TransactionsPage() {
         description,
         created_at,
         performed_by,
-        wallet:wallets(student:students(full_name, school_id)),
+        wallet:wallets(student:students(full_name, student_code, school_id)),
         performer:profiles!transactions_performed_by_fkey(full_name)
       `)
       .order('created_at', { ascending: false })
@@ -107,6 +109,8 @@ export default function TransactionsPage() {
       return {
         id: tx.id as string,
         student: (student?.full_name as string) || 'Unknown',
+        student_code: (student?.student_code as string) || '',
+        seller_name: (performer?.full_name as string) || '-',
         type: tx.type as string,
         amount: tx.amount as number,
         balance_after: tx.balance_after as number,
@@ -197,17 +201,18 @@ export default function TransactionsPage() {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Time</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Student</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Student ID</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Type</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Amount</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Balance After</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Description</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">By</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Seller</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-gray-400">
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-gray-400">
                     No transactions found
                   </td>
                 </tr>
@@ -218,6 +223,7 @@ export default function TransactionsPage() {
                       {formatTime(tx.time)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{tx.student}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 font-mono">{tx.student_code}</td>
                     <td className="whitespace-nowrap px-6 py-4">
                       <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         tx.type === 'deposit' ? 'bg-green-100 text-green-700' :
@@ -234,7 +240,7 @@ export default function TransactionsPage() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatMMK(tx.balance_after)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{tx.description}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{tx.performed_by}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{tx.seller_name}</td>
                   </tr>
                 ))
               )}
