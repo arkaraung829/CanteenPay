@@ -182,13 +182,12 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _verifyOtp() async {
-    HapticService.selection();
+    HapticService.medium();
     final code = _otpController.text.trim();
-    if (code.length < 6) {
-      _showError('Please enter the 6-digit code');
-      _shake();
-      return;
-    }
+    if (code.length < 6) return; // Wait for 6 digits
+
+    // Dismiss keyboard immediately
+    FocusScope.of(context).unfocus();
 
     final auth = context.read<AuthProvider>();
     final success = await auth.verifyOtp(
@@ -201,12 +200,10 @@ class _LoginScreenState extends State<LoginScreen>
     if (mounted) {
       if (success) {
         HapticService.success();
-        await enableBiometric(); // Enable Face ID for next login
-        // Check if profile has a name — if not, show profile step
+        await enableBiometric();
         if (auth.user?.fullName == null || auth.user!.fullName!.isEmpty) {
           setState(() => _step = _AuthStep.profile);
         }
-        // Otherwise router auto-redirects
       } else {
         _shake();
       }
@@ -640,94 +637,138 @@ class _LoginScreenState extends State<LoginScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Header with back button
         Row(
           children: [
             GestureDetector(
-              onTap: () { auth.clearError(); setState(() => _step = _AuthStep.phone); },
-              child: const Icon(Icons.arrow_back_rounded, color: AppTheme.textSecondary),
+              onTap: () {
+                HapticService.light();
+                auth.clearError();
+                _otpController.clear();
+                setState(() => _step = _AuthStep.phone);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.background,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.arrow_back_rounded, size: 20, color: AppTheme.textSecondary),
+              ),
             ),
             const SizedBox(width: 12),
-            const Expanded(child: Text('Verify Code', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700))),
+            const Expanded(
+              child: Text('Enter Code', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Enter the 6-digit code sent to ${_phoneController.text}',
-          style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-        ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 8),
 
+        // Phone number display
+        Text.rich(
+          TextSpan(
+            style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
+            children: [
+              const TextSpan(text: 'Code sent to '),
+              TextSpan(
+                text: _phoneController.text,
+                style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Error
         if (auth.error != null) ...[
           ErrorCard(message: auth.error!, onDismiss: () => auth.clearError()),
           const SizedBox(height: 12),
         ],
 
-        // OTP input
+        // Loading indicator when verifying
+        if (auth.isLoading) ...[
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primary)),
+                  SizedBox(width: 10),
+                  Text('Verifying...', style: TextStyle(fontSize: 14, color: AppTheme.primary, fontWeight: FontWeight.w500)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+
+        // OTP input — large, centered, clear
         TextField(
           controller: _otpController,
           focusNode: _otpFocusNode,
           keyboardType: TextInputType.number,
           maxLength: 6,
           textAlign: TextAlign.center,
+          enabled: !auth.isLoading,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: 12),
+          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 16),
           decoration: InputDecoration(
             counterText: '',
-            hintText: '------',
-            hintStyle: TextStyle(fontSize: 28, letterSpacing: 12, color: Colors.grey[300]),
+            hintText: '\u2022 \u2022 \u2022 \u2022 \u2022 \u2022',
+            hintStyle: TextStyle(fontSize: 32, letterSpacing: 16, color: Colors.grey[300]),
             filled: true,
             fillColor: AppTheme.background,
-            contentPadding: const EdgeInsets.symmetric(vertical: 16),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
+            contentPadding: const EdgeInsets.symmetric(vertical: 18),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.primary, width: 2)),
           ),
           autofocus: true,
           onChanged: (value) {
+            setState(() {}); // Update UI to show filled dots
             if (value.length == 6 && !auth.isLoading) {
+              FocusScope.of(context).unfocus(); // Dismiss keyboard
               _verifyOtp();
             }
           },
         ),
+
         const SizedBox(height: 16),
 
-        // Resend code with cooldown
-        Center(
-          child: _resendCooldown > 0
-              ? Text(
-                  'Resend code in ${_resendCooldown}s',
-                  style: const TextStyle(fontSize: 13, color: AppTheme.textHint),
-                )
-              : GestureDetector(
-                  onTap: auth.isLoading ? null : _sendOtp,
-                  child: RichText(
-                    text: const TextSpan(
-                      style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-                      children: [
-                        TextSpan(text: "Didn't receive the code? "),
-                        TextSpan(
-                          text: 'Resend',
-                          style: TextStyle(fontWeight: FontWeight.w700, color: AppTheme.primary),
-                        ),
-                      ],
+        // Resend / Change number row
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // Change number
+            GestureDetector(
+              onTap: () {
+                HapticService.light();
+                auth.clearError();
+                _otpController.clear();
+                setState(() => _step = _AuthStep.phone);
+              },
+              child: const Text(
+                'Change Number',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primary),
+              ),
+            ),
+            // Resend
+            _resendCooldown > 0
+                ? Text(
+                    'Resend in ${_resendCooldown}s',
+                    style: const TextStyle(fontSize: 13, color: AppTheme.textHint),
+                  )
+                : GestureDetector(
+                    onTap: auth.isLoading ? null : () {
+                      HapticService.light();
+                      _sendOtp();
+                    },
+                    child: const Text(
+                      'Resend Code',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.primary),
                     ),
                   ),
-                ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Change phone number
-        Center(
-          child: GestureDetector(
-            onTap: () {
-              auth.clearError();
-              setState(() => _step = _AuthStep.phone);
-            },
-            child: const Text(
-              'Change Phone Number',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primary),
-            ),
-          ),
+          ],
         ),
       ],
     );
