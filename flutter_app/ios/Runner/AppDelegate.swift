@@ -2,6 +2,7 @@ import Flutter
 import UIKit
 import FirebaseCore
 import FirebaseMessaging
+import FirebaseAuth
 
 @main
 @objc class AppDelegate: FlutterAppDelegate, MessagingDelegate {
@@ -29,7 +30,7 @@ import FirebaseMessaging
         }
       }
     )
-    // Also try registering immediately
+    // Register immediately (needed for silent push / phone auth)
     application.registerForRemoteNotifications()
 
     GeneratedPluginRegistrant.register(with: self)
@@ -37,21 +38,46 @@ import FirebaseMessaging
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
-  // Handle APNs device token registration — exact copy from cuckoo
+  // CRITICAL: Pass APNs token to BOTH Firebase Auth AND Messaging
+  // Firebase Auth needs this for silent push verification (phone OTP)
   override func application(
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    // Pass APNs token to Firebase Messaging
-    // Firebase will handle converting it to FCM token
+    // Firebase Auth — required for silent push phone verification
+    Auth.auth().setAPNSToken(deviceToken, type: .unknown)
+
+    // Firebase Messaging — required for FCM push notifications
     Messaging.messaging().apnsToken = deviceToken
+
+    #if DEBUG
+    let tokenString = deviceToken.map { String(format: "%02x", $0) }.joined()
+    print("APNs token registered: \(tokenString.prefix(20))...")
+    #endif
   }
 
-  // Firebase Messaging delegate — exact copy from cuckoo
+  // CRITICAL: Handle silent push notifications from Firebase Auth
+  // This is what Firebase sends to verify the phone number without reCAPTCHA
+  override func application(
+    _ application: UIApplication,
+    didReceiveRemoteNotification userInfo: [AnyHashable: Any],
+    fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
+  ) {
+    // Let Firebase Auth handle silent push verification
+    if Auth.auth().canHandleNotification(userInfo) {
+      completionHandler(.noData)
+      return
+    }
+
+    // Pass to Flutter for other notifications
+    super.application(application, didReceiveRemoteNotification: userInfo, fetchCompletionHandler: completionHandler)
+  }
+
+  // Firebase Messaging delegate
   func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
     #if DEBUG
     if let token = fcmToken {
-      print("FCM token: \(token)")
+      print("FCM token: \(token.prefix(20))...")
     }
     #endif
   }
