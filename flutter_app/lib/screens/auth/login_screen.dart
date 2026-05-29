@@ -27,8 +27,8 @@ class _LoginScreenState extends State<LoginScreen>
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneFocusNode = FocusNode();
   final _otpFocusNode = FocusNode();
-  final _scrollController = ScrollController();
   String _role = 'parent';
   _AuthStep _step = _AuthStep.phone;
   bool _obscurePassword = true;
@@ -39,7 +39,6 @@ class _LoginScreenState extends State<LoginScreen>
   late final Animation<double> _shakeAnimation;
   bool _checkingBiometric = true;
   String _biometricType = 'face'; // 'face' or 'fingerprint'
-  bool _keyboardWasVisible = false;
 
   @override
   void initState() {
@@ -125,10 +124,14 @@ class _LoginScreenState extends State<LoginScreen>
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _phoneFocusNode.dispose();
     _otpFocusNode.dispose();
-    _scrollController.dispose();
     _shakeController.dispose();
     super.dispose();
+  }
+
+  void _dismissKeyboard() {
+    FocusScope.of(context).unfocus();
   }
 
   String get _rawPhone => _phoneController.text.trim();
@@ -144,6 +147,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _sendOtp() async {
+    _dismissKeyboard();
     HapticService.selection();
     final phone = _phoneController.text.trim();
     if (phone.isEmpty || phone.length < 7) {
@@ -152,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen>
       return;
     }
 
-    // Switch to OTP step immediately — reCAPTCHA may send app to background
+    // Switch to OTP step immediately -- reCAPTCHA may send app to background
     _otpController.clear();
     setState(() => _step = _AuthStep.otp);
     _startResendCooldown();
@@ -162,24 +166,34 @@ class _LoginScreenState extends State<LoginScreen>
     if (mounted) {
       if (success) {
         HapticService.success();
+        // Show success snackbar like cuckoo
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('OTP sent to ${PhoneAuthService().formatPhone(_rawPhone, _selectedCountry)}'),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        );
         // Auto-focus OTP field
         Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) _otpFocusNode.requestFocus();
         });
       }
-      // Don't revert to phone step on failure — OTP may have been sent
+      // Don't revert to phone step on failure -- OTP may have been sent
       // via reCAPTCHA flow. User can tap "Change Number" to go back.
       auth.clearError();
     }
   }
 
   Future<void> _verifyOtp() async {
+    _dismissKeyboard();
     HapticService.medium();
     final code = _otpController.text.trim();
     if (code.length < 6) return; // Wait for 6 digits
 
-    // Dismiss keyboard immediately
-    FocusScope.of(context).unfocus();
+    HapticFeedback.lightImpact();
 
     final auth = context.read<AuthProvider>();
     final success = await auth.verifyOtp(
@@ -203,6 +217,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _saveProfile() async {
+    _dismissKeyboard();
     HapticService.selection();
     final name = _nameController.text.trim();
     if (name.isEmpty) {
@@ -237,6 +252,7 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _emailLogin() async {
+    _dismissKeyboard();
     HapticService.selection();
     final email = _emailController.text.trim();
     final password = _passwordController.text.trim();
@@ -268,6 +284,7 @@ class _LoginScreenState extends State<LoginScreen>
         content: Text(message),
         backgroundColor: AppTheme.error,
         behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
@@ -276,6 +293,8 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardVisible = bottomPadding > 0;
 
     // Show biometric check screen
     if (_checkingBiometric) {
@@ -320,152 +339,143 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     return GestureDetector(
-      onTap: () {
-        FocusScope.of(context).unfocus();
-      },
-      behavior: HitTestBehavior.deferToChild,
+      onTap: _dismissKeyboard,
+      behavior: HitTestBehavior.opaque,
       child: Scaffold(
-        resizeToAvoidBottomInset: true,
+        resizeToAvoidBottomInset: false,
         body: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [AppTheme.primary, Color(0xFF0D47A1)],
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: Builder(
-            builder: (context) {
-              final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-              // Use sticky flag: once keyboard shows, keep logo hidden until fully closed
-              if (bottomInset > 100) _keyboardWasVisible = true;
-              if (bottomInset < 10) _keyboardWasVisible = false;
-              final keyboardVisible = _keyboardWasVisible;
-              return Column(
-                children: [
-                  Expanded(
-                    child: SingleChildScrollView(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.symmetric(horizontal: 28),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(height: keyboardVisible ? 8 : 24),
-
-                  // Logo — shrinks when keyboard is visible
-                  if (!keyboardVisible) TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0.0, end: 1.0),
-                    duration: const Duration(milliseconds: 600),
-                    curve: Curves.easeOutBack,
-                    builder: (context, value, child) {
-                      return Transform.scale(
-                        scale: value,
-                        child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
-                      );
-                    },
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                // Scrollable content area
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(28, 16, 28, isKeyboardVisible ? 16 : 24),
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     child: Column(
                       children: [
-                        Container(
-                          width: 88,
-                          height: 88,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(22),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
+                        // Logo -- hide when keyboard is visible
+                        if (!isKeyboardVisible)
+                          TweenAnimationBuilder<double>(
+                            tween: Tween(begin: 0.0, end: 1.0),
+                            duration: const Duration(milliseconds: 600),
+                            curve: Curves.easeOutBack,
+                            builder: (context, value, child) {
+                              return Transform.scale(
+                                scale: value,
+                                child: Opacity(opacity: value.clamp(0.0, 1.0), child: child),
+                              );
+                            },
+                            child: Column(
+                              children: [
+                                const SizedBox(height: 8),
+                                Container(
+                                  width: 88,
+                                  height: 88,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(22),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.2),
+                                        blurRadius: 20,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(Icons.restaurant_rounded, size: 44, color: AppTheme.primary),
+                                ),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'CanteenPay',
+                                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'School Cashless Payment',
+                                  style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.8)),
+                                ),
+                                const SizedBox(height: 28),
+                              ],
+                            ),
                           ),
-                          child: const Icon(Icons.restaurant_rounded, size: 44, color: AppTheme.primary),
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'CanteenPay',
-                          style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.5),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'School Cashless Payment',
-                          style: TextStyle(fontSize: 15, color: Colors.white.withValues(alpha: 0.8)),
-                        ),
-                      ],
-                    ),
-                  ),
 
-                  SizedBox(height: keyboardVisible ? 12 : 36),
+                        if (isKeyboardVisible) const SizedBox(height: 12),
 
-                  // Form card
-                  AnimatedBuilder(
-                    animation: _shakeAnimation,
-                    builder: (context, child) {
-                      return Transform.translate(offset: Offset(_shakeAnimation.value, 0), child: child);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.15),
-                            blurRadius: 30,
-                            offset: const Offset(0, 10),
+                        // Form card with shake animation
+                        AnimatedBuilder(
+                          animation: _shakeAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(offset: Offset(_shakeAnimation.value, 0), child: child);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.15),
+                                  blurRadius: 30,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: _buildCurrentStep(auth),
+                          ),
+                        ),
+
+                        // Info section -- hide when keyboard visible
+                        if (!isKeyboardVisible) ...[
+                          const SizedBox(height: 24),
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                _infoRow(Icons.qr_code_scanner_rounded, 'Students scan QR at canteen'),
+                                const SizedBox(height: 8),
+                                _infoRow(Icons.account_balance_wallet_rounded, 'Parents track spending in real-time'),
+                                const SizedBox(height: 8),
+                                _infoRow(Icons.security_rounded, 'Secure cashless payments'),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Contact your school admin for access',
+                            style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
                           ),
                         ],
-                      ),
-                      child: _buildCurrentStep(auth),
-                    ),
-                  ),
 
-                  if (!keyboardVisible) ...[
-                  const SizedBox(height: 24),
-
-                  // Info section
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        _infoRow(Icons.qr_code_scanner_rounded, 'Students scan QR at canteen'),
-                        const SizedBox(height: 8),
-                        _infoRow(Icons.account_balance_wallet_rounded, 'Parents track spending in real-time'),
-                        const SizedBox(height: 8),
-                        _infoRow(Icons.security_rounded, 'Secure cashless payments'),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-                  Text(
-                    'Contact your school admin for access',
-                    style: TextStyle(fontSize: 12, color: Colors.white.withValues(alpha: 0.5)),
-                  ),
-                  ],
                         const SizedBox(height: 24),
                       ],
                     ),
                   ),
                 ),
-                // Action button pinned above keyboard
-                _buildBottomButton(auth, keyboardVisible, bottomInset),
+
+                // Bottom button area -- always visible above keyboard
+                _buildBottomButton(auth, isKeyboardVisible, bottomPadding),
               ],
-              );
-            },
+            ),
           ),
         ),
-      ),
       ),
     );
   }
 
-  Widget _buildBottomButton(AuthProvider auth, bool keyboardVisible, double bottomInset) {
+  Widget _buildBottomButton(AuthProvider auth, bool isKeyboardVisible, double bottomPadding) {
     if (_checkingBiometric) return const SizedBox.shrink();
 
     // Show contextual button based on current step
@@ -488,22 +498,64 @@ class _LoginScreenState extends State<LoginScreen>
     }
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(28, 12, 28, 16),
-      child: SizedBox(
-        height: 50,
-        width: double.infinity,
-        child: ElevatedButton(
-          onPressed: onPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: AppTheme.primary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            elevation: 0,
+      padding: EdgeInsets.fromLTRB(28, 12, 28, bottomPadding + 24),
+      decoration: isKeyboardVisible
+          ? BoxDecoration(
+              color: const Color(0xFF0D47A1),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 10,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            )
+          : null,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 56,
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onPressed,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: AppTheme.primary,
+                disabledBackgroundColor: Colors.white.withValues(alpha: 0.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: auth.isLoading
+                  ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.primary))
+                  : Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
           ),
-          child: auth.isLoading
-              ? SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: AppTheme.primary))
-              : Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        ),
+
+          // Change phone number / back button (only when OTP sent)
+          if (_step == _AuthStep.otp) ...[
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {
+                HapticService.light();
+                final auth = context.read<AuthProvider>();
+                auth.clearError();
+                _otpController.clear();
+                setState(() => _step = _AuthStep.phone);
+                Future.delayed(const Duration(milliseconds: 100), () {
+                  if (mounted) _phoneFocusNode.requestFocus();
+                });
+              },
+              child: Text(
+                'Change Phone Number',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -521,7 +573,7 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
-  // ─── Step 1: Phone Number ───
+  // --- Step 1: Phone Number ---
 
   Widget _buildPhoneStep(AuthProvider auth) {
     return Column(
@@ -537,67 +589,118 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 12),
         ],
 
-        // Phone input with country selector
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Country selector button (separate from TextField)
-            GestureDetector(
-              onTap: () {
-                HapticService.light();
-                final idx = PhoneAuthService.supportedCountries.indexOf(_selectedCountry);
-                setState(() {
-                  _selectedCountry = PhoneAuthService.supportedCountries[(idx + 1) % PhoneAuthService.supportedCountries.length];
-                  _phoneController.clear();
-                });
-              },
-              child: Container(
-                height: 52,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                margin: const EdgeInsets.only(right: 8),
-                decoration: BoxDecoration(
-                  color: AppTheme.background,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(_selectedCountry.flag, style: const TextStyle(fontSize: 20)),
-                    const SizedBox(width: 4),
-                    Icon(Icons.arrow_drop_down, size: 18, color: Colors.grey[500]),
-                  ],
-                ),
-              ),
-            ),
-            // Phone number field
-            Expanded(
-              child: TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                textInputAction: TextInputAction.send,
-                onSubmitted: (_) => _sendOtp(),
-                maxLength: _selectedCountry.maxLength + 1,
-                autofocus: false,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 1),
-                decoration: InputDecoration(
-                  counterText: '',
-                  hintText: _selectedCountry.placeholder,
-                  hintStyle: TextStyle(fontSize: 16, color: Colors.grey[400], fontWeight: FontWeight.w400, letterSpacing: 0),
-                  prefixIcon: Padding(
-                    padding: const EdgeInsets.only(left: 12, right: 4),
-                    child: Text(_selectedCountry.dialCode, style: TextStyle(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w600)),
+        // Country selector dropdown (cuckoo style)
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(12),
+            color: AppTheme.background,
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<PhoneCountry>(
+              value: _selectedCountry,
+              isExpanded: true,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              borderRadius: BorderRadius.circular(12),
+              dropdownColor: Colors.white,
+              icon: Icon(Icons.keyboard_arrow_down, color: Colors.grey[600]),
+              items: PhoneAuthService.supportedCountries.map((country) {
+                return DropdownMenuItem<PhoneCountry>(
+                  value: country,
+                  child: Row(
+                    children: [
+                      Text(country.flag, style: const TextStyle(fontSize: 24)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          country.name,
+                          style: const TextStyle(fontSize: 15),
+                        ),
+                      ),
+                      Text(
+                        country.dialCode,
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
                   ),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                  filled: true,
-                  fillColor: AppTheme.background,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primary, width: 1.5)),
-                ),
+                );
+              }).toList(),
+              onChanged: (country) {
+                if (country != null) {
+                  HapticService.light();
+                  setState(() {
+                    _selectedCountry = country;
+                    _phoneController.clear();
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Phone number input with flag prefix (cuckoo style)
+        TextFormField(
+          controller: _phoneController,
+          focusNode: _phoneFocusNode,
+          keyboardType: TextInputType.phone,
+          textInputAction: TextInputAction.done,
+          autofocus: false,
+          onFieldSubmitted: (_) => _sendOtp(),
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(_selectedCountry.maxLength),
+          ],
+          style: const TextStyle(fontSize: 16, letterSpacing: 1),
+          decoration: InputDecoration(
+            labelText: 'Phone Number',
+            hintText: _selectedCountry.placeholder,
+            prefixIcon: Container(
+              padding: const EdgeInsets.only(left: 16, right: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _selectedCountry.flag,
+                    style: const TextStyle(fontSize: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _selectedCountry.dialCode,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Container(
+                    height: 24,
+                    width: 1,
+                    margin: const EdgeInsets.only(left: 8),
+                    color: Colors.grey.shade300,
+                  ),
+                ],
               ),
             ),
-          ],
+            prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
         ),
 
         const SizedBox(height: 16),
@@ -621,58 +724,51 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ─── Step 2: OTP Verification ───
+  // --- Step 2: OTP Verification ---
 
   Widget _buildOtpStep(AuthProvider auth) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Header with back button
-        Row(
-          children: [
-            GestureDetector(
-              onTap: () {
-                HapticService.light();
-                auth.clearError();
-                _otpController.clear();
-                setState(() => _step = _AuthStep.phone);
-              },
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppTheme.background,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.arrow_back_rounded, size: 20, color: AppTheme.textSecondary),
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text('Enter Code', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
-            ),
-          ],
+        // Title
+        const Text(
+          'Enter Verification Code',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+          textAlign: TextAlign.center,
         ),
         const SizedBox(height: 8),
 
-        // Phone number display
-        Text.rich(
-          TextSpan(
-            style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-            children: [
-              const TextSpan(text: 'Code sent to '),
-              TextSpan(
-                text: _phoneController.text,
-                style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
-              ),
-            ],
-          ),
+        // Subtitle with phone number
+        Text(
+          'We sent a 6-digit code to\n${PhoneAuthService().formatPhone(_phoneController.text, _selectedCountry)}',
+          style: TextStyle(fontSize: 14, color: Colors.grey[600], height: 1.4),
+          textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 24),
 
         // Error
         if (auth.error != null) ...[
-          ErrorCard(message: auth.error!, onDismiss: () => auth.clearError()),
-          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    auth.error!,
+                    style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
         ],
 
         // Loading indicator when verifying
@@ -693,78 +789,98 @@ class _LoginScreenState extends State<LoginScreen>
           const SizedBox(height: 8),
         ],
 
-        // OTP input — large, centered, clear
-        TextField(
+        // OTP input -- cuckoo style: centered, large font, 28px, letterSpacing 16
+        TextFormField(
           controller: _otpController,
           focusNode: _otpFocusNode,
           keyboardType: TextInputType.number,
-          maxLength: 6,
+          textInputAction: TextInputAction.done,
           textAlign: TextAlign.center,
           enabled: !auth.isLoading,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: 16),
-          decoration: InputDecoration(
-            counterText: '',
-            hintText: '\u2022 \u2022 \u2022 \u2022 \u2022 \u2022',
-            hintStyle: TextStyle(fontSize: 32, letterSpacing: 16, color: Colors.grey[300]),
-            filled: true,
-            fillColor: AppTheme.background,
-            contentPadding: const EdgeInsets.symmetric(vertical: 18),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppTheme.primary, width: 2)),
-          ),
-          autofocus: true,
+          onFieldSubmitted: (_) => _verifyOtp(),
           onChanged: (value) {
-            setState(() {}); // Update UI to show filled dots
+            setState(() {}); // Update UI
+            // Auto-submit when 6 digits entered
             if (value.length == 6 && !auth.isLoading) {
-              FocusScope.of(context).unfocus(); // Dismiss keyboard
               _verifyOtp();
             }
           },
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(6),
+          ],
+          style: const TextStyle(
+            fontSize: 28,
+            letterSpacing: 16,
+            fontWeight: FontWeight.bold,
+          ),
+          decoration: InputDecoration(
+            hintText: '------',
+            hintStyle: TextStyle(
+              fontSize: 28,
+              letterSpacing: 16,
+              color: Colors.grey[300],
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: const BorderSide(color: AppTheme.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+          ),
         ),
 
         const SizedBox(height: 16),
 
-        // Resend / Change number row
+        // Resend OTP row (cuckoo style)
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Change number
-            GestureDetector(
-              onTap: () {
-                HapticService.light();
-                auth.clearError();
-                _otpController.clear();
-                setState(() => _step = _AuthStep.phone);
-              },
-              child: const Text(
-                'Change Number',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.primary),
-              ),
+            Text(
+              "Didn't receive the code? ",
+              style: TextStyle(color: Colors.grey[600], fontSize: 14),
             ),
-            // Resend
-            _resendCooldown > 0
-                ? Text(
-                    'Resend in ${_resendCooldown}s',
-                    style: const TextStyle(fontSize: 13, color: AppTheme.textHint),
-                  )
-                : GestureDetector(
-                    onTap: auth.isLoading ? null : () {
-                      HapticService.light();
-                      _sendOtp();
-                    },
-                    child: const Text(
-                      'Resend Code',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.primary),
-                    ),
+            if (_resendCooldown > 0)
+              Text(
+                '${_resendCooldown}s',
+                style: const TextStyle(fontSize: 14, color: AppTheme.textHint),
+              )
+            else
+              TextButton(
+                onPressed: auth.isLoading ? null : () {
+                  HapticService.light();
+                  _sendOtp();
+                },
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text(
+                  'Resend',
+                  style: TextStyle(
+                    color: AppTheme.primary,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
                   ),
+                ),
+              ),
           ],
         ),
       ],
     );
   }
 
-  // ─── Step 3: Profile Setup (first time only) ───
+  // --- Step 3: Profile Setup (first time only) ---
 
   Widget _buildProfileStep(AuthProvider auth) {
     return Column(
@@ -793,7 +909,7 @@ class _LoginScreenState extends State<LoginScreen>
     );
   }
 
-  // ─── Email Login (backup) ───
+  // --- Email Login (backup) ---
 
   Widget _buildEmailStep(AuthProvider auth) {
     return Column(
@@ -803,7 +919,14 @@ class _LoginScreenState extends State<LoginScreen>
           children: [
             GestureDetector(
               onTap: () { auth.clearError(); setState(() => _step = _AuthStep.phone); },
-              child: const Icon(Icons.arrow_back_rounded, color: AppTheme.textSecondary),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.background,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.arrow_back_rounded, size: 20, color: AppTheme.textSecondary),
+              ),
             ),
             const SizedBox(width: 12),
             const Expanded(child: Text('Email Login', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700))),
@@ -828,28 +951,11 @@ class _LoginScreenState extends State<LoginScreen>
             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
           ),
         ),
-        const SizedBox(height: 20),
-
-        SizedBox(
-          height: 50,
-          child: ElevatedButton(
-            onPressed: auth.isLoading ? null : _emailLogin,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              elevation: 0,
-            ),
-            child: auth.isLoading
-                ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white))
-                : const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-          ),
-        ),
       ],
     );
   }
 
-  // ─── Reusable widgets ───
+  // --- Reusable widgets ---
 
   Widget _field(
     TextEditingController controller,
