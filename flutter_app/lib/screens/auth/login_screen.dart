@@ -321,7 +321,6 @@ class _LoginScreenState extends State<LoginScreen>
 
     return GestureDetector(
       onTap: () {
-        debugPrint('>>> GestureDetector onTap fired — unfocusing');
         FocusScope.of(context).unfocus();
       },
       behavior: HitTestBehavior.deferToChild,
@@ -339,7 +338,6 @@ class _LoginScreenState extends State<LoginScreen>
           child: Builder(
             builder: (context) {
               final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-              debugPrint('>>> Builder rebuild: bottomInset=$bottomInset, step=$_step');
               // Use sticky flag: once keyboard shows, keep logo hidden until fully closed
               if (bottomInset > 100) _keyboardWasVisible = true;
               if (bottomInset < 10) _keyboardWasVisible = false;
