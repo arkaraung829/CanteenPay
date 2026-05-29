@@ -99,6 +99,27 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                           fontSize: 14,
                         ),
                       ),
+                      if (student.dailySpendingLimit != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.account_balance_wallet_outlined,
+                              size: 14,
+                              color: AppTheme.secondary,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Daily limit: ${CurrencyFormatter.formatMMK(student.dailySpendingLimit!)}',
+                              style: const TextStyle(
+                                color: AppTheme.secondary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),
