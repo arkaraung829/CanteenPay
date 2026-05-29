@@ -6,27 +6,31 @@
 	<string>318431458336-ou2j9vjtr39g6vsh2aiktt6256fnqps4.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyB-QdjAsB3kumQE7Q9YgZVlywNgZyFvdXY</string>
-	<key>GCM_SENDER_ID</key>
-	<string>318431458336</string>
-	<key>PLIST_VERSION</key>
-	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.canteenpay.canteenPay</string>
-	<key>PROJECT_ID</key>
-	<string>oo-myanmar</string>
-	<key>STORAGE_BUCKET</key>
-	<string>oo-myanmar.firebasestorage.app</string>
-	<key>IS_ADS_ENABLED</key>
-	<false></false>
-	<key>IS_ANALYTICS_ENABLED</key>
-	<false></false>
-	<key>IS_APPINVITE_ENABLED</key>
-	<true></true>
-	<key>IS_GCM_ENABLED</key>
-	<true></true>
-	<key>IS_SIGNIN_ENABLED</key>
-	<true></true>
+	<key>CLIENT_ID</key>
+	<string>318431458336-8d2m9b9lvju8jt6mre44q4pr8uph9p6i.apps.googleusercontent.com</string>
+	<key>GCM_SENDER_ID</key>
+	<string>318431458336</string>
 	<key>GOOGLE_APP_ID</key>
 	<string>1:318431458336:ios:5cd5d3aba0ae03103a7845</string>
+	<key>IS_ADS_ENABLED</key>
+	<false/>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false/>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true/>
+	<key>IS_GCM_ENABLED</key>
+	<true/>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true/>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>PROJECT_ID</key>
+	<string>oo-myanmar</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.318431458336-8d2m9b9lvju8jt6mre44q4pr8uph9p6i</string>
+	<key>STORAGE_BUCKET</key>
+	<string>oo-myanmar.firebasestorage.app</string>
 </dict>
 </plist>

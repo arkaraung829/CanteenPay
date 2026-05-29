@@ -73,7 +73,7 @@
 			<dict>
 				<key>CFBundleURLSchemes</key>
 				<array>
-					<string>com.googleusercontent.apps.318431458336-evqr8ub2sba0hg87g8hrhbfhv497cvhi</string>
+					<string>com.googleusercontent.apps.318431458336-8d2m9b9lvju8jt6mre44q4pr8uph9p6i</string>
 				</array>
 				<key>CFBundleURLName</key>
 				<string>google-sign-in</string>
