@@ -11,6 +11,7 @@ interface SellerRow {
   stall_name: string;
   stall_number: string | null;
   phone: string | null;
+  email: string | null;
   is_active: boolean;
   today_sales: number;
   today_count: number;
@@ -39,7 +40,7 @@ export default function SellersPage() {
     // Fetch sellers with profile info
     let sellersQuery = supabase
       .from('canteen_sellers')
-      .select('id, stall_name, stall_number, is_active, profile:profiles(full_name, phone)')
+      .select('id, stall_name, stall_number, is_active, phone, email, profile:profiles(full_name, phone)')
       .order('stall_name');
 
     if (selectedSchoolId) {
@@ -77,7 +78,8 @@ export default function SellersPage() {
         id: s.id as string,
         stall_name: s.stall_name as string,
         stall_number: s.stall_number as string | null,
-        phone: (profile?.phone as string | null) || null,
+        phone: (s.phone as string | null) || (profile?.phone as string | null) || null,
+        email: (s.email as string | null) || null,
         is_active: s.is_active as boolean,
         today_sales: sales.total,
         today_count: sales.count,
@@ -122,6 +124,7 @@ export default function SellersPage() {
       stall_number: newStallNumber || null,
       school_id: schoolId,
       phone: normalizedPhone,
+      email: newEmail ? newEmail.toLowerCase() : null,
       is_active: true,
     });
 
@@ -195,6 +198,7 @@ export default function SellersPage() {
                     <p className="text-xs text-gray-500">
                       {seller.stall_number ? `Stall ${seller.stall_number}` : 'No stall number'}
                       {seller.phone ? ` \u00B7 ${seller.phone}` : ''}
+                      {seller.email ? ` \u00B7 ${seller.email}` : ''}
                     </p>
                   </div>
                 </div>

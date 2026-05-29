@@ -46,7 +46,7 @@ export default function Sidebar() {
           <Banknote className="h-5 w-5 text-white" />
         </div>
         <div>
-          <h1 className="text-lg font-bold text-gray-900">CanteenPay</h1>
+          <h1 className="text-lg font-bold text-gray-900">Paynow MM</h1>
           <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Admin Panel</p>
         </div>
       </div>

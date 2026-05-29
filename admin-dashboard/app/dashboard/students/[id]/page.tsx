@@ -110,7 +110,7 @@ export default function StudentDetailPage() {
     }
 
     const schoolsRaw = data.schools as unknown;
-    let schoolName = 'CanteenPay School';
+    let schoolName = 'Paynow MM School';
     if (Array.isArray(schoolsRaw) && schoolsRaw.length > 0) {
       schoolName = schoolsRaw[0].name || schoolName;
     } else if (schoolsRaw && typeof schoolsRaw === 'object' && 'name' in schoolsRaw) {

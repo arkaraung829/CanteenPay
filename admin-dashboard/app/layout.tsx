@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CanteenPay Admin",
-  description: "School canteen cashless payment administration",
+  title: "Paynow MM Admin",
+  description: "School cashless payment administration",
 };
 
 export default function RootLayout({

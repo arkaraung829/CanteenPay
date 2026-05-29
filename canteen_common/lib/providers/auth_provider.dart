@@ -224,10 +224,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         await _loadUserProfile();
         debugPrint('AuthProvider: Profile loaded: ${_user?.role} ${_user?.fullName}');
 
-        // Auto-link by email
+        // Auto-link by email — try both parent and seller
         final email = googleUser.email;
         if (email.isNotEmpty) {
           await _autoLinkParentByEmail(email);
+          await _autoLinkSellerByEmail(email);
           await _loadUserProfile();
         }
 
@@ -489,6 +490,44 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       await _loadUserProfile();
     } catch (e) {
       debugPrint('AuthProvider: Auto-link seller by phone failed: $e');
+    }
+  }
+
+  /// Auto-link seller by matching email address.
+  Future<void> _autoLinkSellerByEmail(String email) async {
+    try {
+      final sellers = await _supabase
+          .from('canteen_sellers')
+          .select('id, school_id, profile_id')
+          .eq('email', email.toLowerCase());
+
+      if ((sellers as List).isEmpty || _user == null) return;
+
+      final userId = _user!.id;
+
+      for (final seller in sellers) {
+        final sellerId = seller['id'] as String;
+        final schoolId = seller['school_id'] as String?;
+        final existingProfileId = seller['profile_id'] as String?;
+
+        if (existingProfileId == null || existingProfileId != userId) {
+          await _supabase
+              .from('canteen_sellers')
+              .update({'profile_id': userId})
+              .eq('id', sellerId);
+        }
+
+        if (schoolId != null) {
+          await _supabase
+              .from('profiles')
+              .update({'school_id': schoolId, 'role': 'seller'})
+              .eq('id', userId);
+        }
+      }
+
+      await _loadUserProfile();
+    } catch (e) {
+      debugPrint('AuthProvider: Auto-link seller by email failed: $e');
     }
   }
 
