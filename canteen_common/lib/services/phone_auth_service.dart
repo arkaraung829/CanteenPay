@@ -1,9 +1,6 @@
 /// Phone Authentication Service using Firebase
 ///
 /// Handles phone number verification with OTP via Firebase Auth.
-/// CanteenPay uses Firebase only for OTP delivery/verification,
-/// then bridges to Supabase for session management.
-import 'dart:async';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -39,10 +36,13 @@ class PhoneAuthService {
 
   String? _verificationId;
   int? _resendToken;
-  bool _isVerifying = false;
+  String? _lastError;
+  bool _codeSent = false;
+  bool _verificationInProgress = false;
 
-  bool get isVerifying => _isVerifying;
   String? get verificationId => _verificationId;
+  bool get codeSent => _codeSent;
+  String? get lastError => _lastError;
 
   /// Supported countries
   static const List<PhoneCountry> supportedCountries = [
@@ -66,26 +66,16 @@ class PhoneAuthService {
     ),
   ];
 
-  /// Get default country (Myanmar)
   static PhoneCountry get defaultCountry => supportedCountries.first;
 
   /// Format phone number to international format
   String formatPhone(String phone, PhoneCountry country) {
-    // Remove everything except digits and +
     String cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
 
-    // Already has + with country code
-    if (cleaned.startsWith('+') && cleaned.length >= 10) {
-      return cleaned;
-    }
-
-    // Strip + for reprocessing
-    if (cleaned.startsWith('+')) {
-      cleaned = cleaned.substring(1);
-    }
+    if (cleaned.startsWith('+') && cleaned.length >= 10) return cleaned;
+    if (cleaned.startsWith('+')) cleaned = cleaned.substring(1);
 
     if (country.code == 'MM') {
-      // Myanmar: 959xxx, 09xxx, 9xxx
       if (cleaned.startsWith('959') && cleaned.length >= 11) return '+$cleaned';
       if (cleaned.startsWith('09')) return '+959${cleaned.substring(2)}';
       if (cleaned.startsWith('9') && cleaned.length >= 7) return '+959${cleaned.substring(1)}';
@@ -93,20 +83,13 @@ class PhoneAuthService {
     }
 
     if (country.code == 'CA') {
-      // Canada: 1xxx, xxx (10 digits)
       if (cleaned.startsWith('1') && cleaned.length == 11) return '+$cleaned';
       if (cleaned.length == 10) return '+1$cleaned';
       return '+1$cleaned';
     }
 
-    // Generic: prepend dial code
     if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
     return '${country.dialCode}$cleaned';
-  }
-
-  /// Legacy method kept for compatibility
-  String formatPhoneForDisplay(String phone, PhoneCountry country) {
-    return formatPhone(phone, country);
   }
 
   /// Validate phone number format
@@ -114,209 +97,137 @@ class PhoneAuthService {
     String digits = phone.replaceAll(RegExp(r'[^\d]'), '');
 
     if (country.code == 'MM') {
-      // Strip country code
       if (digits.startsWith('959')) digits = digits.substring(2);
       if (digits.startsWith('09')) digits = digits.substring(1);
     } else if (country.code == 'CA') {
-      // Strip country code
       if (digits.startsWith('1') && digits.length == 11) digits = digits.substring(1);
     } else {
       if (digits.startsWith('0')) digits = digits.substring(1);
     }
 
     if (digits.isEmpty) return false;
-
-    return digits.length >= country.minLength &&
-        digits.length <= country.maxLength;
+    return digits.length >= country.minLength && digits.length <= country.maxLength;
   }
 
-  /// Send OTP to phone number via Firebase
-  Future<PhoneAuthResult> sendOTP(String phoneNumber,
-      {PhoneCountry? country}) async {
-    try {
-      _isVerifying = true;
-      final selectedCountry = country ?? defaultCountry;
-      String formattedPhone = formatPhone(phoneNumber, selectedCountry);
+  /// Send OTP — fire and forget, callbacks update state
+  Future<void> sendOTP(String phoneNumber, {PhoneCountry? country}) async {
+    final selectedCountry = country ?? defaultCountry;
+    String formattedPhone = formatPhone(phoneNumber, selectedCountry);
 
-      debugPrint('PhoneAuthService: sending OTP to $formattedPhone');
+    debugPrint('PhoneAuthService: sending OTP to $formattedPhone');
 
-      if (!isValidPhone(phoneNumber, selectedCountry)) {
-        return PhoneAuthResult(
-          success: false,
-          error: 'Invalid phone number format for ${selectedCountry.name}',
-        );
-      }
+    if (!isValidPhone(phoneNumber, selectedCountry)) {
+      _lastError = 'Invalid phone number format';
+      return;
+    }
 
-      // Get APNS token and pass to Firebase Auth explicitly
-      if (Platform.isIOS) {
-        try {
-          final messaging = FirebaseMessaging.instance;
-          // Request permission
-          await messaging.requestPermission();
-          // Get APNS token
-          final apnsToken = await messaging.getAPNSToken();
-          debugPrint('PhoneAuthService: APNS token: ${apnsToken != null ? "YES" : "NULL"}');
-          if (apnsToken == null) {
-            // Wait and retry — token may not be ready yet
-            await Future.delayed(const Duration(seconds: 2));
-            final retry = await messaging.getAPNSToken();
-            debugPrint('PhoneAuthService: APNS retry: ${retry != null ? "YES" : "still NULL"}');
-          }
-        } catch (e) {
-          debugPrint('PhoneAuthService: APNS error: $e');
-        }
-      }
+    // Reset state
+    _codeSent = false;
+    _lastError = null;
+    _verificationInProgress = true;
 
-      debugPrint('PhoneAuthService: calling verifyPhoneNumber...');
-
-      final completer = Completer<PhoneAuthResult>();
-
+    // iOS: ensure APNS token is ready
+    if (Platform.isIOS) {
       try {
-        await _auth.verifyPhoneNumber(
-          phoneNumber: formattedPhone,
-          timeout: const Duration(seconds: 120),
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          // Auto-verification (Android only)
-          if (!completer.isCompleted) {
-            completer.complete(PhoneAuthResult(
-              success: true,
-              autoVerified: true,
-              credential: credential,
-            ));
-          }
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          _isVerifying = false;
-          if (!completer.isCompleted) {
-            completer.complete(PhoneAuthResult(
-              success: false,
-              error: _getErrorMessage(e),
-            ));
-          }
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          _verificationId = verificationId;
-          _resendToken = resendToken;
-          if (!completer.isCompleted) {
-            completer.complete(PhoneAuthResult(
-              success: true,
-              verificationId: verificationId,
-            ));
-          }
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          _verificationId = verificationId;
-        },
-        forceResendingToken: _resendToken,
-      );
-
-      return await completer.future;
-      } catch (e) {
-        // Firebase Phone Auth crashed — likely APNS token not ready
-        _isVerifying = false;
-        debugPrint('PhoneAuthService: verifyPhoneNumber crashed: $e');
-        if (!completer.isCompleted) {
-          completer.complete(PhoneAuthResult(
-            success: false,
-            error: 'Phone verification failed. Please ensure notifications are enabled and try again.',
-          ));
+        final messaging = FirebaseMessaging.instance;
+        await messaging.requestPermission();
+        final token = await messaging.getAPNSToken();
+        debugPrint('PhoneAuthService: APNS token: ${token != null ? "YES" : "NULL"}');
+        if (token == null) {
+          await Future.delayed(const Duration(seconds: 2));
+          final retry = await messaging.getAPNSToken();
+          debugPrint('PhoneAuthService: APNS retry: ${retry != null ? "YES" : "NULL"}');
         }
-        return await completer.future;
+      } catch (e) {
+        debugPrint('PhoneAuthService: APNS error: $e');
       }
-    } catch (e) {
-      _isVerifying = false;
-      debugPrint('PhoneAuthService: sendOTP error: $e');
+    }
+
+    debugPrint('PhoneAuthService: calling verifyPhoneNumber...');
+
+    // Don't await — callbacks will fire asynchronously (even after reCAPTCHA return)
+    _auth.verifyPhoneNumber(
+      phoneNumber: formattedPhone,
+      timeout: const Duration(seconds: 120),
+      verificationCompleted: (PhoneAuthCredential credential) async {
+        debugPrint('PhoneAuthService: auto-verified');
+        _codeSent = true;
+        _verificationInProgress = false;
+        // Auto-sign in (Android)
+        try {
+          await _auth.signInWithCredential(credential);
+        } catch (_) {}
+      },
+      verificationFailed: (FirebaseAuthException e) {
+        debugPrint('PhoneAuthService: verification failed: ${e.code} ${e.message}');
+        _lastError = _getErrorMessage(e);
+        _verificationInProgress = false;
+      },
+      codeSent: (String verificationId, int? resendToken) {
+        debugPrint('PhoneAuthService: code sent! verificationId=$verificationId');
+        _verificationId = verificationId;
+        _resendToken = resendToken;
+        _codeSent = true;
+        _verificationInProgress = false;
+      },
+      codeAutoRetrievalTimeout: (String verificationId) {
+        debugPrint('PhoneAuthService: auto-retrieval timeout');
+        _verificationId = verificationId;
+      },
+      forceResendingToken: _resendToken,
+    );
+  }
+
+  /// Verify OTP code
+  Future<PhoneAuthResult> verifyOTP(String otp) async {
+    if (_verificationId == null) {
       return PhoneAuthResult(
         success: false,
-        error: 'Failed to send OTP. Please try again.',
+        error: 'Verification session expired. Please request a new code.',
       );
     }
-  }
 
-  /// Verify OTP code via Firebase
-  Future<PhoneAuthResult> verifyOTP(String otp) async {
     try {
-      if (_verificationId == null) {
-        return PhoneAuthResult(
-          success: false,
-          error: 'Verification session expired. Please request a new code.',
-        );
-      }
-
       PhoneAuthCredential credential = PhoneAuthProvider.credential(
         verificationId: _verificationId!,
         smsCode: otp,
       );
 
-      // Sign in with credential to verify the code
-      UserCredential userCredential =
-          await _auth.signInWithCredential(credential);
-
-      _isVerifying = false;
+      UserCredential userCredential = await _auth.signInWithCredential(credential);
 
       if (userCredential.user != null) {
-        return PhoneAuthResult(
-          success: true,
-          user: userCredential.user,
-          credential: credential,
-        );
-      } else {
-        return PhoneAuthResult(
-          success: false,
-          error: 'Verification failed. Please try again.',
-        );
+        return PhoneAuthResult(success: true, user: userCredential.user, credential: credential);
       }
+      return PhoneAuthResult(success: false, error: 'Verification failed.');
     } on FirebaseAuthException catch (e) {
-      _isVerifying = false;
-      return PhoneAuthResult(
-        success: false,
-        error: _getErrorMessage(e),
-      );
+      return PhoneAuthResult(success: false, error: _getErrorMessage(e));
     } catch (e) {
-      _isVerifying = false;
-      return PhoneAuthResult(
-        success: false,
-        error: 'Verification failed. Please try again.',
-      );
+      return PhoneAuthResult(success: false, error: 'Verification failed. Please try again.');
     }
   }
 
-  /// Resend OTP
-  Future<PhoneAuthResult> resendOTP(String phoneNumber,
-      {PhoneCountry? country}) async {
-    _verificationId = null;
-    return sendOTP(phoneNumber, country: country);
-  }
-
-  /// Get user-friendly error message
-  String _getErrorMessage(FirebaseAuthException e) {
-    switch (e.code) {
-      case 'invalid-phone-number':
-        return 'Invalid phone number format.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please wait a few minutes and try again.';
-      case 'quota-exceeded':
-        return 'SMS quota exceeded. Please try again later.';
-      case 'invalid-verification-code':
-        return 'Invalid OTP code. Please check and try again.';
-      case 'session-expired':
-        return 'Verification session expired. Please request a new code.';
-      case 'network-request-failed':
-        return 'Network error. Please check your connection.';
-      default:
-        return e.message ?? 'Verification failed. Please try again.';
-    }
-  }
-
-  /// Reset verification state
+  /// Reset state
   void reset() {
     _verificationId = null;
     _resendToken = null;
-    _isVerifying = false;
+    _codeSent = false;
+    _lastError = null;
+    _verificationInProgress = false;
+  }
+
+  String _getErrorMessage(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-phone-number': return 'Invalid phone number format.';
+      case 'too-many-requests': return 'Too many attempts. Please wait and try again.';
+      case 'quota-exceeded': return 'SMS quota exceeded. Please try again later.';
+      case 'invalid-verification-code': return 'Invalid code. Please check and try again.';
+      case 'session-expired': return 'Session expired. Please request a new code.';
+      case 'network-request-failed': return 'Network error. Please check your connection.';
+      default: return e.message ?? 'Verification failed. Please try again.';
+    }
   }
 }
 
-/// Result class for phone auth operations
 class PhoneAuthResult {
   final bool success;
   final String? error;

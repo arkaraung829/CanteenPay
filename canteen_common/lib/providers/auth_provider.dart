@@ -189,24 +189,23 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
   }
 
   /// Send OTP to phone number via Firebase (not Supabase)
+  /// Fire-and-forget: sendOTP triggers callbacks asynchronously.
+  /// Always returns true — OTP screen shows immediately.
   Future<bool> signInWithPhone(String phone, {PhoneCountry? country}) async {
-    _isLoading = true;
     _error = null;
     safeNotifyListeners();
 
     try {
-      final result = await PhoneAuthService().sendOTP(phone, country: country);
-      if (!result.success) {
-        _error = result.error;
+      await PhoneAuthService().sendOTP(phone, country: country);
+      final error = PhoneAuthService().lastError;
+      if (error != null) {
+        _error = error;
         return false;
       }
-      return true; // OTP sent, UI should show code input
+      return true;
     } catch (e) {
       _error = e.toString();
       return false;
-    } finally {
-      _isLoading = false;
-      safeNotifyListeners();
     }
   }
 
