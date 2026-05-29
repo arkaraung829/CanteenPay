@@ -173,6 +173,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         await _loadUserProfile();
       }
 
+      // Refresh FCM token so push notifications work
+      try {
+        await NotificationService.instance.refreshToken();
+      } catch (_) {}
+
       return true;
     } on AuthException catch (e) {
       _error = e.message;
@@ -251,6 +256,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
           await _autoLinkSellerByEmail(email);
           await _loadUserProfile();
         }
+
+        // Refresh FCM token so push notifications work
+        try {
+          await NotificationService.instance.refreshToken();
+        } catch (_) {}
 
         return true;
       } else {
@@ -407,6 +417,11 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       if (_user?.role == 'seller' && normalizedPhone.isNotEmpty) {
         _autoLinkSellerByPhone(normalizedPhone);
       }
+
+      // 6. Refresh FCM token so push notifications work
+      try {
+        await NotificationService.instance.refreshToken();
+      } catch (_) {}
 
       return true;
     } catch (e) {
