@@ -147,12 +147,6 @@ class PhoneAuthService {
         );
       }
 
-      // Disable app verification to skip reCAPTCHA
-      // Uses test phone numbers or direct SMS without silent push
-      try {
-        await _auth.setSettings(appVerificationDisabledForTesting: true);
-      } catch (_) {}
-
       debugPrint('PhoneAuthService: calling verifyPhoneNumber...');
 
       final completer = Completer<PhoneAuthResult>();
