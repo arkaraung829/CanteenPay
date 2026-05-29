@@ -155,29 +155,21 @@ class _LoginScreenState extends State<LoginScreen>
     // Switch to OTP step immediately — reCAPTCHA may send app to background
     _otpController.clear();
     setState(() => _step = _AuthStep.otp);
+    _startResendCooldown();
 
     final auth = context.read<AuthProvider>();
     final success = await auth.signInWithPhone(_rawPhone, country: _selectedCountry);
     if (mounted) {
       if (success) {
         HapticService.success();
-        _startResendCooldown();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('OTP sent to $_rawPhone'),
-            backgroundColor: AppTheme.success,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-        );
+        // Auto-focus OTP field
         Future.delayed(const Duration(milliseconds: 300), () {
           if (mounted) _otpFocusNode.requestFocus();
         });
-      } else {
-        // Failed — go back to phone step
-        setState(() => _step = _AuthStep.phone);
-        _shake();
       }
+      // Don't revert to phone step on failure — OTP may have been sent
+      // via reCAPTCHA flow. User can tap "Change Number" to go back.
+      auth.clearError();
     }
   }
 
