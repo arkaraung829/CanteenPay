@@ -363,7 +363,6 @@ class _LoginScreenState extends State<LoginScreen>
                 Expanded(
                   child: SingleChildScrollView(
                     padding: EdgeInsets.fromLTRB(28, 16, 28, isKeyboardVisible ? 16 : 24),
-                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     child: Column(
                       children: [
                         // Logo -- hide when keyboard is visible
