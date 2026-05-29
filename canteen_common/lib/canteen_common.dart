@@ -90,3 +90,4 @@ export 'widgets/balance_card.dart';
 export 'widgets/transaction_tile.dart';
 export 'widgets/loading_overlay.dart';
 export 'widgets/empty_state_widget.dart';
+export 'widgets/connectivity_banner.dart';

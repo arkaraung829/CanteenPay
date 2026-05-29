@@ -70,15 +70,49 @@ class OfflineActionQueue {
   // Public API
   // ---------------------------------------------------------------------------
 
-  /// Add an action to the queue. Persists immediately to SharedPreferences.
+  /// Sensitive fields that must never be persisted to local storage.
+  static const _sensitiveFields = {
+    'token', 'access_token', 'refresh_token', 'password',
+    'api_key', 'secret', 'authorization', 'session',
+  };
+
+  /// Add an action to the queue. Sanitizes sensitive data before persisting.
   Future<void> enqueue(OfflineAction action) async {
+    // Sanitize payload before storing
+    final sanitized = _sanitizePayload(action.payload);
+    final safeAction = OfflineAction(
+      type: action.type,
+      payload: sanitized,
+      timestamp: action.timestamp,
+      retryCount: action.retryCount,
+    );
+
     final queue = await _loadQueue();
-    queue.add(action);
+    queue.add(safeAction);
     await _saveQueue(queue);
     if (kDebugMode) {
       debugPrint('OfflineActionQueue: enqueued ${action.type} '
           '(queue length: ${queue.length})');
     }
+  }
+
+  /// Remove sensitive fields from payload before persisting.
+  Map<String, dynamic> _sanitizePayload(Map<String, dynamic> payload) {
+    final clean = <String, dynamic>{};
+    for (final entry in payload.entries) {
+      if (_sensitiveFields.contains(entry.key.toLowerCase())) continue;
+      if (entry.value is Map<String, dynamic>) {
+        clean[entry.key] = _sanitizePayload(entry.value as Map<String, dynamic>);
+      } else if (entry.value is List) {
+        clean[entry.key] = (entry.value as List).map((item) {
+          if (item is Map<String, dynamic>) return _sanitizePayload(item);
+          return item;
+        }).toList();
+      } else {
+        clean[entry.key] = entry.value;
+      }
+    }
+    return clean;
   }
 
   /// Number of actions waiting to be replayed.
@@ -132,6 +166,13 @@ class OfflineActionQueue {
             deadLetter.add(action);
           } else {
             remaining.add(action);
+            // Exponential backoff: 5s, 10s, 15s
+            final delay = Duration(seconds: 5 * action.retryCount);
+            if (kDebugMode) {
+              debugPrint('OfflineActionQueue: retry ${action.retryCount} '
+                  'for ${action.type}, waiting ${delay.inSeconds}s');
+            }
+            await Future.delayed(delay);
           }
         }
       }

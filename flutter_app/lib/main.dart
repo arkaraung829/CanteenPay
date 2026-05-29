@@ -88,6 +88,11 @@ void main() async {
     await SecurityService().initialize();
   } catch (_) {}
 
+  // 6b. Connectivity monitoring
+  try {
+    await ConnectivityService().initialize();
+  } catch (_) {}
+
   // 7. Analytics
   if (firebaseAvailable) {
     try {

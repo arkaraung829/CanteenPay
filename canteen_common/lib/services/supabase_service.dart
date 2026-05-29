@@ -1,7 +1,9 @@
 /// Supabase Service
 ///
-/// Central Supabase RPC and query wrapper for the CanteenPay system.
+/// Central Supabase RPC and query wrapper for the Paynow MM system.
 /// Uses singleton pattern for global access.
+/// Includes retry with exponential backoff and cache fallback for reads.
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,6 +11,8 @@ import '../models/student_model.dart';
 import '../models/wallet_model.dart';
 import '../models/transaction_model.dart';
 import '../models/parent_student_link_model.dart';
+import 'offline_cache_service.dart';
+import 'connectivity_service.dart';
 
 class SupabaseService {
   SupabaseService._();
@@ -16,6 +20,28 @@ class SupabaseService {
   static SupabaseService get instance => _instance;
 
   SupabaseClient get _client => Supabase.instance.client;
+  final OfflineCacheService _cache = OfflineCacheService();
+
+  /// Retry an async operation with exponential backoff.
+  /// Returns the result on success, rethrows the last error on failure.
+  Future<T> _retry<T>(
+    Future<T> Function() operation, {
+    int maxAttempts = 3,
+    int baseDelayMs = 1000,
+  }) async {
+    for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await operation();
+      } catch (e) {
+        if (attempt == maxAttempts) rethrow;
+        final delay = baseDelayMs * pow(2, attempt - 1).toInt() +
+            Random().nextInt(500);
+        debugPrint('SupabaseService: retry $attempt/$maxAttempts in ${delay}ms');
+        await Future.delayed(Duration(milliseconds: delay));
+      }
+    }
+    throw StateError('Unreachable');
+  }
 
   // ============================================================================
   // PURCHASES
@@ -100,37 +126,63 @@ class SupabaseService {
   // QUERIES
   // ============================================================================
 
-  /// Look up a student by QR data
+  /// Look up a student by QR data.
+  /// Retries on failure, falls back to cached data when offline.
   Future<StudentModel?> getStudentByQr(String qrData) async {
+    final cacheKey = 'student_qr_$qrData';
     try {
-      final response = await _client
+      final response = await _retry(() => _client
           .from('students')
           .select()
           .eq('qr_data', qrData)
           .eq('is_active', true)
-          .maybeSingle();
+          .maybeSingle());
 
       if (response == null) return null;
-      return StudentModel.fromJson(response);
+      final student = StudentModel.fromJson(response);
+      // Cache for offline use
+      await _cache.cacheData(cacheKey, response, ttlMinutes: 60);
+      return student;
     } catch (e) {
       debugPrint('SupabaseService: getStudentByQr failed: $e');
+      // Fallback to cache if offline
+      if (!ConnectivityService().isOnline) {
+        final cached = await _cache.getCachedData(cacheKey);
+        if (cached != null) {
+          debugPrint('SupabaseService: serving student from cache');
+          return StudentModel.fromJson(Map<String, dynamic>.from(cached));
+        }
+      }
       rethrow;
     }
   }
 
-  /// Get wallet for a student
+  /// Get wallet for a student.
+  /// Retries on failure, falls back to cached data when offline.
   Future<WalletModel?> getWallet(String studentId) async {
+    final cacheKey = 'wallet_$studentId';
     try {
-      final response = await _client
+      final response = await _retry(() => _client
           .from('wallets')
           .select()
           .eq('student_id', studentId)
-          .maybeSingle();
+          .maybeSingle());
 
       if (response == null) return null;
-      return WalletModel.fromJson(response);
+      final wallet = WalletModel.fromJson(response);
+      // Cache for offline use
+      await _cache.cacheData(cacheKey, response, ttlMinutes: 5);
+      return wallet;
     } catch (e) {
       debugPrint('SupabaseService: getWallet failed: $e');
+      // Fallback to cache if offline
+      if (!ConnectivityService().isOnline) {
+        final cached = await _cache.getCachedData(cacheKey);
+        if (cached != null) {
+          debugPrint('SupabaseService: serving wallet from cache');
+          return WalletModel.fromJson(Map<String, dynamic>.from(cached));
+        }
+      }
       rethrow;
     }
   }

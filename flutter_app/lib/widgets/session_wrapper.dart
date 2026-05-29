@@ -90,7 +90,7 @@ class _SessionWrapperState extends State<SessionWrapper> {
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => _onUserInteraction(),
       onPointerMove: (_) => _onUserInteraction(),
-      child: widget.child,
+      child: ConnectivityBanner(child: widget.child),
     );
   }
 }
