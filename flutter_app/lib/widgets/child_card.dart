@@ -141,35 +141,58 @@ class ChildCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 // Balance with gradient accent
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: isLow
-                          ? [
-                              AppTheme.error.withValues(alpha: 0.08),
-                              AppTheme.error.withValues(alpha: 0.15),
-                            ]
-                          : [
-                              AppTheme.success.withValues(alpha: 0.08),
-                              AppTheme.success.withValues(alpha: 0.15),
-                            ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: isLow
+                              ? [
+                                  AppTheme.error.withValues(alpha: 0.08),
+                                  AppTheme.error.withValues(alpha: 0.15),
+                                ]
+                              : [
+                                  AppTheme.success.withValues(alpha: 0.08),
+                                  AppTheme.success.withValues(alpha: 0.15),
+                                ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+                      ),
+                      child: Text(
+                        CurrencyFormatter.formatMMK(balance),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: isLow ? AppTheme.error : AppTheme.success,
+                        ),
+                      ),
                     ),
-                    borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-                  ),
-                  child: Text(
-                    CurrencyFormatter.formatMMK(balance),
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: isLow ? AppTheme.error : AppTheme.success,
-                    ),
-                  ),
+                    if (balance <= 0) ...[
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.error.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'Needs top-up',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.error,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),

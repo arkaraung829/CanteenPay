@@ -133,6 +133,39 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
 
           const SizedBox(height: 8),
 
+          // Quick-amount buttons
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [500, 1000, 2000, 5000].map((amount) {
+                final isSelected = _amountInt == amount;
+                return ActionChip(
+                  label: Text(
+                    '${amount}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : AppTheme.primary,
+                    ),
+                  ),
+                  backgroundColor: isSelected
+                      ? AppTheme.primary
+                      : AppTheme.primary.withValues(alpha: 0.08),
+                  side: BorderSide(
+                    color: AppTheme.primary.withValues(alpha: 0.3),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  onPressed: () => _onAmountChanged(amount.toString()),
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
           // Amount keypad
           Expanded(
             child: AmountKeypad(

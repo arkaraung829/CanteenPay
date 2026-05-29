@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:canteen_common/canteen_common.dart';
@@ -25,25 +23,12 @@ class PaymentSuccessScreen extends StatefulWidget {
 }
 
 class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
-  Timer? _autoReturnTimer;
-
   @override
   void initState() {
     super.initState();
 
     // Haptic feedback on success
     HapticService.success();
-
-    // Auto-return to scan screen after 5 seconds
-    _autoReturnTimer = Timer(const Duration(seconds: 5), () {
-      if (mounted) context.go('/seller');
-    });
-  }
-
-  @override
-  void dispose() {
-    _autoReturnTimer?.cancel();
-    super.dispose();
   }
 
   @override
@@ -118,21 +103,13 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
 
                 const SizedBox(height: 32),
 
-                // Scan Next button with elevated styling
-                Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 12,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
+                // Prominent Scan Next button
+                SizedBox(
+                  width: 220,
+                  height: 56,
                   child: ElevatedButton.icon(
                     onPressed: () => context.go('/seller'),
-                    icon: const Icon(Icons.qr_code_scanner),
+                    icon: const Icon(Icons.qr_code_scanner, size: 24),
                     label: const Text('Scan Next'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
@@ -142,25 +119,14 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                         vertical: 14,
                       ),
                       textStyle: const TextStyle(
-                        fontSize: 16,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
-                      elevation: 0,
+                      elevation: 4,
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusMd),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                Text(
-                  'Auto-returning in 5 seconds...',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 13,
                   ),
                 ),
               ],

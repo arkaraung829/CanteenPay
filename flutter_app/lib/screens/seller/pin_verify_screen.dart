@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -51,6 +54,9 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
     if (_pin != student.pinCode) {
       HapticService.error();
       _attempts++;
+      debugPrint('PIN FAILED: student=${student.displayName} '
+          'code=${student.studentCode} attempt=$_attempts '
+          'time=${DateTime.now().toIso8601String()}');
       setState(() {
         _isWrong = true;
         _pin = '';
@@ -73,6 +79,25 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
     // PIN correct — process the charge
     HapticService.success();
     setState(() => _isCharging = true);
+
+    // Check connectivity before processing
+    try {
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isEmpty || result[0].rawAddress.isEmpty) {
+        throw const SocketException('No internet');
+      }
+    } on SocketException catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No internet connection. Please check and try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() => _isCharging = false);
+      }
+      return;
+    }
 
     try {
       final sales = context.read<SalesProvider>();

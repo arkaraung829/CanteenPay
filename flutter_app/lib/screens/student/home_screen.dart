@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:canteen_common/canteen_common.dart';
@@ -20,6 +22,22 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool _hasLoaded = false;
+  bool _showPin = false;
+  Timer? _pinTimer;
+
+  @override
+  void dispose() {
+    _pinTimer?.cancel();
+    super.dispose();
+  }
+
+  void _togglePin() {
+    _pinTimer?.cancel();
+    setState(() => _showPin = true);
+    _pinTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showPin = false);
+    });
+  }
 
   @override
   void didChangeDependencies() {
@@ -143,40 +161,43 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
 
-                            // -- PIN Code --
+                            // -- PIN Code (tap to reveal) --
                             if (student?.pinCode != null) ...[
                               const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 10,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: AppTheme.primary.withValues(alpha: 0.2),
+                              GestureDetector(
+                                onTap: _togglePin,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 10,
                                   ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.pin_outlined,
-                                      size: 18,
-                                      color: AppTheme.primary.withValues(alpha: 0.7),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: AppTheme.primary.withValues(alpha: 0.2),
                                     ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      'PIN: ${student!.pinCode}',
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.primary,
-                                        letterSpacing: 4,
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _showPin ? Icons.pin_outlined : Icons.visibility_off_outlined,
+                                        size: 18,
+                                        color: AppTheme.primary.withValues(alpha: 0.7),
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _showPin ? 'PIN: ${student!.pinCode}' : 'PIN: ****',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primary,
+                                          letterSpacing: 4,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
@@ -207,6 +228,46 @@ class _HomeScreenState extends State<HomeScreen> {
                                   fontSize: 32,
                                   fontWeight: FontWeight.bold,
                                   color: AppTheme.primary,
+                                ),
+                              ),
+
+                            // -- Zero/negative balance warning --
+                            if (wallet != null && wallet.balance <= 0)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 12),
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: Colors.amber.withValues(alpha: 0.4),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.warning_amber_rounded,
+                                        size: 20,
+                                        color: Colors.orange[700],
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          'Your balance is empty. Please ask your parent to top up.',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.orange[800],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
 
