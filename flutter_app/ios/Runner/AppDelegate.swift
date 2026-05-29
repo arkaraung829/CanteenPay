@@ -31,8 +31,10 @@ import FirebaseMessaging
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
+    print("✅ APNS token received: \(deviceToken.count) bytes")
     Messaging.messaging().apnsToken = deviceToken
-    Auth.auth().setAPNSToken(deviceToken, type: .unknown)
+    Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
+    print("✅ APNS token set on Auth (sandbox)")
     super.application(application, didRegisterForRemoteNotificationsWithDeviceToken: deviceToken)
   }
 
