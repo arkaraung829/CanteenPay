@@ -408,9 +408,10 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
   }
 
   /// Auto-link parent to students by matching phone number.
-  /// Runs silently in the background after OTP login.
+  /// Uses RPC (SECURITY DEFINER) to bypass RLS on students table.
   Future<void> _autoLinkParentByPhone(String phone) async {
     try {
+      if (_user == null) return;
       // Normalize phone: strip leading 0, ensure +95 prefix
       String normalized = phone.replaceAll(RegExp(r'\s+'), '');
       if (normalized.startsWith('0')) {
@@ -419,33 +420,9 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         normalized = '+$normalized';
       }
 
-      // Query students whose parent_phone matches
-      final students = await _supabase
-          .from('students')
-          .select('id')
-          .eq('parent_phone', normalized);
-
-      if ((students as List).isEmpty || _user == null) return;
-
-      final parentId = _user!.id;
-
-      for (final student in students) {
-        final studentId = student['id'] as String;
-
-        final existing = await _supabase
-            .from('parent_student_links')
-            .select('id')
-            .eq('parent_id', parentId)
-            .eq('student_id', studentId)
-            .maybeSingle();
-
-        if (existing == null) {
-          await _supabase.from('parent_student_links').insert({
-            'parent_id': parentId,
-            'student_id': studentId,
-          });
-        }
-      }
+      await _supabase.rpc('auto_link_parent_by_phone', params: {
+        'p_phone': normalized,
+      });
     } catch (e) {
       debugPrint('AuthProvider: Auto-link by phone failed: $e');
     }
@@ -493,34 +470,13 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
   }
 
   /// Auto-link parent to students by matching email address.
+  /// Uses RPC (SECURITY DEFINER) to bypass RLS on students table.
   Future<void> _autoLinkParentByEmail(String email) async {
     try {
-      final students = await _supabase
-          .from('students')
-          .select('id')
-          .eq('parent_email', email.toLowerCase());
-
-      if ((students as List).isEmpty || _user == null) return;
-
-      final parentId = _user!.id;
-
-      for (final student in students) {
-        final studentId = student['id'] as String;
-
-        final existing = await _supabase
-            .from('parent_student_links')
-            .select('id')
-            .eq('parent_id', parentId)
-            .eq('student_id', studentId)
-            .maybeSingle();
-
-        if (existing == null) {
-          await _supabase.from('parent_student_links').insert({
-            'parent_id': parentId,
-            'student_id': studentId,
-          });
-        }
-      }
+      if (_user == null) return;
+      await _supabase.rpc('auto_link_parent_by_email', params: {
+        'p_email': email.toLowerCase(),
+      });
     } catch (e) {
       debugPrint('AuthProvider: Auto-link by email failed: $e');
     }
