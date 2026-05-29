@@ -22,6 +22,7 @@ interface StudentDetail {
   school_name: string;
   date_of_birth: string | null;
   parent_phone: string | null;
+  parent_email: string | null;
 }
 
 interface TransactionRow {
@@ -47,7 +48,7 @@ export default function StudentDetailPage() {
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState({ full_name: '', full_name_my: '', grade: '', class_name: '', daily_spending_limit: '', date_of_birth: '', parent_phone: '' });
+  const [editForm, setEditForm] = useState({ full_name: '', full_name_my: '', grade: '', class_name: '', daily_spending_limit: '', date_of_birth: '', parent_phone: '', parent_email: '' });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
 
@@ -82,7 +83,7 @@ export default function StudentDetailPage() {
   const fetchStudent = useCallback(async () => {
     const { data, error } = await supabase
       .from('students')
-      .select('id, student_code, full_name, full_name_my, class_name, grade, is_active, qr_data, daily_spending_limit, date_of_birth, parent_phone, wallets(balance), schools(name)')
+      .select('id, student_code, full_name, full_name_my, class_name, grade, is_active, qr_data, daily_spending_limit, date_of_birth, parent_phone, parent_email, wallets(balance), schools(name)')
       .eq('id', id)
       .single();
 
@@ -122,6 +123,7 @@ export default function StudentDetailPage() {
       school_name: schoolName,
       date_of_birth: data.date_of_birth as string | null,
       parent_phone: data.parent_phone as string | null,
+      parent_email: data.parent_email as string | null,
     };
 
     setStudent(s);
@@ -133,6 +135,7 @@ export default function StudentDetailPage() {
       daily_spending_limit: s.daily_spending_limit ? String(s.daily_spending_limit) : '',
       date_of_birth: s.date_of_birth || '',
       parent_phone: s.parent_phone || '',
+      parent_email: s.parent_email || '',
     });
     setLoading(false);
   }, [id]);
@@ -212,6 +215,7 @@ export default function StudentDetailPage() {
           daily_spending_limit: editForm.daily_spending_limit ? parseInt(editForm.daily_spending_limit) : null,
           date_of_birth: editForm.date_of_birth || null,
           parent_phone: editForm.parent_phone || null,
+          parent_email: editForm.parent_email ? editForm.parent_email.toLowerCase() : null,
         }),
       });
       const json = await res.json();
@@ -353,6 +357,10 @@ export default function StudentDetailPage() {
                   <input type="tel" value={editForm.parent_phone} onChange={(e) => setEditForm(f => ({ ...f, parent_phone: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="09xxxxxxxxx" />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Parent Email (for Google Sign-In)</label>
+                  <input type="email" value={editForm.parent_email} onChange={(e) => setEditForm(f => ({ ...f, parent_email: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="parent@gmail.com" />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
                   <input type="text" value={editForm.date_of_birth} onChange={(e) => setEditForm(f => ({ ...f, date_of_birth: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="YYYYMMDD (e.g., 20150315)" maxLength={8} />
                 </div>
@@ -392,6 +400,10 @@ export default function StudentDetailPage() {
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Parent Phone</dt>
                   <dd className="text-sm text-gray-900">{student.parent_phone || '-'}</dd>
+                </div>
+                <div>
+                  <dt className="text-sm font-medium text-gray-500">Parent Email</dt>
+                  <dd className="text-sm text-gray-900">{student.parent_email || '-'}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Date of Birth</dt>

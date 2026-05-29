@@ -202,6 +202,13 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         debugPrint('AuthProvider: Google sign-in successful, loading profile...');
         await _loadUserProfile();
         debugPrint('AuthProvider: Profile loaded: ${_user?.role} ${_user?.fullName}');
+
+        // Auto-link parent by email
+        final email = googleUser.email;
+        if (_user?.role == 'parent' && email.isNotEmpty) {
+          _autoLinkParentByEmail(email);
+        }
+
         return true;
       } else {
         _error = 'Sign-in failed. Please try again.';
@@ -461,6 +468,40 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       await _loadUserProfile();
     } catch (e) {
       debugPrint('AuthProvider: Auto-link seller by phone failed: $e');
+    }
+  }
+
+  /// Auto-link parent to students by matching email address.
+  Future<void> _autoLinkParentByEmail(String email) async {
+    try {
+      final students = await _supabase
+          .from('students')
+          .select('id')
+          .eq('parent_email', email.toLowerCase());
+
+      if ((students as List).isEmpty) return;
+
+      final parentId = _user!.id;
+
+      for (final student in students) {
+        final studentId = student['id'] as String;
+
+        final existing = await _supabase
+            .from('parent_student_links')
+            .select('id')
+            .eq('parent_id', parentId)
+            .eq('student_id', studentId)
+            .maybeSingle();
+
+        if (existing == null) {
+          await _supabase.from('parent_student_links').insert({
+            'parent_id': parentId,
+            'student_id': studentId,
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('AuthProvider: Auto-link by email failed: $e');
     }
   }
 
