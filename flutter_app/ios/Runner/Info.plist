@@ -65,6 +65,14 @@
 			<dict>
 				<key>CFBundleURLSchemes</key>
 				<array>
+					<string>paynowmm</string>
+				</array>
+				<key>CFBundleURLName</key>
+				<string>paynowmm-deeplink</string>
+			</dict>
+			<dict>
+				<key>CFBundleURLSchemes</key>
+				<array>
 					<string>app-1-1083173550425-ios-500ed1b5d52a3a303ff448</string>
 				</array>
 				<key>CFBundleURLName</key>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Store } from 'lucide-react';
+import { Plus, Store, X, Loader2 } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { useSchoolContext } from '@/lib/school-context';
@@ -25,12 +25,22 @@ export default function SellersPage() {
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState('');
 
-  // Form state
+  // Add form state
   const [newStallName, setNewStallName] = useState('');
   const [newStallNumber, setNewStallNumber] = useState('');
   const [newOperatorName, setNewOperatorName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newEmail, setNewEmail] = useState('');
+
+  // Edit state
+  const [editSeller, setEditSeller] = useState<SellerRow | null>(null);
+  const [editStallName, setEditStallName] = useState('');
+  const [editStallNumber, setEditStallNumber] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editActive, setEditActive] = useState(true);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const fetchSellers = useCallback(async () => {
     const today = new Date();
@@ -144,6 +154,71 @@ export default function SellersPage() {
     fetchSellers();
   }
 
+  function openEditModal(seller: SellerRow) {
+    setEditSeller(seller);
+    setEditStallName(seller.stall_name);
+    setEditStallNumber(seller.stall_number || '');
+    setEditPhone(seller.phone || '');
+    setEditEmail(seller.email || '');
+    setEditActive(seller.is_active);
+    setEditError('');
+  }
+
+  async function handleEditSeller() {
+    if (!editSeller) return;
+    setEditLoading(true);
+    setEditError('');
+
+    let normalizedPhone: string | null = null;
+    if (editPhone) {
+      let ph = editPhone.replace(/\s+/g, '');
+      if (ph.startsWith('0')) ph = '+95' + ph.substring(1);
+      else if (!ph.startsWith('+')) ph = '+' + ph;
+      normalizedPhone = ph;
+    }
+
+    const { error } = await supabase
+      .from('canteen_sellers')
+      .update({
+        stall_name: editStallName,
+        stall_number: editStallNumber || null,
+        phone: normalizedPhone,
+        email: editEmail ? editEmail.toLowerCase() : null,
+        is_active: editActive,
+      })
+      .eq('id', editSeller.id);
+
+    if (error) {
+      setEditError(error.message);
+      setEditLoading(false);
+      return;
+    }
+
+    setEditSeller(null);
+    setEditLoading(false);
+    fetchSellers();
+  }
+
+  async function handleDeleteSeller() {
+    if (!editSeller || !confirm('Are you sure you want to delete this seller? This cannot be undone.')) return;
+    setEditLoading(true);
+
+    const { error } = await supabase
+      .from('canteen_sellers')
+      .delete()
+      .eq('id', editSeller.id);
+
+    if (error) {
+      setEditError(error.message);
+      setEditLoading(false);
+      return;
+    }
+
+    setEditSeller(null);
+    setEditLoading(false);
+    fetchSellers();
+  }
+
   if (loading) {
     return (
       <div>
@@ -221,15 +296,123 @@ export default function SellersPage() {
               </div>
 
               <div className="mt-4 flex gap-2">
-                <button className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                <button
+                  onClick={() => window.location.href = `/dashboard/transactions?seller=${seller.id}`}
+                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                >
                   View History
                 </button>
-                <button className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+                <button
+                  onClick={() => openEditModal(seller)}
+                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                >
                   Edit
                 </button>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Edit Seller Modal */}
+      {editSeller && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditSeller(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Edit Seller</h2>
+              <button onClick={() => setEditSeller(null)} className="rounded-lg p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {editError && (
+              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {editError}
+              </div>
+            )}
+            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleEditSeller(); }}>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stall Name</label>
+                <input
+                  type="text"
+                  required
+                  value={editStallName}
+                  onChange={(e) => setEditStallName(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stall Number</label>
+                <input
+                  type="text"
+                  value={editStallNumber}
+                  onChange={(e) => setEditStallNumber(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="e.g., A-1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="09xxxxxxxxx"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  placeholder="seller@example.com"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-gray-700">Active</label>
+                <button
+                  type="button"
+                  onClick={() => setEditActive(!editActive)}
+                  className="shrink-0"
+                >
+                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    editActive ? 'bg-green-500' : 'bg-gray-300'
+                  }`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      editActive ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </div>
+                </button>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleDeleteSeller}
+                  disabled={editLoading}
+                  className="rounded-lg border border-red-300 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                >
+                  Delete
+                </button>
+                <div className="flex-1" />
+                <button
+                  type="button"
+                  onClick={() => setEditSeller(null)}
+                  className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading || !editStallName.trim()}
+                  className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {editLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

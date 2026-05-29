@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +8,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:go_router/go_router.dart';
 import 'package:canteen_common/canteen_common.dart';
+import 'package:app_links/app_links.dart';
 
 import 'providers/scanner_provider.dart';
 import 'providers/sales_provider.dart';
@@ -133,6 +136,57 @@ class CanteenPayApp extends StatefulWidget {
 
 class _CanteenPayAppState extends State<CanteenPayApp> {
   GoRouter? _router;
+  late final AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSub;
+
+  @override
+  void initState() {
+    super.initState();
+    _appLinks = AppLinks();
+    _linkSub = _appLinks.uriLinkStream.listen(_handleDeepLink);
+    // Also handle the initial link (app opened from cold start via QR)
+    _appLinks.getInitialLink().then((uri) {
+      if (uri != null) _handleDeepLink(uri);
+    });
+  }
+
+  @override
+  void dispose() {
+    _linkSub?.cancel();
+    super.dispose();
+  }
+
+  void _handleDeepLink(Uri uri) {
+    // paynowmm://pay/<UUID>
+    if (uri.scheme == 'paynowmm' && uri.host == 'pay' && uri.pathSegments.isNotEmpty) {
+      final qrData = uri.pathSegments.first;
+      debugPrint('Deep link received: QR=$qrData');
+      _pendingQrData = qrData;
+      _processPendingQr();
+    }
+  }
+
+  String? _pendingQrData;
+
+  Future<void> _processPendingQr() async {
+    if (_pendingQrData == null || _router == null) return;
+    final ctx = _router!.routerDelegate.navigatorKey.currentContext;
+    if (ctx == null) return;
+
+    final auth = ctx.read<AuthProvider>();
+    if (!auth.isAuthenticated) return;
+    final role = auth.user?.role;
+    if (role != 'seller' && role != 'admin' && role != 'counter_staff') return;
+
+    final scanner = ctx.read<ScannerProvider>();
+    final qr = _pendingQrData!;
+    _pendingQrData = null;
+
+    await scanner.processScan(qr);
+    if (scanner.scannedStudent != null) {
+      _router!.go('/seller/pin-verify');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

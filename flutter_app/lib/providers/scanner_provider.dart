@@ -24,8 +24,12 @@ class ScannerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Clean QR data — trim whitespace/newlines
-      final cleanQr = qrData.trim();
+      // Clean QR data — trim whitespace/newlines and strip deep link prefix
+      var cleanQr = qrData.trim();
+      const prefix = 'paynowmm://pay/';
+      if (cleanQr.startsWith(prefix)) {
+        cleanQr = cleanQr.substring(prefix.length);
+      }
       debugPrint('ScannerProvider: looking up QR data: "$cleanQr"');
 
       // Look up student by QR data

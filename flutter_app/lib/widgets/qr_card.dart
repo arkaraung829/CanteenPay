@@ -41,7 +41,7 @@ class QrCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           QrImageView(
-            data: qrData,
+            data: 'paynowmm://pay/$qrData',
             version: QrVersions.auto,
             size: size,
             gapless: true,

@@ -145,6 +145,12 @@ export default function StudentsPage() {
   const [bulkLinkLoading, setBulkLinkLoading] = useState(false);
   const [showToggleConfirm, setShowToggleConfirm] = useState<StudentRow | null>(null);
 
+  // Deposit modal
+  const [depositStudent, setDepositStudent] = useState<StudentRow | null>(null);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [depositError, setDepositError] = useState('');
+
   // Dynamic grades/sections from settings
   const [dynamicGrades, setDynamicGrades] = useState<{ id: string; name: string }[]>([]);
   const [dynamicSections, setDynamicSections] = useState<{ id: string; name: string }[]>([]);
@@ -485,6 +491,41 @@ export default function StudentsPage() {
     }
   }
 
+  async function handleDeposit() {
+    if (!depositStudent || !depositAmount) return;
+    const amount = parseInt(depositAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setDepositError('Enter a valid amount');
+      return;
+    }
+    setDepositLoading(true);
+    setDepositError('');
+    try {
+      const res = await fetch('/api/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: depositStudent.id,
+          amount,
+          payment_method: 'cash',
+          note: 'Admin deposit',
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setDepositError(json.error || 'Deposit failed');
+        setDepositLoading(false);
+        return;
+      }
+      setDepositStudent(null);
+      setDepositAmount('');
+      fetchStudents();
+    } catch {
+      setDepositError('Network error');
+    }
+    setDepositLoading(false);
+  }
+
   const totalStudents = stats.active + stats.inactive;
 
   return (
@@ -713,8 +754,14 @@ export default function StudentsPage() {
                         </span>
                       </button>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-4">
+                    <td className="whitespace-nowrap px-4 py-4 flex items-center gap-3">
                       <Link href={`/dashboard/students/${student.id}`} className="text-sm text-blue-600 hover:text-blue-800 font-medium">View</Link>
+                      <button
+                        onClick={() => { setDepositStudent(student); setDepositAmount(''); setDepositError(''); }}
+                        className="text-sm text-green-600 hover:text-green-800 font-medium"
+                      >
+                        + Balance
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -823,6 +870,57 @@ export default function StudentsPage() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deposit Modal */}
+      {depositStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setDepositStudent(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Add Balance</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              {depositStudent.full_name} — Current: {formatMMK(depositStudent.balance)}
+            </p>
+            {depositError && (
+              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{depositError}</div>
+            )}
+            <form onSubmit={(e) => { e.preventDefault(); handleDeposit(); }}>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (MMK)</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
+                  placeholder="e.g. 5000"
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3 mb-3">
+                {[1000, 3000, 5000, 10000].map(amt => (
+                  <button
+                    key={amt}
+                    type="button"
+                    onClick={() => setDepositAmount(String(amt))}
+                    className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors ${
+                      depositAmount === String(amt)
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {formatMMK(amt)}
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button type="button" onClick={() => setDepositStudent(null)} className="flex-1 rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={depositLoading || !depositAmount} className="flex-1 rounded-lg bg-green-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50">
+                  {depositLoading ? 'Processing...' : `Deposit ${depositAmount ? formatMMK(parseInt(depositAmount) || 0) : ''}`}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

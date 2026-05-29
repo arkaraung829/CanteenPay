@@ -73,15 +73,16 @@ export default function StudentDetailPage() {
   const printQrCanvasRef = useRef<HTMLCanvasElement>(null);
 
   const generateQR = useCallback(async (qrData: string) => {
+    const deepLink = `paynowmm://pay/${qrData}`;
     if (qrCanvasRef.current) {
-      await QRCode.toCanvas(qrCanvasRef.current, qrData, {
+      await QRCode.toCanvas(qrCanvasRef.current, deepLink, {
         width: 200,
         margin: 2,
         color: { dark: '#000000', light: '#ffffff' },
       });
     }
     if (printQrCanvasRef.current) {
-      await QRCode.toCanvas(printQrCanvasRef.current, qrData, {
+      await QRCode.toCanvas(printQrCanvasRef.current, deepLink, {
         width: 160,
         margin: 1,
         color: { dark: '#000000', light: '#ffffff' },
