@@ -147,6 +147,26 @@ class PhoneAuthService {
         );
       }
 
+      // Get APNS token and pass to Firebase Auth explicitly
+      if (Platform.isIOS) {
+        try {
+          final messaging = FirebaseMessaging.instance;
+          // Request permission
+          await messaging.requestPermission();
+          // Get APNS token
+          final apnsToken = await messaging.getAPNSToken();
+          debugPrint('PhoneAuthService: APNS token: ${apnsToken != null ? "YES" : "NULL"}');
+          if (apnsToken == null) {
+            // Wait and retry — token may not be ready yet
+            await Future.delayed(const Duration(seconds: 2));
+            final retry = await messaging.getAPNSToken();
+            debugPrint('PhoneAuthService: APNS retry: ${retry != null ? "YES" : "still NULL"}');
+          }
+        } catch (e) {
+          debugPrint('PhoneAuthService: APNS error: $e');
+        }
+      }
+
       debugPrint('PhoneAuthService: calling verifyPhoneNumber...');
 
       final completer = Completer<PhoneAuthResult>();
@@ -154,7 +174,7 @@ class PhoneAuthService {
       try {
         await _auth.verifyPhoneNumber(
           phoneNumber: formattedPhone,
-          timeout: const Duration(seconds: 60),
+          timeout: const Duration(seconds: 120),
         verificationCompleted: (PhoneAuthCredential credential) async {
           // Auto-verification (Android only)
           if (!completer.isCompleted) {
