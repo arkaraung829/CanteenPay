@@ -322,11 +322,8 @@ class NotificationService {
         return;
       }
 
-      final deviceId = await DeviceIdService().getDeviceId();
-
       await supabase.from('profiles').update({
         'fcm_token': token,
-        'device_id': deviceId,
       }).eq('id', userId);
 
       if (kDebugMode) {
