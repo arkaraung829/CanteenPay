@@ -312,24 +312,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                             ),
                           ),
                           if (schoolName != null || date != null)
-                            Row(
-                              children: [
-                                if (schoolName != null)
-                                  Flexible(
-                                    child: Text(
-                                      schoolName,
-                                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                if (schoolName != null && date != null)
-                                  Text(' · ', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                                if (date != null)
-                                  Text(
-                                    _timeAgo(date),
-                                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                                  ),
-                              ],
+                            Text(
+                              [
+                                if (schoolName != null) schoolName,
+                                if (date != null) _timeAgo(date),
+                              ].join(' · '),
+                              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                              overflow: TextOverflow.ellipsis,
                             ),
                         ],
                       ),
@@ -361,55 +350,58 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     final color = _colorForType(notif.type ?? 'system');
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => Padding(
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 22,
-                  backgroundColor: color.withValues(alpha: 0.12),
-                  child: Icon(_iconForType(notif.type ?? 'system'), color: color, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(notif.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                      Text(_timeAgo(notif.timestamp), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                    ],
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: color.withValues(alpha: 0.12),
+                    child: Icon(_iconForType(notif.type ?? 'system'), color: color, size: 22),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(notif.body, style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.black87)),
-            if (notif.data != null) ...[
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(notif.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                        Text(_timeAgo(notif.timestamp), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 8),
-              if (notif.data!['amount'] != null)
-                _detailRow('Amount', '${notif.data!['amount']} MMK'),
-              if (notif.data!['balance_after'] != null)
-                _detailRow('Balance', '${notif.data!['balance_after']} MMK'),
-              if (notif.data!['student_id'] != null)
-                _detailRow('Type', notif.type ?? '-'),
+              Text(notif.body, style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.black87)),
+              if (notif.data != null) ...[
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 8),
+                if (notif.data!['amount'] != null)
+                  _detailRow('Amount', '${notif.data!['amount']} MMK'),
+                if (notif.data!['balance_after'] != null)
+                  _detailRow('Balance', '${notif.data!['balance_after']} MMK'),
+                if (notif.data!['student_id'] != null)
+                  _detailRow('Type', notif.type ?? '-'),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -466,15 +458,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         if (a['title_my'] != null && (a['title_my'] as String).isNotEmpty)
                           Text(a['title_my'], style: TextStyle(fontSize: 15, color: Colors.grey[600])),
                         const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            if (schoolName != null)
-                              Text(schoolName, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                            if (schoolName != null && date != null)
-                              Text(' · ', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                            if (date != null)
-                              Text(_timeAgo(date), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-                          ],
+                        Text(
+                          [
+                            if (schoolName != null) schoolName,
+                            if (date != null) _timeAgo(date),
+                          ].join(' · '),
+                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
