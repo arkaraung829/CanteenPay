@@ -32,7 +32,11 @@ import FirebaseAuth
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
     // Firebase Auth needs this for silent push phone verification
-    Auth.auth().setAPNSToken(deviceToken, type: .unknown)
+    #if DEBUG
+    Auth.auth().setAPNSToken(deviceToken, type: .sandbox)
+    #else
+    Auth.auth().setAPNSToken(deviceToken, type: .prod)
+    #endif
     Messaging.messaging().apnsToken = deviceToken
 
     #if DEBUG
