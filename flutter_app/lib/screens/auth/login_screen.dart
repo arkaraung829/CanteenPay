@@ -75,12 +75,18 @@ class _LoginScreenState extends State<LoginScreen>
         return;
       }
 
+      // Save refresh token before signing out
+      final refreshToken = session.refreshToken;
+
       // Device supports biometric?
       final biometric = BiometricService();
       if (!await biometric.isAvailable()) {
         setState(() => _checkingBiometric = false);
         return;
       }
+
+      // Sign out FIRST so the router doesn't auto-redirect during Face ID prompt
+      await Supabase.instance.client.auth.signOut();
 
       // Prompt Face ID / Touch ID
       final type = await biometric.getBiometricType();
@@ -92,9 +98,11 @@ class _LoginScreenState extends State<LoginScreen>
 
       final authenticated = await biometric.authenticate(reason: reason);
 
-      if (authenticated && mounted) {
+      if (authenticated && mounted && refreshToken != null) {
         HapticService.success();
-        // Wait for AuthProvider to load profile before revealing UI
+        // Re-authenticate with the saved refresh token
+        await Supabase.instance.client.auth.setSession(refreshToken);
+        // Wait for AuthProvider to load profile
         final auth = context.read<AuthProvider>();
         for (int i = 0; i < 20; i++) {
           await Future.delayed(const Duration(milliseconds: 200));
@@ -102,13 +110,10 @@ class _LoginScreenState extends State<LoginScreen>
             return;
           }
         }
-      } else if (!authenticated && mounted) {
-        // Biometric cancelled or failed — sign out so the router doesn't
-        // auto-redirect away from the login screen.
-        await Supabase.instance.client.auth.signOut();
       }
+      // If cancelled or failed, already signed out — stays on login screen
     } catch (_) {
-      // Biometric error — also sign out to prevent auto-login
+      // Biometric error — ensure signed out
       if (mounted) {
         try { await Supabase.instance.client.auth.signOut(); } catch (_) {}
       }
