@@ -12,6 +12,7 @@ class ChildrenProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   RealtimeChannel? _realtimeChannel;
+  RealtimeChannel? _transactionChannel;
 
   List<StudentModel> get children => _children;
   bool get isLoading => _isLoading;
@@ -69,8 +70,9 @@ class ChildrenProvider extends ChangeNotifier {
         await _loadChildAttendance(child.id);
       }
 
-      // Subscribe to realtime wallet updates
+      // Subscribe to realtime wallet + transaction updates
       _subscribeToWalletUpdates();
+      _subscribeToTransactionUpdates();
     } catch (e) {
       _error = 'Failed to load children: $e';
       debugPrint('ChildrenProvider: $e');
@@ -149,6 +151,54 @@ class ChildrenProvider extends ChangeNotifier {
     }
   }
 
+  /// Subscribe to realtime transaction inserts — auto-refresh when new purchase/deposit happens.
+  void _subscribeToTransactionUpdates() {
+    _transactionChannel?.unsubscribe();
+
+    if (_children.isEmpty) return;
+
+    try {
+      // Get all wallet IDs for the children
+      final walletIds = _children
+          .map((c) => _wallets[c.id]?.id)
+          .where((id) => id != null)
+          .toList();
+
+      if (walletIds.isEmpty) return;
+
+      _transactionChannel = Supabase.instance.client
+          .channel('parent-transactions')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'transactions',
+            callback: (payload) {
+              try {
+                final walletId = payload.newRecord['wallet_id']?.toString();
+                if (walletId == null) return;
+
+                // Find which child this transaction belongs to
+                for (final child in _children) {
+                  final childWallet = _wallets[child.id];
+                  if (childWallet != null && childWallet.id == walletId) {
+                    // Reload transactions for this child
+                    _loadChildTransactions(child.id).then((_) {
+                      notifyListeners();
+                    });
+                    break;
+                  }
+                }
+              } catch (e) {
+                debugPrint('ChildrenProvider: realtime transaction error: $e');
+              }
+            },
+          )
+          .subscribe();
+    } catch (e) {
+      debugPrint('ChildrenProvider: transaction subscription failed: $e');
+    }
+  }
+
   /// Get transactions for a child.
   List<TransactionModel> getChildTransactions(String childId) {
     return _transactions[childId] ?? [];
@@ -194,6 +244,7 @@ class ChildrenProvider extends ChangeNotifier {
   @override
   void dispose() {
     _realtimeChannel?.unsubscribe();
+    _transactionChannel?.unsubscribe();
     super.dispose();
   }
 }
