@@ -106,18 +106,34 @@ class _ChatScreenState extends State<ChatScreen> {
         _conversationId = existing['id'];
         _title = existing['title'] as String? ?? 'School Chat';
       } else {
-        // Create new conversation
-        final created = await _supabase
-            .from('chat_conversations')
-            .insert({
-              'school_id': schoolId,
-              'parent_id': _userId!,
-              'title': 'Chat with School',
-            })
-            .select()
-            .single();
-        _conversationId = created['id'];
-        _title = 'Chat with School';
+        // Create new conversation (unique index prevents duplicates)
+        try {
+          final created = await _supabase
+              .from('chat_conversations')
+              .insert({
+                'school_id': schoolId,
+                'parent_id': _userId!,
+                'title': 'Chat with School',
+              })
+              .select()
+              .single();
+          _conversationId = created['id'];
+          _title = 'Chat with School';
+        } catch (_) {
+          // Unique constraint violation — conversation was created concurrently
+          final retry = await _supabase
+              .from('chat_conversations')
+              .select()
+              .eq('parent_id', _userId!)
+              .eq('school_id', schoolId)
+              .eq('status', 'open')
+              .limit(1)
+              .maybeSingle();
+          if (retry != null) {
+            _conversationId = retry['id'];
+            _title = retry['title'] as String? ?? 'School Chat';
+          }
+        }
       }
 
       await _loadMessages();
@@ -181,11 +197,16 @@ class _ChatScreenState extends State<ChatScreen> {
           callback: (payload) {
             final newMsg = payload.newRecord;
             if (mounted) {
-              setState(() => _messages.add(newMsg));
-              _scrollToBottom();
-              // Mark as read if from school
-              if (newMsg['is_from_school'] == true) {
-                _markMessagesAsRead();
+              // Deduplicate — don't add if already in list
+              final newId = newMsg['id'];
+              final alreadyExists = _messages.any((m) => m['id'] == newId);
+              if (!alreadyExists) {
+                setState(() => _messages.add(newMsg));
+                _scrollToBottom();
+                // Mark as read if from school
+                if (newMsg['is_from_school'] == true) {
+                  _markMessagesAsRead();
+                }
               }
             }
           },
