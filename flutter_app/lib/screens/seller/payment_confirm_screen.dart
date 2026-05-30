@@ -55,8 +55,8 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
           // Student info card
           Container(
             width: double.infinity,
-            margin: const EdgeInsets.all(AppTheme.spacingMd),
-            padding: const EdgeInsets.all(AppTheme.spacingMd),
+            margin: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd, vertical: 8),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(AppTheme.radiusMd),
@@ -152,40 +152,7 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
               ),
             ),
 
-          const SizedBox(height: 8),
-
-          // Quick-amount buttons
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [500, 1000, 2000, 5000].map((amount) {
-                final isSelected = _amountInt == amount;
-                return ActionChip(
-                  label: Text(
-                    '${amount}',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: isSelected ? Colors.white : AppTheme.primary,
-                    ),
-                  ),
-                  backgroundColor: isSelected
-                      ? AppTheme.primary
-                      : AppTheme.primary.withValues(alpha: 0.08),
-                  side: BorderSide(
-                    color: AppTheme.primary.withValues(alpha: 0.3),
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  onPressed: () => _onAmountChanged(amount.toString()),
-                );
-              }).toList(),
-            ),
-          ),
-
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
           // Amount keypad
           Expanded(
