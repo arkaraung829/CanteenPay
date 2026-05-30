@@ -499,19 +499,12 @@ class NotificationService {
   // Token cleanup (sign-out)
   // ---------------------------------------------------------------------------
 
-  /// Clear the FCM token from backend and locally. Call on sign out.
+  /// Clear the FCM token from backend on sign out.
+  /// NOTE: We do NOT delete the device token or clear from profile.
+  /// The same device token will be re-saved to the next user who signs in.
+  /// This prevents the parent losing notifications when seller signs in on same device.
   Future<void> clearToken() async {
     try {
-      final supabase = Supabase.instance.client;
-      final userId = supabase.auth.currentUser?.id;
-
-      if (userId != null) {
-        await supabase.from('profiles').update({
-          'fcm_token': null,
-        }).eq('id', userId);
-      }
-
-      await _messaging?.deleteToken();
       _fcmToken = null;
 
       if (kDebugMode) {
