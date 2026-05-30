@@ -91,7 +91,8 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
       if (isAuthenticated && user == null) return null;
 
       // Logged in with profile → redirect away from login to role home
-      if (isAuthenticated && user != null && isLoginRoute) {
+      // But NOT during biometric check (user hasn't confirmed identity yet)
+      if (isAuthenticated && user != null && isLoginRoute && !LoginScreen.biometricInProgress) {
         return _homePathForRole(user.role);
       }
 
@@ -284,26 +285,27 @@ class _StudentShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = _currentIndex(context);
+    final l10n = CanteenLocalizations.of(context);
     return Scaffold(
       body: child,
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (i) => context.go(_tabs[i]),
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.qr_code_2_outlined),
-            selectedIcon: Icon(Icons.qr_code_2),
-            label: 'QR Card',
+            icon: const Icon(Icons.qr_code_2_outlined),
+            selectedIcon: const Icon(Icons.qr_code_2),
+            label: l10n?.qrCard ?? 'QR Card',
           ),
           NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
-            label: 'History',
+            icon: const Icon(Icons.receipt_long_outlined),
+            selectedIcon: const Icon(Icons.receipt_long),
+            label: l10n?.history ?? 'History',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: const Icon(Icons.person),
+            label: l10n?.profile ?? 'Profile',
           ),
         ],
       ),
@@ -326,6 +328,7 @@ class _ParentShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = _currentIndex(context);
+    final l10n = CanteenLocalizations.of(context);
     return Scaffold(
       body: child,
       bottomNavigationBar: NavigationBar(
@@ -340,21 +343,21 @@ class _ParentShell extends StatelessWidget {
               context.go('/parent/profile');
           }
         },
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
-            label: 'Home',
+            icon: const Icon(Icons.home_outlined),
+            selectedIcon: const Icon(Icons.home),
+            label: l10n?.home ?? 'Home',
           ),
           NavigationDestination(
-            icon: Icon(Icons.notifications_outlined),
-            selectedIcon: Icon(Icons.notifications),
-            label: 'Notifications',
+            icon: const Icon(Icons.notifications_outlined),
+            selectedIcon: const Icon(Icons.notifications),
+            label: l10n?.notifications ?? 'Notifications',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outlined),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            icon: const Icon(Icons.person_outlined),
+            selectedIcon: const Icon(Icons.person),
+            label: l10n?.profile ?? 'Profile',
           ),
         ],
       ),
@@ -378,6 +381,7 @@ class _SellerShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = _currentIndex(context);
+    final l10n = CanteenLocalizations.of(context);
     return Scaffold(
       body: child,
       bottomNavigationBar: NavigationBar(
@@ -394,26 +398,26 @@ class _SellerShell extends StatelessWidget {
               context.go('/seller/profile');
           }
         },
-        destinations: const [
+        destinations: [
           NavigationDestination(
-            icon: Icon(Icons.qr_code_scanner_outlined),
-            selectedIcon: Icon(Icons.qr_code_scanner),
-            label: 'Scan',
+            icon: const Icon(Icons.qr_code_scanner_outlined),
+            selectedIcon: const Icon(Icons.qr_code_scanner),
+            label: l10n?.scanQr ?? 'Scan',
           ),
           NavigationDestination(
-            icon: Icon(Icons.list_alt_outlined),
-            selectedIcon: Icon(Icons.list_alt),
-            label: 'Sales',
+            icon: const Icon(Icons.list_alt_outlined),
+            selectedIcon: const Icon(Icons.list_alt),
+            label: l10n?.sales ?? 'Sales',
           ),
           NavigationDestination(
-            icon: Icon(Icons.bar_chart_outlined),
-            selectedIcon: Icon(Icons.bar_chart),
-            label: 'Analytics',
+            icon: const Icon(Icons.bar_chart_outlined),
+            selectedIcon: const Icon(Icons.bar_chart),
+            label: l10n?.analyticsLabel ?? 'Analytics',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outlined),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
+            icon: const Icon(Icons.person_outlined),
+            selectedIcon: const Icon(Icons.person),
+            label: l10n?.profile ?? 'Profile',
           ),
         ],
       ),

@@ -14,6 +14,9 @@ enum _AuthStep { phone, otp, profile, emailLogin }
 const _kBiometricEnabled = 'biometric_login_enabled';
 
 class LoginScreen extends StatefulWidget {
+  /// Router checks this to avoid redirecting during biometric prompt
+  static bool biometricInProgress = false;
+
   const LoginScreen({super.key});
 
   @override
@@ -89,9 +92,6 @@ class _LoginScreenState extends State<LoginScreen>
         return;
       }
 
-      // Save refresh token before signing out
-      final refreshToken = session.refreshToken;
-
       // Device supports biometric?
       final biometric = BiometricService();
       if (!await biometric.isAvailable()) {
@@ -99,10 +99,8 @@ class _LoginScreenState extends State<LoginScreen>
         return;
       }
 
-      // Sign out FIRST so the router doesn't auto-redirect during Face ID prompt
-      await Supabase.instance.client.auth.signOut();
-
-      // Prompt Face ID / Touch ID
+      // Prompt Face ID / Touch ID (session stays active during prompt)
+      LoginScreen.biometricInProgress = true;
       final type = await biometric.getBiometricType();
       final reason = type == 'face'
           ? 'Unlock Paynow MM with Face ID'
@@ -112,11 +110,10 @@ class _LoginScreenState extends State<LoginScreen>
 
       final authenticated = await biometric.authenticate(reason: reason);
 
-      if (authenticated && mounted && refreshToken != null) {
+      if (authenticated && mounted) {
         HapticService.success();
-        // Re-authenticate with the saved refresh token
-        await Supabase.instance.client.auth.setSession(refreshToken);
-        // Wait for AuthProvider to load profile
+        // Session is still active — just let the router redirect
+        // Force AuthProvider to re-check and load profile
         final auth = context.read<AuthProvider>();
         for (int i = 0; i < 20; i++) {
           await Future.delayed(const Duration(milliseconds: 200));
@@ -124,15 +121,18 @@ class _LoginScreenState extends State<LoginScreen>
             return;
           }
         }
+      } else if (!authenticated && mounted) {
+        // Biometric cancelled — sign out to stay on login screen
+        await Supabase.instance.client.auth.signOut();
       }
-      // If cancelled or failed, already signed out — stays on login screen
     } catch (_) {
-      // Biometric error — ensure signed out
+      // Biometric error — sign out to stay on login
       if (mounted) {
         try { await Supabase.instance.client.auth.signOut(); } catch (_) {}
       }
     }
 
+    LoginScreen.biometricInProgress = false;
     if (mounted) setState(() => _checkingBiometric = false);
   }
 
