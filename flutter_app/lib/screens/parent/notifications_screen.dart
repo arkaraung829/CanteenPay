@@ -292,9 +292,12 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                             Row(
                               children: [
                                 if (schoolName != null)
-                                  Text(
-                                    schoolName,
-                                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                  Flexible(
+                                    child: Text(
+                                      schoolName,
+                                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ),
                                 if (schoolName != null && date != null)
                                   Text(' · ', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
