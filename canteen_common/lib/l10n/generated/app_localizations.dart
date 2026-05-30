@@ -640,6 +640,114 @@ abstract class CanteenLocalizations {
   /// In en, this message translates to:
   /// **'Daily spending limit reached'**
   String get spendingLimitReached;
+
+  /// No description provided for @showQrAtCanteen.
+  ///
+  /// In en, this message translates to:
+  /// **'Show this QR at the canteen'**
+  String get showQrAtCanteen;
+
+  /// No description provided for @readyToScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Ready to scan'**
+  String get readyToScan;
+
+  /// No description provided for @scanStudentQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan Student QR'**
+  String get scanStudentQr;
+
+  /// No description provided for @yourChildren.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Children'**
+  String get yourChildren;
+
+  /// No description provided for @linkChild.
+  ///
+  /// In en, this message translates to:
+  /// **'Link Child'**
+  String get linkChild;
+
+  /// No description provided for @home.
+  ///
+  /// In en, this message translates to:
+  /// **'Home'**
+  String get home;
+
+  /// No description provided for @sales.
+  ///
+  /// In en, this message translates to:
+  /// **'Sales'**
+  String get sales;
+
+  /// No description provided for @qrCard.
+  ///
+  /// In en, this message translates to:
+  /// **'QR Card'**
+  String get qrCard;
+
+  /// No description provided for @history.
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get history;
+
+  /// No description provided for @balanceEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Your balance is empty. Please ask your parent to top up.'**
+  String get balanceEmpty;
+
+  /// No description provided for @todaySales.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s Sales'**
+  String get todaySales;
+
+  /// No description provided for @pointCameraAtQr.
+  ///
+  /// In en, this message translates to:
+  /// **'Point camera at student QR code'**
+  String get pointCameraAtQr;
+
+  /// No description provided for @stopScanning.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Scanning'**
+  String get stopScanning;
+
+  /// No description provided for @tapToScan.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the button below to start scanning\na student QR code'**
+  String get tapToScan;
+
+  /// No description provided for @signOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Out'**
+  String get signOut;
+
+  /// No description provided for @editProfile.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit Profile'**
+  String get editProfile;
+
+  /// No description provided for @enrollmentYear.
+  ///
+  /// In en, this message translates to:
+  /// **'Enrollment Year'**
+  String get enrollmentYear;
+
+  /// No description provided for @analyticsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Analytics'**
+  String get analyticsLabel;
 }
 
 class _CanteenLocalizationsDelegate

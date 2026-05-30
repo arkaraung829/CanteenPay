@@ -279,4 +279,58 @@ class CanteenLocalizationsEn extends CanteenLocalizations {
 
   @override
   String get spendingLimitReached => 'Daily spending limit reached';
+
+  @override
+  String get showQrAtCanteen => 'Show this QR at the canteen';
+
+  @override
+  String get readyToScan => 'Ready to scan';
+
+  @override
+  String get scanStudentQr => 'Scan Student QR';
+
+  @override
+  String get yourChildren => 'Your Children';
+
+  @override
+  String get linkChild => 'Link Child';
+
+  @override
+  String get home => 'Home';
+
+  @override
+  String get sales => 'Sales';
+
+  @override
+  String get qrCard => 'QR Card';
+
+  @override
+  String get history => 'History';
+
+  @override
+  String get balanceEmpty => 'Your balance is empty. Please ask your parent to top up.';
+
+  @override
+  String get todaySales => "Today's Sales";
+
+  @override
+  String get pointCameraAtQr => 'Point camera at student QR code';
+
+  @override
+  String get stopScanning => 'Stop Scanning';
+
+  @override
+  String get tapToScan => 'Tap the button below to start scanning\na student QR code';
+
+  @override
+  String get signOut => 'Sign Out';
+
+  @override
+  String get editProfile => 'Edit Profile';
+
+  @override
+  String get enrollmentYear => 'Enrollment Year';
+
+  @override
+  String get analyticsLabel => 'Analytics';
 }
