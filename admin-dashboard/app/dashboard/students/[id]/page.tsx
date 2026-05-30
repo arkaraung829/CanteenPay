@@ -1,5 +1,7 @@
 'use client';
 
+import { authFetch } from '@/lib/auth-fetch';
+
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -261,7 +263,7 @@ export default function StudentDetailPage() {
     setEditError('');
 
     try {
-      const res = await fetch('/api/students', {
+      const res = await authFetch('/api/students', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

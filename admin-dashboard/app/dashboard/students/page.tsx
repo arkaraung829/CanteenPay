@@ -1,5 +1,7 @@
 'use client';
 
+import { authFetch } from '@/lib/auth-fetch';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -198,8 +200,8 @@ export default function StudentsPage() {
         const gradeParams = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
         const sectionParams = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
         const [gradesRes, sectionsRes] = await Promise.all([
-          fetch(`/api/settings/grades${gradeParams}`),
-          fetch(`/api/settings/sections${sectionParams}`),
+          authFetch(`/api/settings/grades${gradeParams}`),
+          authFetch(`/api/settings/sections${sectionParams}`),
         ]);
         const gradesJson = await gradesRes.json();
         const sectionsJson = await sectionsRes.json();
@@ -253,7 +255,7 @@ export default function StudentsPage() {
       if (selectedSchoolId) {
         params.set('school_id', selectedSchoolId);
       }
-      const res = await fetch(`/api/students?${params}`);
+      const res = await authFetch(`/api/students?${params}`);
       const json = await res.json();
       if (!json.success) {
         setError(json.error || 'Failed to fetch students');
@@ -326,7 +328,7 @@ export default function StudentsPage() {
 
   async function performToggle(student: StudentRow) {
     try {
-      const res = await fetch('/api/students', {
+      const res = await authFetch('/api/students', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: student.id, is_active: !student.is_active }),
@@ -349,7 +351,7 @@ export default function StudentsPage() {
   async function performBulkAction() {
     if (!showBulkConfirm) return;
     try {
-      const res = await fetch('/api/students/bulk', {
+      const res = await authFetch('/api/students/bulk', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: showBulkConfirm.action, studentIds: [...selectedIds] }),
@@ -372,7 +374,7 @@ export default function StudentsPage() {
     try {
       const className = `Grade ${newGrade}-${newSection}`;
 
-      const res = await fetch('/api/students', {
+      const res = await authFetch('/api/students', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -415,7 +417,7 @@ export default function StudentsPage() {
     formData.append('preview', 'true');
 
     try {
-      const res = await fetch('/api/students/import', { method: 'POST', body: formData });
+      const res = await authFetch('/api/students/import', { method: 'POST', body: formData });
       const json = await res.json();
       if (json.success) {
         setCsvPreview(json.data);
@@ -442,7 +444,7 @@ export default function StudentsPage() {
     }, 500);
 
     try {
-      const res = await fetch('/api/students/import', { method: 'POST', body: formData });
+      const res = await authFetch('/api/students/import', { method: 'POST', body: formData });
       const json = await res.json();
       clearInterval(progressInterval);
       setCsvProgress(100);
@@ -478,7 +480,7 @@ export default function StudentsPage() {
 
   async function handleExport() {
     try {
-      const res = await fetch('/api/students/export');
+      const res = await authFetch('/api/students/export');
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -503,7 +505,7 @@ export default function StudentsPage() {
     setDepositLoading(true);
     setDepositError('');
     try {
-      const res = await fetch('/api/deposits', {
+      const res = await authFetch('/api/deposits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -858,7 +860,7 @@ export default function StudentsPage() {
                     }
                     if (bulkParentEmail) updates.parent_email = bulkParentEmail.toLowerCase();
                     for (const sid of selectedIds) {
-                      await fetch('/api/students', {
+                      await authFetch('/api/students', {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ id: sid, ...updates }),

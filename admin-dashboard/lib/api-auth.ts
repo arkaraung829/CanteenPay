@@ -10,42 +10,45 @@ interface AuthResult {
 
 /**
  * Verify the caller is an authenticated admin/staff user.
- * Extracts the access token from cookies or Authorization header.
+ * Checks Authorization header, cookies, and Supabase auth tokens.
  * Returns user info or null if unauthenticated.
  */
 export async function verifyAdmin(request: Request): Promise<AuthResult | null> {
   try {
-    // Try Authorization header first
-    const authHeader = request.headers.get('authorization');
     let accessToken: string | null = null;
 
+    // 1. Try Authorization header
+    const authHeader = request.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
       accessToken = authHeader.substring(7);
     }
 
-    // Try cookie-based auth (Supabase stores tokens in cookies)
+    // 2. Try cookies (Supabase stores session in sb-{ref}-auth-token)
     if (!accessToken) {
       const cookieHeader = request.headers.get('cookie') || '';
-      const cookies = Object.fromEntries(
-        cookieHeader.split(';').map(c => {
-          const [key, ...val] = c.trim().split('=');
-          return [key, val.join('=')];
-        })
-      );
+      // Parse all cookies
+      const cookies: Record<string, string> = {};
+      cookieHeader.split(';').forEach(c => {
+        const [key, ...val] = c.trim().split('=');
+        if (key) cookies[key.trim()] = val.join('=');
+      });
 
-      // Supabase stores access token in sb-{ref}-auth-token cookie
+      // Look for Supabase auth token cookie
       for (const [key, value] of Object.entries(cookies)) {
         if (key.includes('auth-token') && value) {
           try {
-            const parsed = JSON.parse(decodeURIComponent(value));
-            if (parsed.access_token) {
+            const decoded = decodeURIComponent(value);
+            // Could be base64 encoded JSON
+            const parsed = JSON.parse(decoded);
+            if (parsed?.access_token) {
               accessToken = parsed.access_token;
               break;
             }
           } catch {
-            // Not JSON, try raw value
-            if (value.startsWith('ey')) {
-              accessToken = value;
+            // Try if it looks like a JWT
+            const decoded = decodeURIComponent(value);
+            if (decoded.startsWith('ey')) {
+              accessToken = decoded;
               break;
             }
           }
@@ -55,7 +58,7 @@ export async function verifyAdmin(request: Request): Promise<AuthResult | null> 
 
     if (!accessToken) return null;
 
-    // Verify the token with Supabase
+    // 3. Verify token with Supabase
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: `Bearer ${accessToken}` } },
     });
@@ -63,7 +66,7 @@ export async function verifyAdmin(request: Request): Promise<AuthResult | null> 
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error || !user) return null;
 
-    // Check role from profiles table
+    // 4. Check role
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
@@ -71,9 +74,7 @@ export async function verifyAdmin(request: Request): Promise<AuthResult | null> 
       .single();
 
     const role = profile?.role || 'unknown';
-    const allowedRoles = ['admin', 'counter_staff'];
-
-    if (!allowedRoles.includes(role)) return null;
+    if (!['admin', 'counter_staff'].includes(role)) return null;
 
     return { userId: user.id, role };
   } catch {

@@ -1,5 +1,7 @@
 'use client';
 
+import { authFetch } from '@/lib/auth-fetch';
+
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Download } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
@@ -147,7 +149,7 @@ export default function TransactionsPage() {
     setRefundLoading(true);
     setRefundError('');
     try {
-      const res = await fetch('/api/refunds', {
+      const res = await authFetch('/api/refunds', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

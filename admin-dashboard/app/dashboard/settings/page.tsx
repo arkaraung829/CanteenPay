@@ -1,5 +1,7 @@
 'use client';
 
+import { authFetch } from '@/lib/auth-fetch';
+
 import { useState, useEffect, useCallback } from 'react';
 import {
   Settings, Plus, Trash2, ChevronUp, ChevronDown,
@@ -283,7 +285,7 @@ function UserManagement() {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await fetch('/api/settings/users');
+      const res = await authFetch('/api/settings/users');
       const json = await res.json();
       if (json.success) setUsers(json.data);
     } catch {
@@ -303,7 +305,7 @@ function UserManagement() {
     setError('');
 
     try {
-      const res = await fetch('/api/settings/users', {
+      const res = await authFetch('/api/settings/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -332,7 +334,7 @@ function UserManagement() {
 
   async function handleToggleActive(id: string, is_active: boolean) {
     setActionLoading(id);
-    await fetch('/api/settings/users', {
+    await authFetch('/api/settings/users', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, is_active }),
@@ -344,7 +346,7 @@ function UserManagement() {
   async function handleDelete(id: string) {
     if (!confirm('Are you sure you want to delete this user? This cannot be undone.')) return;
     setActionLoading(id);
-    await fetch('/api/settings/users', {
+    await authFetch('/api/settings/users', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
@@ -359,7 +361,7 @@ function UserManagement() {
       return;
     }
     setActionLoading(id);
-    const res = await fetch('/api/settings/users', {
+    const res = await authFetch('/api/settings/users', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, password: editPasswordValue }),
@@ -608,7 +610,7 @@ export default function SettingsPage() {
   const fetchGrades = useCallback(async () => {
     try {
       const params = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
-      const res = await fetch(`/api/settings/grades${params}`);
+      const res = await authFetch(`/api/settings/grades${params}`);
       const json = await res.json();
       if (json.success) setGrades(json.data);
     } catch {
@@ -620,7 +622,7 @@ export default function SettingsPage() {
   const fetchSections = useCallback(async () => {
     try {
       const params = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
-      const res = await fetch(`/api/settings/sections${params}`);
+      const res = await authFetch(`/api/settings/sections${params}`);
       const json = await res.json();
       if (json.success) setSections(json.data);
     } catch {
@@ -636,7 +638,7 @@ export default function SettingsPage() {
 
   // --- Grade handlers ---
   async function addGrade(name: string) {
-    await fetch('/api/settings/grades', {
+    await authFetch('/api/settings/grades', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, school_id: selectedSchoolId || undefined }),
@@ -645,7 +647,7 @@ export default function SettingsPage() {
   }
 
   async function deleteGrade(id: string) {
-    await fetch('/api/settings/grades', {
+    await authFetch('/api/settings/grades', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
@@ -654,7 +656,7 @@ export default function SettingsPage() {
   }
 
   async function toggleGradeActive(id: string, is_active: boolean) {
-    await fetch('/api/settings/grades', {
+    await authFetch('/api/settings/grades', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, is_active }),
@@ -663,7 +665,7 @@ export default function SettingsPage() {
   }
 
   async function renameGrade(id: string, name: string) {
-    await fetch('/api/settings/grades', {
+    await authFetch('/api/settings/grades', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, name }),
@@ -676,12 +678,12 @@ export default function SettingsPage() {
     const current = grades[index];
     const above = grades[index - 1];
     await Promise.all([
-      fetch('/api/settings/grades', {
+      authFetch('/api/settings/grades', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: current.id, display_order: above.display_order }),
       }),
-      fetch('/api/settings/grades', {
+      authFetch('/api/settings/grades', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: above.id, display_order: current.display_order }),
@@ -695,12 +697,12 @@ export default function SettingsPage() {
     const current = grades[index];
     const below = grades[index + 1];
     await Promise.all([
-      fetch('/api/settings/grades', {
+      authFetch('/api/settings/grades', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: current.id, display_order: below.display_order }),
       }),
-      fetch('/api/settings/grades', {
+      authFetch('/api/settings/grades', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: below.id, display_order: current.display_order }),
@@ -711,7 +713,7 @@ export default function SettingsPage() {
 
   // --- Section handlers ---
   async function addSection(name: string) {
-    await fetch('/api/settings/sections', {
+    await authFetch('/api/settings/sections', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, school_id: selectedSchoolId || undefined }),
@@ -720,7 +722,7 @@ export default function SettingsPage() {
   }
 
   async function deleteSection(id: string) {
-    await fetch('/api/settings/sections', {
+    await authFetch('/api/settings/sections', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
@@ -729,7 +731,7 @@ export default function SettingsPage() {
   }
 
   async function toggleSectionActive(id: string, is_active: boolean) {
-    await fetch('/api/settings/sections', {
+    await authFetch('/api/settings/sections', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, is_active }),
@@ -738,7 +740,7 @@ export default function SettingsPage() {
   }
 
   async function renameSection(id: string, name: string) {
-    await fetch('/api/settings/sections', {
+    await authFetch('/api/settings/sections', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, name }),
@@ -751,12 +753,12 @@ export default function SettingsPage() {
     const current = sections[index];
     const above = sections[index - 1];
     await Promise.all([
-      fetch('/api/settings/sections', {
+      authFetch('/api/settings/sections', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: current.id, display_order: above.display_order }),
       }),
-      fetch('/api/settings/sections', {
+      authFetch('/api/settings/sections', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: above.id, display_order: current.display_order }),
@@ -770,12 +772,12 @@ export default function SettingsPage() {
     const current = sections[index];
     const below = sections[index + 1];
     await Promise.all([
-      fetch('/api/settings/sections', {
+      authFetch('/api/settings/sections', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: current.id, display_order: below.display_order }),
       }),
-      fetch('/api/settings/sections', {
+      authFetch('/api/settings/sections', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: below.id, display_order: current.display_order }),

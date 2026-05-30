@@ -1,5 +1,7 @@
 'use client';
 
+import { authFetch } from '@/lib/auth-fetch';
+
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, School, Users, Banknote, Loader2, X, Pencil, Check } from 'lucide-react';
@@ -46,7 +48,7 @@ export default function SchoolsPage() {
 
   const fetchSchools = useCallback(async () => {
     try {
-      const res = await fetch('/api/schools');
+      const res = await authFetch('/api/schools');
       const json = await res.json();
       if (json.success) {
         setSchools(json.data);
@@ -66,7 +68,7 @@ export default function SchoolsPage() {
     setAddError('');
 
     try {
-      const res = await fetch('/api/schools', {
+      const res = await authFetch('/api/schools', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -101,7 +103,7 @@ export default function SchoolsPage() {
   async function handleToggleActive(school: SchoolRow) {
     setActionLoading(school.id);
     try {
-      await fetch('/api/schools', {
+      await authFetch('/api/schools', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: school.id, is_active: !school.is_active }),
@@ -116,7 +118,7 @@ export default function SchoolsPage() {
   async function handleSaveEdit(id: string) {
     setActionLoading(id);
     try {
-      await fetch('/api/schools', {
+      await authFetch('/api/schools', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ...editData }),

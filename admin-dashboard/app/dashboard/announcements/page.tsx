@@ -1,5 +1,7 @@
 'use client';
 
+import { authFetch } from '@/lib/auth-fetch';
+
 import { useState, useEffect, useCallback } from 'react';
 import {
   Megaphone, Plus, Trash2, Loader2, X, Send, Bell,
@@ -55,7 +57,7 @@ export default function AnnouncementsPage() {
   const fetchAnnouncements = useCallback(async () => {
     try {
       const params = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
-      const res = await fetch(`/api/announcements${params}`);
+      const res = await authFetch(`/api/announcements${params}`);
       const json = await res.json();
       if (json.success) setAnnouncements(json.data);
     } catch {
@@ -91,7 +93,7 @@ export default function AnnouncementsPage() {
     setSuccessMsg('');
 
     try {
-      const res = await fetch('/api/announcements', {
+      const res = await authFetch('/api/announcements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -131,7 +133,7 @@ export default function AnnouncementsPage() {
   async function handleDelete(id: string) {
     if (!confirm('Delete this announcement?')) return;
     setDeleteLoading(id);
-    await fetch('/api/announcements', {
+    await authFetch('/api/announcements', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),

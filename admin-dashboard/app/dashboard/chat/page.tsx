@@ -1,5 +1,7 @@
 'use client';
 
+import { authFetch } from '@/lib/auth-fetch';
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageCircle, Send, Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -46,7 +48,7 @@ export default function ChatPage() {
 
   const fetchConversations = useCallback(async () => {
     const params = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
-    const res = await fetch(`/api/chat${params}`);
+    const res = await authFetch(`/api/chat${params}`);
     const json = await res.json();
 
     if (json.success) {
@@ -76,7 +78,7 @@ export default function ChatPage() {
     setSelectedConv(conv);
     setMsgLoading(true);
 
-    const res = await fetch(`/api/chat?conversation_id=${conv.id}`);
+    const res = await authFetch(`/api/chat?conversation_id=${conv.id}`);
     const json = await res.json();
     setMessages(json.success ? (json.data as Message[]) : []);
     setMsgLoading(false);
@@ -109,7 +111,7 @@ export default function ChatPage() {
 
     const userId = (await supabase.auth.getUser()).data.user?.id;
 
-    const res = await fetch('/api/chat', {
+    const res = await authFetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

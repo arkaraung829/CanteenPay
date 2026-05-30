@@ -1,5 +1,7 @@
 'use client';
 
+import { authFetch } from '@/lib/auth-fetch';
+
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Store, X, Loader2 } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
@@ -178,7 +180,7 @@ export default function SellersPage() {
     }
 
     try {
-      const res = await fetch('/api/sellers', {
+      const res = await authFetch('/api/sellers', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -212,7 +214,7 @@ export default function SellersPage() {
     setEditLoading(true);
 
     try {
-      const res = await fetch('/api/sellers', {
+      const res = await authFetch('/api/sellers', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: editSeller.id }),
