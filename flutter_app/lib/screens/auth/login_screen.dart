@@ -625,13 +625,15 @@ class _LoginScreenState extends State<LoginScreen>
         ],
 
         // OTP input -- cuckoo style: centered, large font, 28px, letterSpacing 16
-        TextFormField(
+        AutofillGroup(
+          child: TextFormField(
           controller: _otpController,
           focusNode: _otpFocusNode,
           keyboardType: TextInputType.number,
           textInputAction: TextInputAction.done,
           textAlign: TextAlign.center,
           autofocus: true,
+          autofillHints: const [AutofillHints.oneTimeCode],
           enabled: !auth.isLoading,
           onFieldSubmitted: (_) => _verifyOtp(),
           onChanged: (value) {
@@ -673,6 +675,7 @@ class _LoginScreenState extends State<LoginScreen>
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           ),
+        ),
         ),
 
         const SizedBox(height: 16),
