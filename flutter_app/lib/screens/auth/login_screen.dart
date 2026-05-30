@@ -203,10 +203,14 @@ class _LoginScreenState extends State<LoginScreen>
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
-        // Auto-focus OTP field
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) _otpFocusNode.requestFocus();
-        });
+        // Auto-focus OTP field with retries (may need time after reCAPTCHA return)
+        for (final delay in [300, 600, 1000]) {
+          Future.delayed(Duration(milliseconds: delay), () {
+            if (mounted && _step == _AuthStep.otp && !_otpFocusNode.hasFocus) {
+              _otpFocusNode.requestFocus();
+            }
+          });
+        }
       }
       // Don't revert to phone step on failure -- OTP may have been sent
       // via reCAPTCHA flow. User can tap "Change Number" to go back.
