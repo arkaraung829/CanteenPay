@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { title, title_my, body: bodyText, body_my, target_audience, school_id, author_id, send_push } = body;
+    const { title, title_my, body: bodyText, body_my, target_audience, school_id, author_id, send_push, resend_only } = body;
 
     if (!title || !bodyText) {
       return Response.json({ success: false, error: 'Title and body are required' }, { status: 400 });
@@ -78,30 +78,34 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Insert announcement
-    const { data, error } = await supabase
-      .from('announcements')
-      .insert({
-        school_id: schoolId,
-        author_id: authorId,
-        title,
-        title_my: title_my || null,
-        body: bodyText,
-        body_my: body_my || null,
-        target_audience: target_audience || ['all'],
-        is_published: true,
-        published_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
+    // If resend_only, skip creating announcement — just send push
+    let data = null;
+    if (!resend_only) {
+      const { data: inserted, error } = await supabase
+        .from('announcements')
+        .insert({
+          school_id: schoolId,
+          author_id: authorId,
+          title,
+          title_my: title_my || null,
+          body: bodyText,
+          body_my: body_my || null,
+          target_audience: target_audience || ['all'],
+          is_published: true,
+          published_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-    if (error) {
-      return Response.json({ success: false, error: error.message }, { status: 500 });
+      if (error) {
+        return Response.json({ success: false, error: error.message }, { status: 500 });
+      }
+      data = inserted;
     }
 
     // Send push notification if requested
     let pushResult = null;
-    if (send_push) {
+    if (send_push || resend_only) {
       // Get school name for the notification
       let schoolName = 'School';
       const { data: school } = await supabase

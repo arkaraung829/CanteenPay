@@ -53,6 +53,7 @@ export default function AnnouncementsPage() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+  const [resendLoading, setResendLoading] = useState<string | null>(null);
 
   const fetchAnnouncements = useCallback(async () => {
     try {
@@ -128,6 +129,33 @@ export default function AnnouncementsPage() {
       setError('Network error');
     }
     setSubmitting(false);
+  }
+
+  async function handleResend(a: Announcement) {
+    if (!confirm(`Re-send push notification for "${a.title}"?`)) return;
+    setResendLoading(a.id);
+    setSuccessMsg('');
+    try {
+      const res = await authFetch('/api/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: a.title,
+          title_my: a.title_my,
+          body: a.body,
+          body_my: a.body_my,
+          target_audience: a.target_audience,
+          send_push: true,
+          resend_only: true,
+        }),
+      });
+      const json = await res.json();
+      const pushInfo = json.push;
+      setSuccessMsg(`Push re-sent to ${pushInfo?.sent || 0} users.`);
+    } catch {
+      setSuccessMsg('Failed to re-send.');
+    }
+    setResendLoading(null);
   }
 
   async function handleDelete(id: string) {
@@ -354,18 +382,32 @@ export default function AnnouncementsPage() {
                     {a.profiles?.full_name && <span>by {a.profiles.full_name}</span>}
                   </div>
                 </div>
-                <button
-                  onClick={() => handleDelete(a.id)}
-                  disabled={deleteLoading === a.id}
-                  className="shrink-0 ml-4 rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                  title="Delete"
-                >
-                  {deleteLoading === a.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
-                </button>
+                <div className="flex items-center gap-1 shrink-0 ml-4">
+                  <button
+                    onClick={() => handleResend(a)}
+                    disabled={resendLoading === a.id}
+                    className="rounded p-1.5 text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                    title="Re-send push notification"
+                  >
+                    {resendLoading === a.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Bell className="h-4 w-4" />
+                    )}
+                  </button>
+                  <button
+                    onClick={() => handleDelete(a.id)}
+                    disabled={deleteLoading === a.id}
+                    className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                    title="Delete"
+                  >
+                    {deleteLoading === a.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ))}
