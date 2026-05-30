@@ -408,13 +408,13 @@ class _ScanScreenState extends State<ScanScreen> {
             child: InkWell(
               borderRadius: BorderRadius.circular(24),
               onTap: _stopScanner,
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.close, color: Colors.white, size: 20),
-                    SizedBox(width: 6),
+                    const Icon(Icons.close, color: Colors.white, size: 20),
+                    const SizedBox(width: 6),
                     Text(
                       l10n.stopScanning,
                       style: TextStyle(
