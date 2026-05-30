@@ -465,12 +465,24 @@ class NotificationService {
 
       // Reset iOS badge count to 0
       if (Platform.isIOS) {
-        // Re-show foreground options with badge: false momentarily isn't needed;
-        // the simplest approach is to show a silent notification with badge 0
-        // or use the resolvePlatformSpecificImplementation.
-        // cancelAll() already removes delivered notifications.
-        // For the badge number, we can use a dummy local notification trick
-        // or rely on the next notification setting badge to 0.
+        final iosPlugin = _localNotifications
+            .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+        await iosPlugin?.requestPermissions(badge: true);
+        // Show and immediately cancel a notification with badge 0 to reset
+        await _localNotifications.show(
+          999999,
+          null,
+          null,
+          const NotificationDetails(
+            iOS: DarwinNotificationDetails(
+              presentAlert: false,
+              presentBadge: true,
+              presentSound: false,
+              badgeNumber: 0,
+            ),
+          ),
+        );
+        await _localNotifications.cancel(999999);
       }
 
       if (kDebugMode) {
