@@ -21,15 +21,12 @@ class _ScanScreenState extends State<ScanScreen> {
   MobileScannerController? _cameraController;
   bool _hasScanned = false;
   bool _hasLoadedSales = false;
+  bool _scannerActive = false;
   String? _scanError;
 
   @override
   void initState() {
     super.initState();
-    _cameraController = MobileScannerController(
-      detectionSpeed: DetectionSpeed.normal,
-      facing: CameraFacing.back,
-    );
   }
 
   @override
@@ -50,6 +47,29 @@ class _ScanScreenState extends State<ScanScreen> {
   void dispose() {
     _cameraController?.dispose();
     super.dispose();
+  }
+
+  void _startScanner() {
+    _cameraController?.dispose();
+    _cameraController = MobileScannerController(
+      detectionSpeed: DetectionSpeed.normal,
+      facing: CameraFacing.back,
+    );
+    setState(() {
+      _scannerActive = true;
+      _hasScanned = false;
+      _scanError = null;
+    });
+  }
+
+  void _stopScanner() {
+    _cameraController?.dispose();
+    _cameraController = null;
+    setState(() {
+      _scannerActive = false;
+      _hasScanned = false;
+      _scanError = null;
+    });
   }
 
   void _onBarcodeDetected(BarcodeCapture capture) {
@@ -74,12 +94,18 @@ class _ScanScreenState extends State<ScanScreen> {
         setState(() => _scanError = null);
         await context.push('/seller/payment-confirm');
         // Returned from payment — reset for next scan
-        _hasScanned = false;
+        if (mounted) {
+          setState(() {
+            _hasScanned = false;
+          });
+        }
       } else if (scanner.error != null) {
         HapticService.error();
-        setState(() => _scanError = scanner.error);
+        setState(() {
+          _scanError = scanner.error;
+          _hasScanned = false;
+        });
         scanner.reset();
-        _hasScanned = false; // Allow retry on error
       }
     }
   }
@@ -160,58 +186,18 @@ class _ScanScreenState extends State<ScanScreen> {
                   child: ErrorCard(
                     message: _scanError!,
                     onDismiss: () => setState(() => _scanError = null),
-                    onRetry: () => setState(() => _scanError = null),
+                    onRetry: () => setState(() {
+                      _scanError = null;
+                      _hasScanned = false;
+                    }),
                   ),
                 ),
 
-              // Scanner area
+              // Scanner area or button
               Expanded(
-                child: Stack(
-                  children: [
-                    // Camera
-                    MobileScanner(
-                      controller: _cameraController,
-                      onDetect: _onBarcodeDetected,
-                      errorBuilder: (context, error, child) {
-                        return _buildCameraError();
-                      },
-                    ),
-
-                    // Scanner overlay
-                    Center(
-                      child: Container(
-                        width: 250,
-                        height: 250,
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.8),
-                            width: 2,
-                          ),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                    ),
-
-                    // Instruction text
-                    Positioned(
-                      bottom: 100,
-                      left: 0,
-                      right: 0,
-                      child: Text(
-                        'Point camera at student QR code',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          shadows: const [
-                            Shadow(blurRadius: 8, color: Colors.black54),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                child: _scannerActive
+                    ? _buildScannerView()
+                    : _buildScanButton(),
               ),
             ],
           ),
@@ -301,6 +287,145 @@ class _ScanScreenState extends State<ScanScreen> {
 
         ],
       ),
+    );
+  }
+
+  Widget _buildScanButton() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.person,
+              size: 56,
+              color: AppTheme.primary,
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Ready to scan',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Tap the button below to start scanning\na student QR code',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              color: AppTheme.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 32),
+          FilledButton.icon(
+            onPressed: _startScanner,
+            icon: const Icon(Icons.qr_code_scanner),
+            label: const Text('Scan Student QR'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 16,
+              ),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScannerView() {
+    return Stack(
+      children: [
+        // Camera
+        MobileScanner(
+          controller: _cameraController,
+          onDetect: _onBarcodeDetected,
+          errorBuilder: (context, error, child) {
+            return _buildCameraError();
+          },
+        ),
+
+        // Scanner overlay
+        Center(
+          child: Container(
+            width: 250,
+            height: 250,
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.8),
+                width: 2,
+              ),
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        ),
+
+        // Instruction text
+        Positioned(
+          bottom: 100,
+          left: 0,
+          right: 0,
+          child: Text(
+            'Point camera at student QR code',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              shadows: const [
+                Shadow(blurRadius: 8, color: Colors.black54),
+              ],
+            ),
+          ),
+        ),
+
+        // Stop scanning button
+        Positioned(
+          top: 12,
+          right: 12,
+          child: Material(
+            color: Colors.black54,
+            borderRadius: BorderRadius.circular(24),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: _stopScanner,
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.close, color: Colors.white, size: 20),
+                    SizedBox(width: 6),
+                    Text(
+                      'Stop Scanning',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

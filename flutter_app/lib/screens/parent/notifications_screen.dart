@@ -26,6 +26,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadAnnouncements();
+    // Clear app icon badge when user opens notifications screen
+    NotificationService.instance.clearBadge();
   }
 
   @override

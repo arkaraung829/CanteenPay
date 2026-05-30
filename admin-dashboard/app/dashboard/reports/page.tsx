@@ -21,11 +21,28 @@ interface TopSeller {
   percentage: number;
 }
 
+interface SellerDailySale {
+  name: string;
+  sales: number;
+  count: number;
+}
+
+/** Format a Date as YYYY-MM-DD using local timezone */
+function toLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function ReportsPage() {
   const { selectedSchoolId } = useSchoolContext();
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
   const [topSellers, setTopSellers] = useState<TopSeller[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Seller Daily Sales state
+  const [sellerDailyDate, setSellerDailyDate] = useState(() => toLocalDateStr(new Date()));
+  const [sellerDailySales, setSellerDailySales] = useState<SellerDailySale[]>([]);
+  const [sellerDailyLoading, setSellerDailyLoading] = useState(false);
+  const [sellerDailyTotal, setSellerDailyTotal] = useState(0);
 
   useEffect(() => {
     async function fetchReports() {
@@ -37,7 +54,7 @@ export default function ReportsPage() {
       for (let i = 6; i >= 0; i--) {
         const d = new Date(now);
         d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
+        const dateStr = toLocalDateStr(d);
         days.push({
           day: dayNames[d.getDay()],
           date: dateStr,
@@ -46,8 +63,11 @@ export default function ReportsPage() {
         });
       }
 
-      const weekStart = days[0].date + 'T00:00:00';
-      const weekEnd = days[days.length - 1].date + 'T23:59:59';
+      // Convert local date boundaries to UTC for Supabase query
+      const weekStartLocal = new Date(`${days[0].date}T00:00:00`);
+      const weekEndLocal = new Date(`${days[days.length - 1].date}T23:59:59`);
+      const weekStart = weekStartLocal.toISOString();
+      const weekEnd = weekEndLocal.toISOString();
 
       // Fetch all transactions for the week
       const { data: txData } = await supabase
@@ -67,10 +87,10 @@ export default function ReportsPage() {
         });
       }
 
-      // Group by day
+      // Group by day (convert UTC created_at to local date for correct grouping)
       transactions.forEach((tx: Record<string, unknown>) => {
-        const txDate = (tx.created_at as string).split('T')[0];
-        const dayEntry = days.find(d => d.date === txDate);
+        const txLocalDate = toLocalDateStr(new Date(tx.created_at as string));
+        const dayEntry = days.find(d => d.date === txLocalDate);
         if (dayEntry) {
           if (tx.type === 'deposit') {
             dayEntry.deposits += tx.amount as number;
@@ -82,10 +102,10 @@ export default function ReportsPage() {
 
       setDailyData(days);
 
-      // Top sellers today
-      const todayStr = now.toISOString().split('T')[0];
+      // Top sellers today (use local date)
+      const todayStr = toLocalDateStr(now);
       const todayTx = transactions.filter((tx: Record<string, unknown>) =>
-        (tx.created_at as string).startsWith(todayStr) && tx.type === 'purchase' && tx.seller_id
+        toLocalDateStr(new Date(tx.created_at as string)) === todayStr && tx.type === 'purchase' && tx.seller_id
       );
 
       // Group by seller
@@ -133,6 +153,83 @@ export default function ReportsPage() {
 
     fetchReports();
   }, [selectedSchoolId]);
+
+  // Fetch seller daily sales for settlement
+  useEffect(() => {
+    async function fetchSellerDailySales() {
+      setSellerDailyLoading(true);
+      try {
+        // Convert local date to UTC range
+        const dayStartLocal = new Date(`${sellerDailyDate}T00:00:00`);
+        const dayEndLocal = new Date(`${sellerDailyDate}T23:59:59`);
+        const dayStartUTC = dayStartLocal.toISOString();
+        const dayEndUTC = dayEndLocal.toISOString();
+
+        const { data: txData } = await supabase
+          .from('transactions')
+          .select('type, amount, created_at, seller_id, wallet:wallets(student:students(school_id))')
+          .eq('type', 'purchase')
+          .gte('created_at', dayStartUTC)
+          .lte('created_at', dayEndUTC);
+
+        let transactions = txData || [];
+
+        // Filter by school
+        if (selectedSchoolId) {
+          transactions = transactions.filter((tx: Record<string, unknown>) => {
+            const wallet = tx.wallet as Record<string, unknown> | null;
+            const student = wallet?.student as Record<string, unknown> | null;
+            return student?.school_id === selectedSchoolId;
+          });
+        }
+
+        // Group by seller
+        const sellerSales: Record<string, { total: number; count: number }> = {};
+        transactions.forEach((tx: Record<string, unknown>) => {
+          const sid = tx.seller_id as string;
+          if (!sid) return;
+          if (!sellerSales[sid]) sellerSales[sid] = { total: 0, count: 0 };
+          sellerSales[sid].total += tx.amount as number;
+          sellerSales[sid].count += 1;
+        });
+
+        // Fetch seller names
+        const sellerIds = Object.keys(sellerSales);
+        let sellerNames: Record<string, string> = {};
+
+        if (sellerIds.length > 0) {
+          let sellersQuery = supabase
+            .from('canteen_sellers')
+            .select('id, stall_name')
+            .in('id', sellerIds);
+          if (selectedSchoolId) {
+            sellersQuery = sellersQuery.eq('school_id', selectedSchoolId);
+          }
+          const { data: sellersData } = await sellersQuery;
+
+          (sellersData || []).forEach((s: Record<string, unknown>) => {
+            sellerNames[s.id as string] = s.stall_name as string;
+          });
+        }
+
+        const salesList: SellerDailySale[] = Object.entries(sellerSales)
+          .map(([id, data]) => ({
+            name: sellerNames[id] || 'Unknown',
+            sales: data.total,
+            count: data.count,
+          }))
+          .sort((a, b) => b.sales - a.sales);
+
+        setSellerDailySales(salesList);
+        setSellerDailyTotal(salesList.reduce((sum, s) => sum + s.sales, 0));
+      } catch (e) {
+        console.error('Error fetching seller daily sales:', e);
+      }
+      setSellerDailyLoading(false);
+    }
+
+    fetchSellerDailySales();
+  }, [sellerDailyDate, selectedSchoolId]);
 
   const totalDeposits = dailyData.reduce((sum, d) => sum + d.deposits, 0);
   const totalPurchases = dailyData.reduce((sum, d) => sum + d.purchases, 0);
@@ -273,6 +370,68 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Seller Daily Sales - for settlement */}
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900">Seller Daily Sales</h3>
+            <p className="text-xs text-gray-500 mt-0.5">For daily settlement with each seller</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {sellerDailySales.length > 0 && (
+              <span className="text-sm font-medium text-gray-700">
+                Total: {formatMMK(sellerDailyTotal)}
+              </span>
+            )}
+            <input
+              type="date"
+              value={sellerDailyDate}
+              onChange={(e) => setSellerDailyDate(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {sellerDailyLoading ? (
+          <div className="py-8 text-center">
+            <svg className="mx-auto h-6 w-6 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          </div>
+        ) : sellerDailySales.length === 0 ? (
+          <p className="py-8 text-center text-sm text-gray-400">No sales data for this date</p>
+        ) : (
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">#</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Seller</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">No. of Sales</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Total Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {sellerDailySales.map((seller, i) => (
+                  <tr key={seller.name} className="hover:bg-gray-50">
+                    <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-400">{i + 1}</td>
+                    <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{seller.name}</td>
+                    <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-600 text-right">{seller.count}</td>
+                    <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900 text-right">{formatMMK(seller.sales)}</td>
+                  </tr>
+                ))}
+                <tr className="bg-gray-50 font-medium">
+                  <td className="px-6 py-3 text-sm text-gray-500" colSpan={2}>Total</td>
+                  <td className="px-6 py-3 text-sm text-gray-700 text-right">{sellerDailySales.reduce((s, x) => s + x.count, 0)}</td>
+                  <td className="px-6 py-3 text-sm font-semibold text-gray-900 text-right">{formatMMK(sellerDailyTotal)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

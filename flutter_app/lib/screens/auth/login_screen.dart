@@ -102,8 +102,17 @@ class _LoginScreenState extends State<LoginScreen>
             return;
           }
         }
+      } else if (!authenticated && mounted) {
+        // Biometric cancelled or failed — sign out so the router doesn't
+        // auto-redirect away from the login screen.
+        await Supabase.instance.client.auth.signOut();
       }
-    } catch (_) {}
+    } catch (_) {
+      // Biometric error — also sign out to prevent auto-login
+      if (mounted) {
+        try { await Supabase.instance.client.auth.signOut(); } catch (_) {}
+      }
+    }
 
     if (mounted) setState(() => _checkingBiometric = false);
   }

@@ -61,6 +61,10 @@ class NotificationProvider extends ChangeNotifier {
       if (index != -1) {
         _notifications[index] = _notifications[index].copyWith(isRead: true);
         _unreadCount = _notifications.where((n) => !n.isRead).length;
+        // Clear badge when all notifications have been read
+        if (_unreadCount == 0) {
+          await NotificationService.instance.clearBadge();
+        }
         notifyListeners();
       }
     } catch (e) {
@@ -77,6 +81,8 @@ class NotificationProvider extends ChangeNotifier {
       _notifications =
           _notifications.map((n) => n.copyWith(isRead: true)).toList();
       _unreadCount = 0;
+      // Clear the app icon badge
+      await NotificationService.instance.clearBadge();
       notifyListeners();
     } catch (e) {
       if (kDebugMode) {

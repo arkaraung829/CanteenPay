@@ -26,7 +26,10 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split('T')[0]);
+  const [dateFilter, setDateFilter] = useState(() => {
+    const today = new Date();
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  });
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const PAGE_SIZE = 20;
@@ -61,9 +64,13 @@ export default function TransactionsPage() {
     }
 
     if (dateFilter) {
-      const dayStart = `${dateFilter}T00:00:00`;
-      const dayEnd = `${dateFilter}T23:59:59`;
-      query = query.gte('created_at', dayStart).lte('created_at', dayEnd);
+      // Convert local date boundaries to UTC for querying UTC timestamps.
+      // Myanmar timezone is UTC+6:30, so local midnight = previous day 17:30 UTC.
+      const localStart = new Date(`${dateFilter}T00:00:00`);
+      const localEnd = new Date(`${dateFilter}T23:59:59`);
+      const dayStartUTC = localStart.toISOString();
+      const dayEndUTC = localEnd.toISOString();
+      query = query.gte('created_at', dayStartUTC).lte('created_at', dayEndUTC);
     }
 
     const { data, error } = await query;
