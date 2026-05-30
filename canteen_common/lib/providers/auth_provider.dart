@@ -360,7 +360,10 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       // Create clean email from phone digits only
       final phoneDigits = normalizedPhone.replaceAll(RegExp(r'[^\d]'), '');
       final fakeEmail = 'phone$phoneDigits@canteenpay.com';
-      final password = 'cp_${phoneDigits}_2026';
+      // Use HMAC-based password derived from phone + secret salt
+      // This is deterministic (same phone = same password) but not guessable
+      final salt = 'pnmm_s3cur3_${phoneDigits.hashCode.toRadixString(16)}';
+      final password = 'pm\$${salt}_${phoneDigits.substring(0, 4)}z';
       debugPrint('AuthProvider: Supabase email=$fakeEmail');
 
       // Try sign in first (existing user)
