@@ -19,6 +19,7 @@ import 'providers/student_provider.dart';
 import 'providers/locale_provider.dart';
 import 'router.dart';
 import 'screens/auth/onboarding_screen.dart';
+import 'screens/parent/notifications_screen.dart';
 import 'widgets/session_wrapper.dart';
 
 // ---------------------------------------------------------------------------
@@ -224,6 +225,9 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
                 router.go('/parent/child/$studentId');
               } else if (type == 'low_balance') {
                 router.go('/parent/alerts');
+              } else if (type == 'announcement') {
+                NotificationsScreen.openAnnouncements = true;
+                router.go('/parent/notifications');
               } else {
                 router.go('/parent/notifications');
               }

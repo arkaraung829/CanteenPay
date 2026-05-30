@@ -9,6 +9,9 @@ import '../../widgets/animated_fade_in.dart';
 
 /// Notification list screen with tabs for Notifications and Announcements.
 class NotificationsScreen extends StatefulWidget {
+  /// Set to true to open on the Announcements tab
+  static bool openAnnouncements = false;
+
   const NotificationsScreen({super.key});
 
   @override
@@ -24,7 +27,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    final initialTab = NotificationsScreen.openAnnouncements ? 1 : 0;
+    NotificationsScreen.openAnnouncements = false;
+    _tabController = TabController(length: 2, vsync: this, initialIndex: initialTab);
     _loadAnnouncements();
     // Clear app icon badge when user opens notifications screen
     NotificationService.instance.clearBadge();
@@ -111,6 +116,14 @@ class _NotificationsScreenState extends State<NotificationsScreen>
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+  }
+
+  String _formatDate(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final hour = local.hour > 12 ? local.hour - 12 : (local.hour == 0 ? 12 : local.hour);
+    final amPm = local.hour >= 12 ? 'PM' : 'AM';
+    return '${months[local.month - 1]} ${local.day}, ${local.year} · $hour:${local.minute.toString().padLeft(2, '0')} $amPm';
   }
 
   @override
@@ -461,7 +474,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                         Text(
                           [
                             if (schoolName != null) schoolName,
-                            if (date != null) _timeAgo(date),
+                            if (date != null) _formatDate(date),
                           ].join(' · '),
                           style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                           overflow: TextOverflow.ellipsis,
