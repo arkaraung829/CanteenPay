@@ -62,10 +62,11 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // When app resumes from reCAPTCHA browser, auto-focus OTP field
-    if (state == AppLifecycleState.resumed && _step == 1) {
+    if (state == AppLifecycleState.resumed && _step == _AuthStep.otp) {
       Future.delayed(const Duration(milliseconds: 500), () {
-        if (mounted && _step == 1) {
+        if (mounted && _step == _AuthStep.otp) {
           _otpFocusNode.requestFocus();
+          SystemChannels.textInput.invokeMethod('TextInput.show');
         }
       });
     }
@@ -187,6 +188,10 @@ class _LoginScreenState extends State<LoginScreen>
     _otpController.clear();
     setState(() => _step = _AuthStep.otp);
     _startResendCooldown();
+    // Force keyboard open after frame renders
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _otpFocusNode.requestFocus();
+    });
 
     final auth = context.read<AuthProvider>();
     final success = await auth.signInWithPhone(_rawPhone, country: _selectedCountry);
@@ -203,14 +208,14 @@ class _LoginScreenState extends State<LoginScreen>
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           ),
         );
-        // Auto-focus OTP field with retries (may need time after reCAPTCHA return)
-        for (final delay in [300, 600, 1000]) {
-          Future.delayed(Duration(milliseconds: delay), () {
-            if (mounted && _step == _AuthStep.otp && !_otpFocusNode.hasFocus) {
-              _otpFocusNode.requestFocus();
-            }
-          });
-        }
+        // Auto-focus OTP field and force keyboard open
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted && _step == _AuthStep.otp) {
+            _otpFocusNode.requestFocus();
+            // Force iOS keyboard to show
+            SystemChannels.textInput.invokeMethod('TextInput.show');
+          }
+        });
       }
       // Don't revert to phone step on failure -- OTP may have been sent
       // via reCAPTCHA flow. User can tap "Change Number" to go back.
