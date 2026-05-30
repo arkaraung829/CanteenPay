@@ -116,21 +116,7 @@ export default function Home() {
         </form>
 
         <p className="mt-6 text-center text-xs text-gray-400">
-          {mode === 'login' ? (
-            <>
-              Need an account?{' '}
-              <button onClick={() => { setMode('signup'); setError(''); }} className="text-blue-600 hover:underline">
-                Sign up
-              </button>
-            </>
-          ) : (
-            <>
-              Already have an account?{' '}
-              <button onClick={() => { setMode('login'); setError(''); }} className="text-blue-600 hover:underline">
-                Sign in
-              </button>
-            </>
-          )}
+          Contact your administrator for account access.
         </p>
       </div>
     </div>

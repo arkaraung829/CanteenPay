@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Search, Banknote, CheckCircle } from 'lucide-react';
 import { formatMMK, type Student } from '@/lib/types';
+import { authFetch } from '@/lib/auth-fetch';
 import { supabase } from '@/lib/supabase';
 
 const QUICK_AMOUNTS = [2000, 5000, 10000, 20000, 50000];
@@ -92,70 +93,27 @@ export default function DepositForm({ schoolId }: { schoolId?: string | null }) 
 
     const depositAmount = parseInt(amount);
 
-    // Get current user for performed_by
-    const { data: { user } } = await supabase.auth.getUser();
-
-    // Try RPC first, fall back to direct insert
-    const { data: rpcData, error: rpcError } = await supabase.rpc('process_deposit', {
-      p_student_id: selectedStudent.id,
-      p_amount: depositAmount,
-      p_staff_profile_id: user?.id || null,
-    });
-
-    if (rpcError) {
-      // RPC may not exist; fall back to manual wallet update + transaction insert
-      if (rpcError.message.includes('function') || rpcError.code === '42883') {
-        // Manual deposit: update wallet balance and create transaction
-        const walletId = selectedStudent.wallet?.id;
-        if (!walletId) {
-          setDepositError('Student has no wallet. Please contact support.');
-          setDepositLoading(false);
-          return;
-        }
-
-        const currentBalance = selectedStudent.wallet?.balance || 0;
-        const newBalance = currentBalance + depositAmount;
-
-        const { error: updateError } = await supabase
-          .from('wallets')
-          .update({ balance: newBalance })
-          .eq('id', walletId);
-
-        if (updateError) {
-          setDepositError(updateError.message);
-          setDepositLoading(false);
-          return;
-        }
-
-        const { error: txError } = await supabase
-          .from('transactions')
-          .insert({
-            wallet_id: walletId,
-            type: 'deposit',
-            amount: depositAmount,
-            balance_before: currentBalance,
-            balance_after: newBalance,
-            description: note || `Cash deposit (${paymentMethod})`,
-            performed_by: user?.id || null,
-            metadata: { payment_method: paymentMethod },
-          });
-
-        if (txError) {
-          // Rollback wallet
-          await supabase.from('wallets').update({ balance: currentBalance }).eq('id', walletId);
-          setDepositError(txError.message);
-          setDepositLoading(false);
-          return;
-        }
-
-        const ref = `RC-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-        setReceipt({ ref, newBalance });
-        setShowSuccess(true);
+    // Use API route for deposit (bypasses RLS via admin client)
+    try {
+      const res = await authFetch('/api/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: selectedStudent.id,
+          amount: depositAmount,
+          note: note || `Cash deposit (${paymentMethod})`,
+        }),
+      });
+      const result = await res.json();
+      if (!result.success) {
+        setDepositError(result.error || 'Deposit failed');
         setDepositLoading(false);
         return;
       }
-
-      setDepositError(rpcError.message);
+      // Use rpcData from result
+      var rpcData = result.data;
+    } catch (e) {
+      setDepositError('Network error. Please try again.');
       setDepositLoading(false);
       return;
     }
