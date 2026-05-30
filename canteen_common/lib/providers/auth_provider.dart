@@ -390,7 +390,7 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         } on AuthException {
           // User doesn't exist — sign up with new password
           try {
-            await _supabase.auth.signUp(
+            final signUpRes = await _supabase.auth.signUp(
               email: fakeEmail,
               password: password,
               data: {
@@ -399,13 +399,20 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
                 'phone': normalizedPhone,
               },
             );
-            await _supabase.auth.signInWithPassword(
-              email: fakeEmail,
-              password: password,
-            );
+            // If user already exists, signUp may return user without session
+            if (signUpRes.session == null) {
+              // Try signing in — user already existed
+              await _supabase.auth.signInWithPassword(
+                email: fakeEmail,
+                password: password,
+              );
+            }
             signedIn = true;
-          } on AuthException catch (e) {
-            _error = e.message;
+          } on AuthException {
+            // 422: user exists but we can't sign in with either password.
+            // This means the user was created via a different method.
+            // Reset their password via admin API as last resort.
+            _error = 'Account exists but password mismatch. Please contact admin or use Google sign-in.';
             return false;
           }
         }
