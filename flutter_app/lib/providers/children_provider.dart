@@ -8,6 +8,7 @@ class ChildrenProvider extends ChangeNotifier {
   List<StudentModel> _children = [];
   final Map<String, WalletModel> _wallets = {};
   final Map<String, List<TransactionModel>> _transactions = {};
+  final Map<String, List<AttendanceModel>> _attendance = {};
   bool _isLoading = false;
   String? _error;
   RealtimeChannel? _realtimeChannel;
@@ -62,9 +63,10 @@ class ChildrenProvider extends ChangeNotifier {
         }
       }
 
-      // Load recent transactions for each child
+      // Load recent transactions and attendance for each child
       for (final child in _children) {
         await _loadChildTransactions(child.id);
+        await _loadChildAttendance(child.id);
       }
 
       // Subscribe to realtime wallet updates
@@ -92,6 +94,27 @@ class ChildrenProvider extends ChangeNotifier {
     } catch (e) {
       debugPrint('ChildrenProvider: failed to load transactions for $childId: $e');
     }
+  }
+
+  /// Load attendance for a specific child (last 3 months).
+  Future<void> _loadChildAttendance(String childId) async {
+    try {
+      final now = DateTime.now();
+      final from = DateTime(now.year, now.month - 3, now.day);
+      final records = await SupabaseService.instance.getAttendanceForStudent(
+        childId,
+        from: from,
+        to: now,
+      );
+      _attendance[childId] = records;
+    } catch (e) {
+      debugPrint('ChildrenProvider: failed to load attendance for $childId: $e');
+    }
+  }
+
+  /// Get attendance records for a child.
+  List<AttendanceModel> getAttendance(String childId) {
+    return _attendance[childId] ?? [];
   }
 
   /// Subscribe to realtime wallet balance updates.

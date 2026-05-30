@@ -8,6 +8,7 @@ import SchoolSelector from '@/components/SchoolSelector';
 import {
   LayoutDashboard,
   Users,
+  ClipboardCheck,
   Banknote,
   ArrowLeftRight,
   Store,
@@ -22,6 +23,7 @@ import {
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Students', href: '/dashboard/students', icon: Users },
+  { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardCheck },
   { name: 'Deposits', href: '/dashboard/deposits', icon: Banknote },
   { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowLeftRight },
   { name: 'Sellers', href: '/dashboard/sellers', icon: Store },

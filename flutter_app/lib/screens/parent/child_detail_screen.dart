@@ -6,6 +6,7 @@ import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/children_provider.dart';
 import '../../widgets/spending_chart.dart';
+import '../../widgets/attendance_calendar.dart';
 import '../../widgets/shimmer_loading.dart';
 import '../../widgets/animated_fade_in.dart';
 
@@ -23,6 +24,7 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
   String get childId => widget.childId;
   bool _hasRefreshed = false;
   int _weekOffset = 0; // 0 = this week, -1 = last week, etc.
+  late DateTime _attendanceMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   @override
   void didChangeDependencies() {
@@ -78,6 +80,25 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
     final wallet = provider.walletForChild(childId);
     final transactions = provider.getChildTransactions(childId);
     final weeklySpending = provider.getWeeklySpending(childId);
+    final attendanceRecords = provider.getAttendance(childId);
+
+    // Build attendance map for calendar (date -> status)
+    final attendanceMap = <DateTime, String>{};
+    for (final record in attendanceRecords) {
+      final key = DateTime(record.date.year, record.date.month, record.date.day);
+      attendanceMap[key] = record.status;
+    }
+
+    // Current month attendance stats
+    final currentMonthAttendance = attendanceRecords.where((r) {
+      return r.date.year == _attendanceMonth.year &&
+          r.date.month == _attendanceMonth.month;
+    }).toList();
+    final presentCount = currentMonthAttendance.where((r) => r.status == 'present').length;
+    final absentCount = currentMonthAttendance.where((r) => r.status == 'absent').length;
+    final lateCount = currentMonthAttendance.where((r) => r.status == 'late').length;
+    final totalRecorded = currentMonthAttendance.length;
+    final presentPercent = totalRecorded > 0 ? (presentCount * 100 / totalRecorded).round() : 0;
 
     // Today's transactions only (convert UTC to local for comparison)
     final now = DateTime.now();
@@ -257,6 +278,46 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
                   weekOffset: _weekOffset,
                 ),
               ),
+            ),
+            const SizedBox(height: 24),
+
+            // -- Attendance Summary --
+            const Text(
+              'Attendance',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _QuickStat(
+                  icon: Icons.check_circle_outline,
+                  label: 'Present',
+                  value: '$presentPercent%',
+                  color: AppTheme.success,
+                ),
+                const SizedBox(width: 12),
+                _QuickStat(
+                  icon: Icons.cancel_outlined,
+                  label: 'Absent',
+                  value: '$absentCount',
+                  color: AppTheme.error,
+                ),
+                const SizedBox(width: 12),
+                _QuickStat(
+                  icon: Icons.schedule,
+                  label: 'Late',
+                  value: '$lateCount',
+                  color: Colors.orange,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // -- Attendance Calendar --
+            AttendanceCalendar(
+              attendanceMap: attendanceMap,
+              selectedMonth: _attendanceMonth,
+              onMonthChanged: (month) => setState(() => _attendanceMonth = month),
             ),
             const SizedBox(height: 24),
 

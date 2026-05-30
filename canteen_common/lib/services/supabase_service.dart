@@ -11,6 +11,7 @@ import '../models/student_model.dart';
 import '../models/wallet_model.dart';
 import '../models/transaction_model.dart';
 import '../models/parent_student_link_model.dart';
+import '../models/attendance_model.dart';
 import 'offline_cache_service.dart';
 import 'connectivity_service.dart';
 
@@ -242,6 +243,32 @@ class SupabaseService {
     } catch (e) {
       debugPrint('SupabaseService: updateDailySpendingLimit failed: $e');
       rethrow;
+    }
+  }
+
+  // ============================================================================
+  // ATTENDANCE
+  // ============================================================================
+
+  /// Get attendance records for a student, optionally filtered by date range.
+  Future<List<AttendanceModel>> getAttendanceForStudent(
+    String studentId, {
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    try {
+      var query = _client.from('attendance').select().eq('student_id', studentId);
+      if (from != null) {
+        query = query.gte('date', from.toIso8601String().split('T')[0]);
+      }
+      if (to != null) {
+        query = query.lte('date', to.toIso8601String().split('T')[0]);
+      }
+      final data = await query.order('date', ascending: false);
+      return (data as List).map((e) => AttendanceModel.fromJson(e)).toList();
+    } catch (e) {
+      debugPrint('SupabaseService: getAttendanceForStudent failed: $e');
+      return [];
     }
   }
 
