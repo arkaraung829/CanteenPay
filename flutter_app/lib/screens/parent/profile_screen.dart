@@ -105,6 +105,7 @@ class ProfileScreen extends StatelessWidget {
               )
             else
               ...children.map((child) {
+                final wallet = context.watch<ChildrenProvider>().walletForChild(child.id);
                 return Container(
                   margin: const EdgeInsets.only(bottom: 8),
                   decoration: BoxDecoration(
@@ -113,7 +114,7 @@ class ProfileScreen extends StatelessWidget {
                     boxShadow: AppTheme.shadowSm,
                   ),
                   child: ListTile(
-                    onTap: () => context.push('/parent/child/${child.id}'),
+                    onTap: () => _showChildInfo(context, child, wallet),
                     shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(AppTheme.radiusMd),
@@ -131,7 +132,14 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     title: Text(child.displayName),
                     subtitle: Text(child.gradeAndClass),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: Text(
+                      wallet?.formattedBalance ?? '0 MMK',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.primary,
+                      ),
+                    ),
                   ),
                 );
               }),
@@ -210,6 +218,116 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  void _showChildInfo(BuildContext context, StudentModel child, WalletModel? wallet) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Handle
+            Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+            ),
+            const SizedBox(height: 20),
+
+            // Avatar + name
+            CircleAvatar(
+              radius: 32,
+              backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+              backgroundImage: child.photoUrl != null && child.photoUrl!.isNotEmpty
+                  ? NetworkImage(child.photoUrl!) : null,
+              child: child.photoUrl == null || child.photoUrl!.isEmpty
+                  ? Text(child.displayName[0], style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primary))
+                  : null,
+            ),
+            const SizedBox(height: 12),
+            Text(child.displayName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+            if (child.fullNameMy != null && child.fullNameMy!.isNotEmpty)
+              Text(child.fullNameMy!, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+            const SizedBox(height: 20),
+
+            // Info rows
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                children: [
+                  _infoRow(Icons.badge_outlined, 'Student Code', child.studentCode),
+                  const Divider(height: 20),
+                  _infoRow(Icons.school_outlined, 'Grade & Class', child.gradeAndClass),
+                  if (child.schoolName != null) ...[
+                    const Divider(height: 20),
+                    _infoRow(Icons.location_city_outlined, 'School', child.schoolName!),
+                  ],
+                  const Divider(height: 20),
+                  _infoRow(
+                    Icons.account_balance_wallet_outlined,
+                    'Balance',
+                    wallet?.formattedBalance ?? '0 MMK',
+                    valueColor: AppTheme.primary,
+                  ),
+                  if (child.dailySpendingLimit != null) ...[
+                    const Divider(height: 20),
+                    _infoRow(Icons.tune, 'Daily Limit', '${child.dailySpendingLimit} MMK'),
+                  ],
+                  if (child.pinCode != null) ...[
+                    const Divider(height: 20),
+                    _infoRow(Icons.pin_outlined, 'PIN Code', child.pinCode!),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // View details button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  context.push('/parent/child/${child.id}');
+                },
+                icon: const Icon(Icons.visibility_outlined, size: 18),
+                label: const Text('View Details & History'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(IconData icon, String label, String value, {Color? valueColor}) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: Colors.grey[500]),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+        ),
+        Text(
+          value,
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: valueColor ?? Colors.black87),
+        ),
+      ],
     );
   }
 }
