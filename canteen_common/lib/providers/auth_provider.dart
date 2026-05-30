@@ -360,34 +360,60 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       // Create clean email from phone digits only
       final phoneDigits = normalizedPhone.replaceAll(RegExp(r'[^\d]'), '');
       final fakeEmail = 'phone$phoneDigits@canteenpay.com';
-      // Use HMAC-based password derived from phone + secret salt
-      // This is deterministic (same phone = same password) but not guessable
+      // New password format (secure)
       final salt = 'pnmm_s3cur3_${phoneDigits.hashCode.toRadixString(16)}';
       final password = 'pm\$${salt}_${phoneDigits.substring(0, 4)}z';
+      // Legacy password format (for existing users)
+      final legacyPassword = 'cp_${phoneDigits}_2026';
       debugPrint('AuthProvider: Supabase email=$fakeEmail');
 
-      // Try sign in first (existing user)
+      // Try sign in with new password first
+      bool signedIn = false;
       try {
         await _supabase.auth.signInWithPassword(
           email: fakeEmail,
           password: password,
         );
+        signedIn = true;
       } on AuthException {
-        // User doesn't exist — sign up
-        await _supabase.auth.signUp(
-          email: fakeEmail,
-          password: password,
-          data: {
-            'full_name': fullName ?? 'User',
-            'role': role ?? 'parent',
-            'phone': normalizedPhone,
-          },
-        );
-        // Sign in after signup to establish session
-        await _supabase.auth.signInWithPassword(
-          email: fakeEmail,
-          password: password,
-        );
+        // Try legacy password for existing users
+        try {
+          await _supabase.auth.signInWithPassword(
+            email: fakeEmail,
+            password: legacyPassword,
+          );
+          signedIn = true;
+          // Migrate to new password
+          try {
+            await _supabase.auth.updateUser(UserAttributes(password: password));
+          } catch (_) {}
+        } on AuthException {
+          // User doesn't exist — sign up with new password
+          try {
+            await _supabase.auth.signUp(
+              email: fakeEmail,
+              password: password,
+              data: {
+                'full_name': fullName ?? 'User',
+                'role': role ?? 'parent',
+                'phone': normalizedPhone,
+              },
+            );
+            await _supabase.auth.signInWithPassword(
+              email: fakeEmail,
+              password: password,
+            );
+            signedIn = true;
+          } on AuthException catch (e) {
+            _error = e.message;
+            return false;
+          }
+        }
+      }
+
+      if (!signedIn) {
+        _error = 'Failed to sign in. Please try again.';
+        return false;
       }
 
       // 3. Update profile with phone number and metadata
