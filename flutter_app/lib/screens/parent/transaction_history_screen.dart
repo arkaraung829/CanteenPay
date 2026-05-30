@@ -38,12 +38,13 @@ class TransactionHistoryScreen extends StatelessWidget {
     // Today's total spent
     final now = DateTime.now();
     final todaySpent = transactions
-        .where((tx) =>
-            tx.isDebit &&
-            tx.createdAt != null &&
-            tx.createdAt!.year == now.year &&
-            tx.createdAt!.month == now.month &&
-            tx.createdAt!.day == now.day)
+        .where((tx) {
+          if (!tx.isDebit || tx.createdAt == null) return false;
+          final local = tx.createdAt!.toLocal();
+          return local.year == now.year &&
+              local.month == now.month &&
+              local.day == now.day;
+        })
         .fold<int>(0, (sum, tx) => sum + tx.amount);
 
     return Scaffold(

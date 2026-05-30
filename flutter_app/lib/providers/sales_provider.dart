@@ -28,13 +28,15 @@ class SalesProvider extends ChangeNotifier {
     try {
       final now = DateTime.now();
       final todayStart = DateTime(now.year, now.month, now.day);
+      // Convert local midnight to UTC for Supabase query
+      final todayStartUtc = todayStart.toUtc().toIso8601String();
 
       final response = await Supabase.instance.client
           .from('transactions')
           .select()
           .eq('performed_by', sellerId)
           .eq('type', 'purchase')
-          .gte('created_at', todayStart.toIso8601String())
+          .gte('created_at', todayStartUtc)
           .order('created_at', ascending: false);
 
       _todaySales.clear();
@@ -74,12 +76,13 @@ class SalesProvider extends ChangeNotifier {
             callback: (payload) {
               try {
                 final newTx = TransactionModel.fromJson(payload.newRecord);
-                // Only add if it's from today and not already in the list
+                // Only add if it's from today (local time) and not already in the list
                 final now = DateTime.now();
-                final isToday = newTx.createdAt != null &&
-                    newTx.createdAt!.year == now.year &&
-                    newTx.createdAt!.month == now.month &&
-                    newTx.createdAt!.day == now.day;
+                final local = newTx.createdAt?.toLocal();
+                final isToday = local != null &&
+                    local.year == now.year &&
+                    local.month == now.month &&
+                    local.day == now.day;
                 final alreadyExists = _todaySales.any((tx) => tx.id == newTx.id);
                 if (isToday && !alreadyExists) {
                   _todaySales.insert(0, newTx);

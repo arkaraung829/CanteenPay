@@ -121,16 +121,17 @@ class StudentProvider extends ChangeNotifier {
     }
   }
 
-  /// Get total spent today.
+  /// Get total spent today (using local time for Myanmar UTC+6:30).
   int get totalSpentToday {
-    final today = DateTime.now();
+    final now = DateTime.now();
     return _recentTransactions
-        .where((t) =>
-            t.isDebit &&
-            t.createdAt != null &&
-            t.createdAt!.year == today.year &&
-            t.createdAt!.month == today.month &&
-            t.createdAt!.day == today.day)
+        .where((t) {
+          if (!t.isDebit || t.createdAt == null) return false;
+          final local = t.createdAt!.toLocal();
+          return local.year == now.year &&
+              local.month == now.month &&
+              local.day == now.day;
+        })
         .fold(0, (sum, t) => sum + t.amount);
   }
 

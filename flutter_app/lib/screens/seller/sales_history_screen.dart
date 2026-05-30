@@ -42,14 +42,17 @@ class _SalesHistoryScreenState extends State<SalesHistoryScreen> {
     try {
       final dayStart = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final dayEnd = dayStart.add(const Duration(days: 1));
+      // Convert local times to UTC for Supabase query
+      final dayStartUtc = dayStart.toUtc().toIso8601String();
+      final dayEndUtc = dayEnd.toUtc().toIso8601String();
 
       final response = await Supabase.instance.client
           .from('transactions')
           .select()
           .eq('performed_by', auth.user!.id)
           .eq('type', 'purchase')
-          .gte('created_at', dayStart.toIso8601String())
-          .lt('created_at', dayEnd.toIso8601String())
+          .gte('created_at', dayStartUtc)
+          .lt('created_at', dayEndUtc)
           .order('created_at', ascending: false);
 
       _sales = (response as List)

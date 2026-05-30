@@ -42,7 +42,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     final days = _period == _Period.week ? 7 : 30;
     final since = DateTime.now().subtract(Duration(days: days));
-    final sinceISO = since.toIso8601String();
+    final sinceISO = since.toUtc().toIso8601String();
 
     try {
       final response = await Supabase.instance.client
