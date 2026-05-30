@@ -21,7 +21,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _phoneController = TextEditingController();
   final _otpController = TextEditingController();
   final _nameController = TextEditingController();
@@ -56,6 +56,19 @@ class _LoginScreenState extends State<LoginScreen>
 
     // Try biometric login on app launch
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryBiometricLogin());
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When app resumes from reCAPTCHA browser, auto-focus OTP field
+    if (state == AppLifecycleState.resumed && _step == 1) {
+      Future.delayed(const Duration(milliseconds: 500), () {
+        if (mounted && _step == 1) {
+          _otpFocusNode.requestFocus();
+        }
+      });
+    }
   }
 
   Future<void> _tryBiometricLogin() async {
@@ -133,6 +146,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _phoneController.dispose();
     _otpController.dispose();
     _nameController.dispose();
