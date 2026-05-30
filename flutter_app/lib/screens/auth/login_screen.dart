@@ -7,6 +7,7 @@ import 'package:canteen_common/canteen_common.dart';
 
 import '../../services/haptic_service.dart';
 import '../../widgets/error_card.dart';
+import '../../widgets/google_logo_icon.dart';
 
 enum _AuthStep { phone, otp, profile, emailLogin }
 
@@ -397,7 +398,7 @@ class _LoginScreenState extends State<LoginScreen>
                       SizedBox(
                         width: double.infinity,
                         height: 48,
-                        child: OutlinedButton(
+                        child: ElevatedButton(
                           onPressed: auth.isLoading ? null : () async {
                             HapticService.selection();
                             final success = await auth.signInWithGoogle();
@@ -406,18 +407,21 @@ class _LoginScreenState extends State<LoginScreen>
                               await enableBiometric();
                             }
                           },
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: Colors.white.withValues(alpha: 0.4)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black87,
+                            elevation: 1,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Row(
+                          child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.g_mobiledata, size: 22, color: Colors.white.withValues(alpha: 0.9)),
-                              const SizedBox(width: 8),
+                              GoogleLogoIcon(size: 22),
+                              SizedBox(width: 12),
                               Text(
                                 'Continue with Google',
-                                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: 0.9)),
+                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -738,8 +742,8 @@ class _LoginScreenState extends State<LoginScreen>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.g_mobiledata, size: 20, color: Colors.grey[600]),
-                const SizedBox(width: 4),
+                const GoogleLogoIcon(size: 16),
+                const SizedBox(width: 6),
                 Text('Sign in with Google instead', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.grey[600])),
               ],
             ),
