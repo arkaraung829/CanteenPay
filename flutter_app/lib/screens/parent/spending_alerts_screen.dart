@@ -129,23 +129,30 @@ class _SpendingAlertsScreenState extends State<SpendingAlertsScreen> {
             );
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                title: Text(child.displayName),
-                subtitle: Text(child.gradeAndClass),
-                trailing: SizedBox(
-                  width: 120,
-                  child: TextField(
-                    controller: _limitControllers[child.id],
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                    ],
-                    decoration: const InputDecoration(
-                      suffixText: 'MMK',
-                      hintText: 'No limit',
-                      isDense: true,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(child.displayName, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    Text(child.gradeAndClass, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _limitControllers[child.id],
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      decoration: InputDecoration(
+                        suffixText: 'MMK',
+                        hintText: 'No limit',
+                        labelText: 'Daily Limit',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             );
