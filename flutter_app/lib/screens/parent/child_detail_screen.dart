@@ -21,6 +21,7 @@ class ChildDetailScreen extends StatefulWidget {
 class _ChildDetailScreenState extends State<ChildDetailScreen> {
   String get childId => widget.childId;
   bool _hasRefreshed = false;
+  int _weekOffset = 0; // 0 = this week, -1 = last week, etc.
 
   @override
   void didChangeDependencies() {
@@ -31,6 +32,15 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
         context.read<ChildrenProvider>().refreshChildTransactions(childId);
       });
     }
+  }
+
+  String _weekLabel(int offset) {
+    if (offset == 0) return 'This Week';
+    if (offset == -1) return 'Last Week';
+    final now = DateTime.now();
+    final monday = now.subtract(Duration(days: now.weekday - 1 + (-offset * 7)));
+    final sunday = monday.add(const Duration(days: 6));
+    return '${monday.day}/${monday.month} - ${sunday.day}/${sunday.month}';
   }
 
   Widget _buildLoadingSkeleton() {
@@ -194,12 +204,45 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            // -- Weekly Spending Chart --
-            const Text(
-              'Weekly Spending',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            // -- Weekly Spending Chart with navigation --
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Weekly Spending',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, size: 22),
+                      onPressed: () => setState(() => _weekOffset--),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Previous week',
+                    ),
+                    GestureDetector(
+                      onTap: _weekOffset != 0 ? () => setState(() => _weekOffset = 0) : null,
+                      child: Text(
+                        _weekLabel(_weekOffset),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          color: _weekOffset == 0 ? AppTheme.primary : AppTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, size: 22),
+                      onPressed: _weekOffset < 0 ? () => setState(() => _weekOffset++) : null,
+                      visualDensity: VisualDensity.compact,
+                      tooltip: 'Next week',
+                      color: _weekOffset < 0 ? null : Colors.grey[300],
+                    ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -208,7 +251,10 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
               ),
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: SpendingChart(weeklyData: weeklySpending),
+                child: SpendingChart(
+                  weeklyData: provider.getWeeklySpending(childId, weekOffset: _weekOffset),
+                  weekOffset: _weekOffset,
+                ),
               ),
             ),
             const SizedBox(height: 24),

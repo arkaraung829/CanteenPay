@@ -145,11 +145,12 @@ class ChildrenProvider extends ChangeNotifier {
 
   /// Weekly spending data for chart (Mon-Sun).
   /// Computes from real transactions, converts UTC to local time.
-  List<double> getWeeklySpending(String childId) {
+  /// [weekOffset]: 0 = this week, -1 = last week, etc.
+  List<double> getWeeklySpending(String childId, {int weekOffset = 0}) {
     final txns = getChildTransactions(childId);
     final now = DateTime.now();
-    // Find the most recent Monday (local time)
-    final monday = now.subtract(Duration(days: now.weekday - 1));
+    // Find the Monday of the target week (local time)
+    final monday = now.subtract(Duration(days: now.weekday - 1 + (-weekOffset * 7)));
     final weekStart = DateTime(monday.year, monday.month, monday.day);
 
     final dailySpending = List<double>.filled(7, 0);

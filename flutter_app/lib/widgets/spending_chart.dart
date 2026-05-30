@@ -4,17 +4,19 @@ import 'package:canteen_common/canteen_common.dart';
 
 /// Weekly spending bar chart (Mon-Fri) using fl_chart.
 class SpendingChart extends StatelessWidget {
-  /// Five values for Mon through Fri.
+  /// Seven values for Mon through Sun.
   final List<double> weeklyData;
+  /// 0 = this week, -1 = last week, etc.
+  final int weekOffset;
 
-  const SpendingChart({super.key, required this.weeklyData});
+  const SpendingChart({super.key, required this.weeklyData, this.weekOffset = 0});
 
   @override
   Widget build(BuildContext context) {
     final total = weeklyData.fold<double>(0, (sum, v) => sum + v);
     final maxVal = weeklyData.reduce((a, b) => a > b ? a : b);
     final maxY = maxVal == 0 ? 5000.0 : maxVal * 1.3;
-    final todayIndex = DateTime.now().weekday - 1; // 0=Mon
+    final todayIndex = weekOffset == 0 ? DateTime.now().weekday - 1 : -1; // only highlight today on current week
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
