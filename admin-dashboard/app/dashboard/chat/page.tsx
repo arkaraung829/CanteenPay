@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageCircle, Send, Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { createAdminClient } from '@/lib/supabase';
 import { useSchoolContext } from '@/lib/school-context';
 
 interface Conversation {
@@ -14,7 +13,6 @@ interface Conversation {
   last_message_at: string | null;
   created_at: string;
   parent_name?: string;
-  unread_count?: number;
 }
 
 interface Message {
@@ -38,31 +36,25 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const fetchConversations = useCallback(async () => {
-    let query = supabase
-      .from('chat_conversations')
-      .select('*, profiles!chat_conversations_parent_id_fkey(full_name)')
-      .order('last_message_at', { ascending: false, nullsFirst: false });
+    const params = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
+    const res = await fetch(`/api/chat${params}`);
+    const json = await res.json();
 
-    if (selectedSchoolId) {
-      query = query.eq('school_id', selectedSchoolId);
+    if (json.success) {
+      const mapped: Conversation[] = (json.data || []).map((c: Record<string, unknown>) => {
+        const profile = c.profiles as Record<string, unknown> | null;
+        return {
+          id: c.id as string,
+          parent_id: c.parent_id as string,
+          title: c.title as string,
+          status: c.status as string,
+          last_message_at: c.last_message_at as string | null,
+          created_at: c.created_at as string,
+          parent_name: (profile?.full_name as string) || 'Parent',
+        };
+      });
+      setConversations(mapped);
     }
-
-    const { data } = await query;
-
-    const mapped: Conversation[] = (data || []).map((c: Record<string, unknown>) => {
-      const profile = c.profiles as Record<string, unknown> | null;
-      return {
-        id: c.id as string,
-        parent_id: c.parent_id as string,
-        title: c.title as string,
-        status: c.status as string,
-        last_message_at: c.last_message_at as string | null,
-        created_at: c.created_at as string,
-        parent_name: (profile?.full_name as string) || 'Parent',
-      };
-    });
-
-    setConversations(mapped);
     setLoading(false);
   }, [selectedSchoolId]);
 
@@ -74,18 +66,13 @@ export default function ChatPage() {
     setSelectedConv(conv);
     setMsgLoading(true);
 
-    const { data } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('conversation_id', conv.id)
-      .order('created_at', { ascending: true })
-      .limit(100);
-
-    setMessages((data || []) as Message[]);
+    const res = await fetch(`/api/chat?conversation_id=${conv.id}`);
+    const json = await res.json();
+    setMessages(json.success ? (json.data as Message[]) : []);
     setMsgLoading(false);
     scrollToBottom();
 
-    // Subscribe to new messages
+    // Subscribe to new messages via realtime
     supabase
       .channel(`chat-admin-${conv.id}`)
       .on('postgres_changes', {
@@ -112,21 +99,20 @@ export default function ChatPage() {
 
     const userId = (await supabase.auth.getUser()).data.user?.id;
 
-    const { error } = await supabase.from('chat_messages').insert({
-      conversation_id: selectedConv.id,
-      sender_id: userId,
-      content: newMessage.trim(),
-      is_from_school: true,
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversation_id: selectedConv.id,
+        sender_id: userId,
+        content: newMessage.trim(),
+      }),
     });
 
-    if (!error) {
+    const json = await res.json();
+    if (json.success) {
       setNewMessage('');
-      await supabase
-        .from('chat_conversations')
-        .update({ last_message_at: new Date().toISOString() })
-        .eq('id', selectedConv.id);
     }
-
     setSending(false);
   }
 
