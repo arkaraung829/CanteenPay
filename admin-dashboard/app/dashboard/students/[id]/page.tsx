@@ -64,6 +64,10 @@ export default function StudentDetailPage() {
   const [regenerating, setRegenerating] = useState(false);
   const [showRegenConfirm, setShowRegenConfirm] = useState(false);
 
+  const [unlinkingParentId, setUnlinkingParentId] = useState<string | null>(null);
+  const [showUnlinkConfirm, setShowUnlinkConfirm] = useState<string | null>(null);
+  const [clearingPreReg, setClearingPreReg] = useState(false);
+
   // Link parent state
   const [showLinkParent, setShowLinkParent] = useState(false);
   const [linkParentPhone, setLinkParentPhone] = useState('');
@@ -306,6 +310,34 @@ export default function StudentDetailPage() {
     }
     setRegenerating(false);
     setShowRegenConfirm(false);
+  }
+
+  async function handleUnlinkParent(parentId: string) {
+    setUnlinkingParentId(parentId);
+    const { error } = await supabase
+      .from('parent_student_links')
+      .delete()
+      .eq('parent_id', parentId)
+      .eq('student_id', id);
+
+    if (!error) {
+      fetchParents();
+    }
+    setUnlinkingParentId(null);
+    setShowUnlinkConfirm(null);
+  }
+
+  async function handleClearPreRegistered() {
+    setClearingPreReg(true);
+    const { error } = await supabase
+      .from('students')
+      .update({ parent_phone: null, parent_email: null })
+      .eq('id', id);
+
+    if (!error && student) {
+      setStudent({ ...student, parent_phone: null, parent_email: null });
+    }
+    setClearingPreReg(false);
   }
 
   function handlePrint() {
@@ -578,7 +610,16 @@ export default function StudentDetailPage() {
           {/* Current parent info */}
           {(student.parent_phone || student.parent_email) && parents.length === 0 && (
             <div className="mb-3 rounded-lg bg-amber-50 border border-amber-200 p-3">
-              <p className="text-xs font-medium text-amber-700 mb-1">Pre-registered (waiting for parent to sign up)</p>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs font-medium text-amber-700">Pre-registered (waiting for parent to sign up)</p>
+                <button
+                  onClick={handleClearPreRegistered}
+                  disabled={clearingPreReg}
+                  className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                >
+                  {clearingPreReg ? 'Clearing...' : 'Clear'}
+                </button>
+              </div>
               {student.parent_phone && <p className="text-xs text-amber-600">Phone: {student.parent_phone}</p>}
               {student.parent_email && <p className="text-xs text-amber-600">Email: {student.parent_email}</p>}
             </div>
@@ -604,7 +645,16 @@ export default function StudentDetailPage() {
                       {parent.email && <p className="text-xs text-gray-500">{parent.email}</p>}
                     </div>
                   </div>
-                  <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Linked</span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">Linked</span>
+                    <button
+                      onClick={() => setShowUnlinkConfirm(parent.id)}
+                      disabled={unlinkingParentId === parent.id}
+                      className="text-xs font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
+                    >
+                      {unlinkingParentId === parent.id ? 'Unlinking...' : 'Unlink'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -690,6 +740,29 @@ export default function StudentDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Unlink Parent Confirmation */}
+      {showUnlinkConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowUnlinkConfirm(null)}>
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 shrink-0">
+                <X className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">Unlink Parent</h3>
+                <p className="mt-1 text-sm text-gray-500">This parent will no longer be able to view this student&apos;s account. Are you sure?</p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowUnlinkConfirm(null)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+              <button onClick={() => handleUnlinkParent(showUnlinkConfirm)} disabled={unlinkingParentId !== null} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50">
+                {unlinkingParentId ? 'Unlinking...' : 'Unlink'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Regenerate QR Confirmation */}
       {showRegenConfirm && (

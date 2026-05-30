@@ -147,8 +147,8 @@ Deno.serve(async (req) => {
     const payload: WebhookPayload = await req.json();
     const transaction = payload.record;
 
-    if (transaction.type !== 'purchase') {
-      return new Response(JSON.stringify({ message: 'Skipped: not a purchase' }), {
+    if (transaction.type !== 'purchase' && transaction.type !== 'deposit' && transaction.type !== 'refund') {
+      return new Response(JSON.stringify({ message: 'Skipped: not a purchase/deposit/refund' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       });
@@ -219,13 +219,27 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ message: 'No valid tokens' }), { status: 200 });
     }
 
-    // Format notification
+    // Format notification based on type
     const formattedAmount = transaction.amount.toLocaleString();
     const formattedBalance = transaction.balance_after.toLocaleString();
-    const title = `Purchase: ${formattedAmount} MMK`;
-    const body = `${student?.full_name || 'Student'} spent ${formattedAmount} MMK at ${sellerName}. Balance: ${formattedBalance} MMK`;
+    const studentName = student?.full_name || 'Student';
+
+    let title: string;
+    let body: string;
+
+    if (transaction.type === 'purchase') {
+      title = `Purchase: ${formattedAmount} MMK`;
+      body = `${studentName} spent ${formattedAmount} MMK at ${sellerName}. Balance: ${formattedBalance} MMK`;
+    } else if (transaction.type === 'deposit') {
+      title = `Deposit: +${formattedAmount} MMK`;
+      body = `${studentName} received ${formattedAmount} MMK deposit. Balance: ${formattedBalance} MMK`;
+    } else {
+      title = `Refund: +${formattedAmount} MMK`;
+      body = `${studentName} received a ${formattedAmount} MMK refund. Balance: ${formattedBalance} MMK`;
+    }
+
     const notifData = {
-      type: 'purchase',
+      type: transaction.type,
       transaction_id: transaction.id,
       student_id: wallet.student_id,
       amount: transaction.amount.toString(),

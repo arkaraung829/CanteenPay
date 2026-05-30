@@ -78,13 +78,16 @@ class AmountKeypad extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Text(
-                CurrencyFormatter.formatMMK(amount),
-                style: TextStyle(
-                  fontSize: 40,
-                  fontWeight: FontWeight.w800,
-                  color: amount > 0 ? AppTheme.primary : AppTheme.textHint,
-                  letterSpacing: -1,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  CurrencyFormatter.formatMMK(amount),
+                  style: TextStyle(
+                    fontSize: 40,
+                    fontWeight: FontWeight.w800,
+                    color: amount > 0 ? AppTheme.primary : AppTheme.textHint,
+                    letterSpacing: -1,
+                  ),
                 ),
               ),
             ],
