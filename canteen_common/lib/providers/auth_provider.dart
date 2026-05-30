@@ -106,6 +106,9 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
     await _loadUserProfile();
   }
 
+  /// Public method to reload profile (e.g. after profile setup)
+  Future<void> refreshProfile() => _loadUserProfile();
+
   /// Load user profile from the profiles table
   Future<void> _loadUserProfile() async {
     try {

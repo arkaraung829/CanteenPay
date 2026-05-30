@@ -367,7 +367,7 @@ class _LoginScreenState extends State<LoginScreen>
                       'School Cashless Payment',
                       style: TextStyle(fontSize: 14, color: Colors.white.withValues(alpha: 0.7)),
                     ),
-                    const SizedBox(height: 28),
+                    SizedBox(height: MediaQuery.of(context).size.height < 700 ? 14 : 28),
 
                     // Form card — only phone/OTP/profile content
                     AnimatedBuilder(
@@ -791,6 +791,41 @@ class _LoginScreenState extends State<LoginScreen>
             const SizedBox(width: 8),
             _roleChip('seller', 'Seller', Icons.storefront_rounded),
           ],
+        ),
+        const SizedBox(height: 20),
+        SizedBox(
+          height: 50,
+          child: ElevatedButton(
+            onPressed: auth.isLoading ? null : () async {
+              final name = _nameController.text.trim();
+              if (name.isEmpty) {
+                _showError('Please enter your name');
+                _shake();
+                return;
+              }
+              _dismissKeyboard();
+              try {
+                final userId = Supabase.instance.client.auth.currentUser?.id;
+                if (userId != null) {
+                  await Supabase.instance.client.from('profiles').update({
+                    'full_name': name,
+                    'role': _role,
+                  }).eq('id', userId);
+                  await auth.refreshProfile();
+                }
+              } catch (e) {
+                _showError('Failed to save profile: $e');
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: auth.isLoading
+                ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : const Text('Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          ),
         ),
       ],
     );
