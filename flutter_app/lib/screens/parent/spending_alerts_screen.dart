@@ -44,10 +44,10 @@ class _SpendingAlertsScreenState extends State<SpendingAlertsScreen> {
 
         // Only update if changed
         if (newLimit != currentLimit) {
-          await SupabaseService.instance.updateDailySpendingLimit(
-            child.id,
-            newLimit,
-          );
+          await Supabase.instance.client.rpc('set_daily_spending_limit', params: {
+            'p_student_id': child.id,
+            'p_limit': newLimit,
+          });
         }
       }
 
@@ -121,12 +121,10 @@ class _SpendingAlertsScreenState extends State<SpendingAlertsScreen> {
           ),
           const SizedBox(height: 8),
           ...children.map((child) {
-            _limitControllers.putIfAbsent(
-              child.id,
-              () => TextEditingController(
-                text: child.dailySpendingLimit?.toString() ?? '',
-              ),
-            );
+            final currentLimit = child.dailySpendingLimit?.toString() ?? '';
+            if (!_limitControllers.containsKey(child.id)) {
+              _limitControllers[child.id] = TextEditingController(text: currentLimit);
+            }
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: Padding(
