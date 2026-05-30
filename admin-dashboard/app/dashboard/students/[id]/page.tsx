@@ -36,6 +36,7 @@ interface TransactionRow {
   balance_after: number;
   description: string | null;
   created_at: string;
+  seller_name: string | null;
 }
 
 interface ParentLink {
@@ -175,12 +176,19 @@ export default function StudentDetailPage() {
 
     const { data: txData } = await supabase
       .from('transactions')
-      .select('id, type, amount, balance_before, balance_after, description, created_at')
+      .select('id, type, amount, balance_before, balance_after, description, created_at, performed_by, performer:profiles!transactions_performed_by_fkey(full_name)')
       .eq('wallet_id', walletData.id)
       .order('created_at', { ascending: false })
       .limit(20);
 
-    setTransactions((txData || []) as TransactionRow[]);
+    const mapped = (txData || []).map((tx: Record<string, unknown>) => {
+      const performer = tx.performer as { full_name: string } | null;
+      return {
+        ...tx,
+        seller_name: performer?.full_name || null,
+      };
+    });
+    setTransactions(mapped as TransactionRow[]);
     setTxLoading(false);
   }, [id]);
 
@@ -682,6 +690,7 @@ export default function StudentDetailPage() {
                     <th className="px-4 py-2 text-right text-xs font-semibold uppercase text-gray-500">Amount</th>
                     <th className="px-4 py-2 text-right text-xs font-semibold uppercase text-gray-500">Balance After</th>
                     <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-gray-500">Description</th>
+                    <th className="px-4 py-2 text-left text-xs font-semibold uppercase text-gray-500">Seller</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -710,6 +719,9 @@ export default function StudentDetailPage() {
                       </td>
                       <td className="px-4 py-2.5 text-gray-500 max-w-[200px] truncate">
                         {tx.description || '-'}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-2.5 text-gray-400">
+                        {tx.seller_name || '-'}
                       </td>
                     </tr>
                   ))}
