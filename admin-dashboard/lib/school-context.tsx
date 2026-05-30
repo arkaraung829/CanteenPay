@@ -7,7 +7,7 @@ import type { School } from '@/lib/types';
 interface SchoolContextValue {
   selectedSchoolId: string | null;
   setSelectedSchool: (id: string | null) => void;
-  userRole: 'admin' | 'super_admin';
+  userRole: 'admin' | 'super_admin' | 'teacher';
   userSchoolId: string | null;
   schools: School[];
   loading: boolean;
@@ -30,7 +30,7 @@ const STORAGE_KEY = 'canteenpay_selected_school';
 
 export function SchoolProvider({ children }: { children: ReactNode }) {
   const [selectedSchoolId, setSelectedSchoolIdState] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<'admin' | 'super_admin'>('admin');
+  const [userRole, setUserRole] = useState<'admin' | 'super_admin' | 'teacher'>('admin');
   const [userSchoolId, setUserSchoolId] = useState<string | null>(null);
   const [schools, setSchools] = useState<School[]>([]);
   const [loading, setLoading] = useState(true);
@@ -61,7 +61,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
           .eq('id', user.id)
           .single();
 
-        const role = profile?.role === 'super_admin' ? 'super_admin' : 'admin';
+        const role = profile?.role === 'super_admin' ? 'super_admin' : profile?.role === 'teacher' ? 'teacher' : 'admin';
         const profileSchoolId = profile?.school_id || null;
 
         setUserRole(role);
@@ -85,7 +85,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
             setSelectedSchoolIdState(null);
           }
         } else {
-          // School admin: always use their own school
+          // School admin or teacher: always use their own school
           setSelectedSchoolIdState(profileSchoolId);
         }
       } catch (err) {

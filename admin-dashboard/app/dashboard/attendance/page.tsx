@@ -2,6 +2,7 @@
 
 import { authFetch } from '@/lib/auth-fetch';
 import { useSchoolContext } from '@/lib/school-context';
+import { supabase } from '@/lib/supabase';
 import { useState, useEffect, useCallback } from 'react';
 import {
   Users, Check, X, Clock, Loader2, ClipboardCheck,
@@ -27,8 +28,13 @@ interface SectionOption {
   is_active: boolean;
 }
 
+interface TeacherRecord {
+  assigned_grades: string[];
+  assigned_classes: string[];
+}
+
 export default function AttendancePage() {
-  const { selectedSchoolId } = useSchoolContext();
+  const { selectedSchoolId, userRole } = useSchoolContext();
 
   // Filters
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -39,6 +45,9 @@ export default function AttendancePage() {
   const [grades, setGrades] = useState<GradeOption[]>([]);
   const [sections, setSections] = useState<SectionOption[]>([]);
 
+  // Teacher assignment data
+  const [teacherRecord, setTeacherRecord] = useState<TeacherRecord | null>(null);
+
   // Student data
   const [students, setStudents] = useState<StudentAttendance[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,6 +57,29 @@ export default function AttendancePage() {
 
   // Track local edits
   const [localRecords, setLocalRecords] = useState<Map<string, { status: string; notes: string }>>(new Map());
+
+  // Fetch teacher record if user is a teacher
+  useEffect(() => {
+    async function fetchTeacherRecord() {
+      if (userRole !== 'teacher') return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase
+          .from('teachers')
+          .select('assigned_grades, assigned_classes')
+          .eq('profile_id', user.id)
+          .eq('is_active', true)
+          .single();
+        if (data) {
+          setTeacherRecord(data);
+        }
+      } catch {
+        // Fall back gracefully
+      }
+    }
+    fetchTeacherRecord();
+  }, [userRole]);
 
   // Fetch grades and sections
   useEffect(() => {
@@ -62,12 +94,23 @@ export default function AttendancePage() {
         const gradesJson = await gradesRes.json();
         const sectionsJson = await sectionsRes.json();
         if (gradesJson.success) {
-          const active = (gradesJson.data || []).filter((g: GradeOption) => g.is_active);
+          let active = (gradesJson.data || []).filter((g: GradeOption) => g.is_active);
+          // If teacher, only show their assigned grades
+          if (userRole === 'teacher' && teacherRecord) {
+            active = active.filter((g: GradeOption) => teacherRecord.assigned_grades.includes(g.name));
+          }
           setGrades(active);
           if (active.length > 0 && !grade) setGrade(active[0].name);
         }
         if (sectionsJson.success) {
-          const active = (sectionsJson.data || []).filter((s: SectionOption) => s.is_active);
+          let active = (sectionsJson.data || []).filter((s: SectionOption) => s.is_active);
+          // If teacher, only show sections matching their assigned classes
+          if (userRole === 'teacher' && teacherRecord) {
+            active = active.filter((s: SectionOption) => {
+              // Check if any assigned class matches "Grade X-{section}"
+              return teacherRecord.assigned_classes.some(cls => cls.endsWith(`-${s.name}`));
+            });
+          }
           setSections(active);
           if (active.length > 0 && !className) setClassName(active[0].name);
         }
@@ -77,7 +120,7 @@ export default function AttendancePage() {
     }
     fetchOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSchoolId]);
+  }, [selectedSchoolId, userRole, teacherRecord]);
 
   // Derive the class_name filter value (matching student page pattern: "Grade X-Y")
   const classNameFilter = grade && className ? `Grade ${grade}-${className}` : '';

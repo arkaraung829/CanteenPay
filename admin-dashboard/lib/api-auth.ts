@@ -83,6 +83,71 @@ export async function verifyAdmin(request: Request): Promise<AuthResult | null> 
 }
 
 /**
+ * Verify the caller is an authenticated admin/staff OR teacher user.
+ * Teachers have limited access (e.g., attendance only).
+ */
+export async function verifyAdminOrTeacher(request: Request): Promise<AuthResult | null> {
+  try {
+    let accessToken: string | null = null;
+
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      accessToken = authHeader.substring(7);
+    }
+
+    if (!accessToken) {
+      const cookieHeader = request.headers.get('cookie') || '';
+      const cookies: Record<string, string> = {};
+      cookieHeader.split(';').forEach(c => {
+        const [key, ...val] = c.trim().split('=');
+        if (key) cookies[key.trim()] = val.join('=');
+      });
+
+      for (const [key, value] of Object.entries(cookies)) {
+        if (key.includes('auth-token') && value) {
+          try {
+            const decoded = decodeURIComponent(value);
+            const parsed = JSON.parse(decoded);
+            if (parsed?.access_token) {
+              accessToken = parsed.access_token;
+              break;
+            }
+          } catch {
+            const decoded = decodeURIComponent(value);
+            if (decoded.startsWith('ey')) {
+              accessToken = decoded;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    if (!accessToken) return null;
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    });
+
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) return null;
+
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    const role = profile?.role || 'unknown';
+    if (!['admin', 'counter_staff', 'teacher'].includes(role)) return null;
+
+    return { userId: user.id, role };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Returns a 401 JSON response.
  */
 export function unauthorizedResponse() {

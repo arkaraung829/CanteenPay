@@ -1,9 +1,9 @@
 import { createAdminClient } from '@/lib/supabase';
-import { verifyAdmin, unauthorizedResponse } from '@/lib/api-auth';
+import { verifyAdminOrTeacher, unauthorizedResponse } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const auth = await verifyAdmin(request);
+  const auth = await verifyAdminOrTeacher(request);
   if (!auth) return unauthorizedResponse();
 
   const supabase = createAdminClient();
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await verifyAdmin(request);
+  const auth = await verifyAdminOrTeacher(request);
   if (!auth) return unauthorizedResponse();
 
   const supabase = createAdminClient();

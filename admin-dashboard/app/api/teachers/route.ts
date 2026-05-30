@@ -1,18 +1,19 @@
 import { createAdminClient } from '@/lib/supabase';
-import { verifyAdmin, verifyAdminOrTeacher, unauthorizedResponse } from '@/lib/api-auth';
-import { NextRequest } from 'next/server';
+import { verifyAdmin, unauthorizedResponse } from '@/lib/api-auth';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  const auth = await verifyAdminOrTeacher(request);
+  const auth = await verifyAdmin(request);
   if (!auth) return unauthorizedResponse();
 
   const supabase = createAdminClient();
-  const schoolId = request.nextUrl.searchParams.get('school_id') || '';
+  const searchParams = request.nextUrl.searchParams;
+  const schoolId = searchParams.get('school_id') || '';
 
   let query = supabase
-    .from('school_grades')
+    .from('teachers')
     .select('*')
-    .order('display_order', { ascending: true });
+    .order('full_name', { ascending: true });
 
   if (schoolId) {
     query = query.eq('school_id', schoolId);
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  return Response.json({ success: true, data: data || [] });
+  return NextResponse.json({ success: true, data: data || [] });
 }
 
 export async function POST(request: NextRequest) {
@@ -35,53 +36,68 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name } = body;
-    let { school_id } = body;
+    const { full_name, email, phone, school_id, assigned_grades, assigned_classes, password } = body;
 
-    if (!name || !name.trim()) {
-      return Response.json({ success: false, error: 'Name is required' }, { status: 400 });
+    if (!full_name || !email || !school_id) {
+      return Response.json(
+        { success: false, error: 'full_name, email, and school_id are required' },
+        { status: 400 }
+      );
     }
 
-    // Get the school_id if not provided
-    if (!school_id) {
-      const { data: schools } = await supabase
-        .from('schools')
-        .select('id')
-        .eq('is_active', true)
-        .limit(1);
+    const teacherPassword = password || 'Teacher@123';
 
-      school_id = schools?.[0]?.id;
+    // 1. Create Supabase auth user
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: email.toLowerCase(),
+      password: teacherPassword,
+      email_confirm: true,
+    });
+
+    if (authError) {
+      return Response.json({ success: false, error: authError.message }, { status: 400 });
     }
-    if (!school_id) {
-      return Response.json({ success: false, error: 'No school found' }, { status: 400 });
-    }
 
-    // Get max display_order
-    const { data: maxOrder } = await supabase
-      .from('school_grades')
-      .select('display_order')
-      .eq('school_id', school_id)
-      .order('display_order', { ascending: false })
-      .limit(1);
+    const userId = authData.user.id;
 
-    const nextOrder = (maxOrder?.[0]?.display_order ?? -1) + 1;
-
-    const { data, error } = await supabase
-      .from('school_grades')
-      .insert({
+    // 2. Create profile with teacher role
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert({
+        id: userId,
+        full_name,
+        role: 'teacher',
         school_id,
-        name: name.trim(),
-        display_order: nextOrder,
+        phone: phone || null,
+      });
+
+    if (profileError) {
+      // Cleanup: delete auth user if profile creation fails
+      await supabase.auth.admin.deleteUser(userId);
+      return Response.json({ success: false, error: profileError.message }, { status: 500 });
+    }
+
+    // 3. Create teachers record
+    const { data: teacherData, error: teacherError } = await supabase
+      .from('teachers')
+      .insert({
+        profile_id: userId,
+        school_id,
+        full_name,
+        email: email.toLowerCase(),
+        phone: phone || null,
+        assigned_grades: assigned_grades || [],
+        assigned_classes: assigned_classes || [],
         is_active: true,
       })
       .select()
       .single();
 
-    if (error) {
-      return Response.json({ success: false, error: error.message }, { status: 500 });
+    if (teacherError) {
+      return Response.json({ success: false, error: teacherError.message }, { status: 500 });
     }
 
-    return Response.json({ success: true, data });
+    return NextResponse.json({ success: true, data: teacherData });
   } catch (err) {
     return Response.json(
       { success: false, error: err instanceof Error ? err.message : 'Invalid request' },
@@ -104,20 +120,21 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ success: false, error: 'ID is required' }, { status: 400 });
     }
 
-    const allowedFields = ['name', 'display_order', 'is_active'];
+    const allowedFields = ['full_name', 'email', 'phone', 'assigned_grades', 'assigned_classes', 'is_active'];
     const safeUpdates: Record<string, unknown> = {};
     for (const key of allowedFields) {
       if (key in updates) {
         safeUpdates[key] = updates[key];
       }
     }
+    safeUpdates['updated_at'] = new Date().toISOString();
 
-    if (Object.keys(safeUpdates).length === 0) {
+    if (Object.keys(safeUpdates).length <= 1) {
       return Response.json({ success: false, error: 'No valid fields to update' }, { status: 400 });
     }
 
     const { data, error } = await supabase
-      .from('school_grades')
+      .from('teachers')
       .update(safeUpdates)
       .eq('id', id)
       .select()
@@ -150,9 +167,10 @@ export async function DELETE(request: NextRequest) {
       return Response.json({ success: false, error: 'ID is required' }, { status: 400 });
     }
 
+    // Deactivate rather than hard delete
     const { error } = await supabase
-      .from('school_grades')
-      .delete()
+      .from('teachers')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq('id', id);
 
     if (error) {

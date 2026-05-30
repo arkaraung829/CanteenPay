@@ -18,18 +18,24 @@ import {
   Settings,
   LogOut,
   School,
+  GraduationCap,
 } from 'lucide-react';
 
-const navigation = [
+const adminNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Students', href: '/dashboard/students', icon: Users },
   { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardCheck },
+  { name: 'Teachers', href: '/dashboard/teachers', icon: GraduationCap },
   { name: 'Deposits', href: '/dashboard/deposits', icon: Banknote },
   { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowLeftRight },
   { name: 'Sellers', href: '/dashboard/sellers', icon: Store },
   { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
   { name: 'Announcements', href: '/dashboard/announcements', icon: Megaphone },
   { name: 'Messages', href: '/dashboard/chat', icon: MessageCircle },
+];
+
+const teacherNavigation = [
+  { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardCheck },
 ];
 
 export default function Sidebar() {
@@ -60,7 +66,7 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
-        {navigation.map((item) => {
+        {(userRole === 'teacher' ? teacherNavigation : adminNavigation).map((item) => {
           const isActive = pathname === item.href ||
             (item.href !== '/dashboard' && pathname.startsWith(item.href));
           return (
@@ -100,13 +106,15 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="border-t border-gray-200 p-3">
-        <Link
-          href="/dashboard/settings"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-        >
-          <Settings className="h-5 w-5 text-gray-400" />
-          Settings
-        </Link>
+        {userRole !== 'teacher' && (
+          <Link
+            href="/dashboard/settings"
+            className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+          >
+            <Settings className="h-5 w-5 text-gray-400" />
+            Settings
+          </Link>
+        )}
         <button
           onClick={handleSignOut}
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
