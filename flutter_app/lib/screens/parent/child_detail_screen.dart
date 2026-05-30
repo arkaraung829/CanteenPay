@@ -121,33 +121,41 @@ class ChildDetailScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: AppTheme.shadowSm,
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                    backgroundImage: child.photoUrl != null && child.photoUrl!.isNotEmpty
-                        ? NetworkImage(child.photoUrl!) : null,
-                    child: child.photoUrl == null || child.photoUrl!.isEmpty
-                        ? Text(child.displayName[0],
-                            style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary))
-                        : null,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(child.displayName,
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                        Text(
-                          '${child.gradeAndClass} · ${child.studentCode}',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                        backgroundImage: child.photoUrl != null && child.photoUrl!.isNotEmpty
+                            ? NetworkImage(child.photoUrl!) : null,
+                        child: child.photoUrl == null || child.photoUrl!.isEmpty
+                            ? Text(child.displayName[0],
+                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary))
+                            : null,
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(child.displayName,
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                overflow: TextOverflow.ellipsis),
+                            Text(
+                              '${child.gradeAndClass} · ${child.studentCode}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  if (child.schoolName != null)
+                  if (child.schoolName != null) ...[
+                    const SizedBox(height: 10),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -156,9 +164,11 @@ class ChildDetailScreen extends StatelessWidget {
                       ),
                       child: Text(
                         child.schoolName!,
-                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                  ],
                 ],
               ),
             ),
