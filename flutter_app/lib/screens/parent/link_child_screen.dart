@@ -60,18 +60,15 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
     });
 
     try {
-      // Search by student code
+      // Search by student code via RPC (bypasses RLS)
       final response = await Supabase.instance.client
-          .from('students')
-          .select()
-          .eq('student_code', code)
-          .eq('is_active', true)
-          .maybeSingle();
+          .rpc('find_student_by_code', params: {'p_code': code});
 
-      if (response != null) {
+      final result = Map<String, dynamic>.from(response as Map);
+      if (result['found'] == true) {
         HapticService.success();
         setState(() {
-          _foundStudent = StudentModel.fromJson(response);
+          _foundStudent = StudentModel.fromJson(result);
         });
       } else {
         HapticService.error();
