@@ -362,16 +362,14 @@ class NotificationService {
           'body': message.notification!.body,
         });
 
-        // On Android, show a local notification (iOS shows automatically via
-        // setForegroundNotificationPresentationOptions).
-        if (Platform.isAndroid) {
-          showLocalNotification(
-            id: message.hashCode,
-            title: message.notification!.title ?? 'Paynow MM',
-            body: message.notification!.body ?? '',
-            payload: jsonEncode(message.data),
-          );
-        }
+        // Show local notification on both Android and iOS
+        // iOS setForegroundNotificationPresentationOptions may not always work
+        showLocalNotification(
+          id: message.hashCode,
+          title: message.notification!.title ?? 'Paynow MM',
+          body: message.notification!.body ?? '',
+          payload: jsonEncode(message.data),
+        );
       }
     } catch (e) {
       if (kDebugMode) {
