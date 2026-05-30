@@ -23,6 +23,7 @@ import 'screens/parent/link_child_screen.dart';
 import 'screens/parent/spending_alerts_screen.dart';
 import 'screens/parent/notifications_screen.dart';
 import 'screens/parent/chat_screen.dart';
+import 'screens/parent/messages_screen.dart';
 import 'screens/parent/profile_screen.dart' as parent_profile;
 
 // Seller screens
@@ -192,9 +193,22 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
         builder: (context, state) => const SpendingAlertsScreen(),
       ),
       GoRoute(
+        path: '/parent/messages',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const MessagesScreen(),
+      ),
+      GoRoute(
         path: '/parent/chat',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const ChatScreen(),
+      ),
+      GoRoute(
+        path: '/parent/chat/:id',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final conversationId = state.pathParameters['id']!;
+          return ChatScreen(conversationId: conversationId);
+        },
       ),
 
       // ========== Shared Routes ==========

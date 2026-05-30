@@ -154,6 +154,11 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text('Paynow MM'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.chat_outlined),
+            tooltip: 'Messages',
+            onPressed: () => context.push('/parent/messages'),
+          ),
           Stack(
             children: [
               IconButton(
