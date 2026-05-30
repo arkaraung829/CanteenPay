@@ -71,12 +71,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _startAutoAdvance() {
     _autoAdvanceTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      if (_currentPage < _slides.length - 1) {
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 400),
-          curve: Curves.easeInOut,
-        );
-      }
+      final nextPage = (_currentPage + 1) % _slides.length;
+      _pageController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
     });
   }
 
