@@ -67,12 +67,12 @@ class SpendingChart extends StatelessWidget {
                   sideTitles: SideTitles(
                     showTitles: true,
                     getTitlesWidget: (value, meta) {
-                      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                       final idx = value.toInt();
                       if (idx < 0 || idx >= days.length) {
                         return const SizedBox.shrink();
                       }
-                      final isToday = idx == todayIndex && todayIndex < 5;
+                      final isToday = idx == todayIndex;
                       return Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
@@ -116,7 +116,7 @@ class SpendingChart extends StatelessWidget {
               ),
               borderData: FlBorderData(show: false),
               barGroups: List.generate(weeklyData.length, (i) {
-                final isToday = i == todayIndex && todayIndex < 5;
+                final isToday = i == todayIndex;
                 final hasData = weeklyData[i] > 0;
                 return BarChartGroupData(
                   x: i,
@@ -133,7 +133,7 @@ class SpendingChart extends StatelessWidget {
                             )
                           : null,
                       color: hasData ? null : Colors.grey[200],
-                      width: 32,
+                      width: 24,
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(8),
                         topRight: Radius.circular(8),

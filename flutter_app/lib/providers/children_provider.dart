@@ -143,20 +143,24 @@ class ChildrenProvider extends ChangeNotifier {
     return txns.isNotEmpty ? txns.first : null;
   }
 
-  /// Weekly spending data for chart (Mon-Fri).
-  /// Computes from real transactions.
+  /// Weekly spending data for chart (Mon-Sun).
+  /// Computes from real transactions, converts UTC to local time.
   List<double> getWeeklySpending(String childId) {
     final txns = getChildTransactions(childId);
     final now = DateTime.now();
-    // Find the most recent Monday
+    // Find the most recent Monday (local time)
     final monday = now.subtract(Duration(days: now.weekday - 1));
     final weekStart = DateTime(monday.year, monday.month, monday.day);
 
-    final dailySpending = List<double>.filled(5, 0);
+    final dailySpending = List<double>.filled(7, 0);
     for (final tx in txns) {
       if (tx.createdAt == null || !tx.isDebit) continue;
-      final diff = tx.createdAt!.difference(weekStart).inDays;
-      if (diff >= 0 && diff < 5) {
+      // Convert UTC to local before comparing
+      final local = tx.createdAt!.toLocal();
+      final diff = DateTime(local.year, local.month, local.day)
+          .difference(weekStart)
+          .inDays;
+      if (diff >= 0 && diff < 7) {
         dailySpending[diff] += tx.amount.toDouble();
       }
     }

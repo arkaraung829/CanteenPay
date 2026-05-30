@@ -9,10 +9,29 @@ import '../../widgets/shimmer_loading.dart';
 import '../../widgets/animated_fade_in.dart';
 
 /// Detail view for a single child.
-class ChildDetailScreen extends StatelessWidget {
+class ChildDetailScreen extends StatefulWidget {
   final String childId;
 
   const ChildDetailScreen({super.key, required this.childId});
+
+  @override
+  State<ChildDetailScreen> createState() => _ChildDetailScreenState();
+}
+
+class _ChildDetailScreenState extends State<ChildDetailScreen> {
+  String get childId => widget.childId;
+  bool _hasRefreshed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_hasRefreshed) {
+      _hasRefreshed = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        context.read<ChildrenProvider>().refreshChildTransactions(childId);
+      });
+    }
+  }
 
   Widget _buildLoadingSkeleton() {
     return ListView(
@@ -49,13 +68,14 @@ class ChildDetailScreen extends StatelessWidget {
     final transactions = provider.getChildTransactions(childId);
     final weeklySpending = provider.getWeeklySpending(childId);
 
-    // Today's transactions only
+    // Today's transactions only (convert UTC to local for comparison)
     final now = DateTime.now();
     final todayTxns = transactions.where((tx) {
       if (tx.createdAt == null) return false;
-      return tx.createdAt!.year == now.year &&
-          tx.createdAt!.month == now.month &&
-          tx.createdAt!.day == now.day;
+      final local = tx.createdAt!.toLocal();
+      return local.year == now.year &&
+          local.month == now.month &&
+          local.day == now.day;
     }).toList();
 
     // Today's total spent
