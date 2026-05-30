@@ -11,83 +11,173 @@ class SpendingChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxY = weeklyData.reduce((a, b) => a > b ? a : b) * 1.3;
+    final total = weeklyData.fold<double>(0, (sum, v) => sum + v);
+    final maxVal = weeklyData.reduce((a, b) => a > b ? a : b);
+    final maxY = maxVal == 0 ? 5000.0 : maxVal * 1.3;
+    final todayIndex = DateTime.now().weekday - 1; // 0=Mon
 
-    return SizedBox(
-      height: 220,
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: maxY,
-          minY: 0,
-          barTouchData: BarTouchData(
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                return BarTooltipItem(
-                  CurrencyFormatter.formatMMK(rod.toY.toInt()),
-                  const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                );
-              },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Summary row
+        Row(
+          children: [
+            _SummaryChip(
+              label: 'This Week',
+              value: CurrencyFormatter.formatMMK(total.toInt()),
+              color: AppTheme.primary,
             ),
-          ),
-          titlesData: FlTitlesData(
-            show: true,
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                getTitlesWidget: (value, meta) {
-                  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-                  final idx = value.toInt();
-                  if (idx < 0 || idx >= days.length) {
-                    return const SizedBox.shrink();
-                  }
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      days[idx],
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  );
-                },
-                reservedSize: 30,
+            const SizedBox(width: 12),
+            _SummaryChip(
+              label: 'Daily Avg',
+              value: CurrencyFormatter.formatMMK(
+                todayIndex > 0 ? (total / (todayIndex + 1)).toInt() : total.toInt(),
               ),
+              color: Colors.grey[600]!,
             ),
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-          ),
-          gridData: const FlGridData(show: false),
-          borderData: FlBorderData(show: false),
-          barGroups: List.generate(weeklyData.length, (i) {
-            return BarChartGroupData(
-              x: i,
-              barRods: [
-                BarChartRodData(
-                  toY: weeklyData[i],
-                  color: AppTheme.error,
-                  width: 28,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(6),
-                    topRight: Radius.circular(6),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Chart
+        SizedBox(
+          height: 180,
+          child: BarChart(
+            BarChartData(
+              alignment: BarChartAlignment.spaceAround,
+              maxY: maxY,
+              minY: 0,
+              barTouchData: BarTouchData(
+                touchTooltipData: BarTouchTooltipData(
+                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                    return BarTooltipItem(
+                      CurrencyFormatter.formatMMK(rod.toY.toInt()),
+                      const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
+                    );
+                  },
+                ),
+              ),
+              titlesData: FlTitlesData(
+                show: true,
+                bottomTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    getTitlesWidget: (value, meta) {
+                      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+                      final idx = value.toInt();
+                      if (idx < 0 || idx >= days.length) {
+                        return const SizedBox.shrink();
+                      }
+                      final isToday = idx == todayIndex && todayIndex < 5;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          days[idx],
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isToday ? FontWeight.w700 : FontWeight.w400,
+                            color: isToday ? AppTheme.primary : AppTheme.textSecondary,
+                          ),
+                        ),
+                      );
+                    },
+                    reservedSize: 30,
                   ),
                 ),
-              ],
-              showingTooltipIndicators: [0],
-            );
-          }),
+                leftTitles: AxisTitles(
+                  sideTitles: SideTitles(
+                    showTitles: true,
+                    reservedSize: 42,
+                    interval: maxY / 3,
+                    getTitlesWidget: (value, meta) {
+                      if (value == 0) return const SizedBox.shrink();
+                      return Text(
+                        _formatShort(value.toInt()),
+                        style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+                      );
+                    },
+                  ),
+                ),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+              ),
+              gridData: FlGridData(
+                show: true,
+                drawVerticalLine: false,
+                horizontalInterval: maxY / 3,
+                getDrawingHorizontalLine: (value) => FlLine(
+                  color: Colors.grey[200]!,
+                  strokeWidth: 1,
+                ),
+              ),
+              borderData: FlBorderData(show: false),
+              barGroups: List.generate(weeklyData.length, (i) {
+                final isToday = i == todayIndex && todayIndex < 5;
+                final hasData = weeklyData[i] > 0;
+                return BarChartGroupData(
+                  x: i,
+                  barRods: [
+                    BarChartRodData(
+                      toY: weeklyData[i] == 0 ? 0 : weeklyData[i],
+                      gradient: hasData
+                          ? LinearGradient(
+                              colors: isToday
+                                  ? [AppTheme.primary, const Color(0xFF42A5F5)]
+                                  : [const Color(0xFFEF5350), const Color(0xFFFF7043)],
+                              begin: Alignment.bottomCenter,
+                              end: Alignment.topCenter,
+                            )
+                          : null,
+                      color: hasData ? null : Colors.grey[200],
+                      width: 32,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(8),
+                        topRight: Radius.circular(8),
+                      ),
+                    ),
+                  ],
+                );
+              }),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatShort(int n) {
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(0)}K';
+    return n.toString();
+  }
+}
+
+class _SummaryChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _SummaryChip({required this.label, required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w500)),
+            const SizedBox(height: 2),
+            Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: color)),
+          ],
         ),
       ),
     );
