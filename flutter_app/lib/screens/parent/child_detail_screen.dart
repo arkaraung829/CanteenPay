@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/children_provider.dart';
@@ -338,9 +339,67 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+
+            // -- Unlink Child --
+            OutlinedButton.icon(
+              onPressed: () => _confirmUnlink(context, child, provider),
+              icon: const Icon(Icons.link_off, size: 18),
+              label: const Text('Unlink Child'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.error,
+                side: const BorderSide(color: AppTheme.error),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
             const SizedBox(height: 32),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmUnlink(BuildContext context, StudentModel child, ChildrenProvider provider) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unlink Child'),
+        content: Text(
+          'Remove ${child.displayName} from your account? You can re-link later with the student code.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                final userId = Supabase.instance.client.auth.currentUser?.id;
+                if (userId == null) return;
+                await Supabase.instance.client
+                    .from('parent_student_links')
+                    .delete()
+                    .eq('parent_id', userId)
+                    .eq('student_id', childId);
+                if (context.mounted) {
+                  await provider.loadChildren(userId);
+                  context.go('/parent');
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to unlink: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+            child: const Text('Unlink', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }
