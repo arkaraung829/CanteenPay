@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../services/haptic_service.dart';
+import 'scan_screen.dart';
 import '../../widgets/success_animation.dart';
 
 /// Success screen displayed after a payment is processed.
@@ -108,7 +109,10 @@ class _PaymentSuccessScreenState extends State<PaymentSuccessScreen> {
                   width: 220,
                   height: 56,
                   child: ElevatedButton.icon(
-                    onPressed: () => context.go('/seller'),
+                    onPressed: () {
+                              ScanScreen.autoStartScanner = true;
+                              context.go('/seller');
+                            },
                     icon: const Icon(Icons.qr_code_scanner, size: 24),
                     label: const Text('Scan Next'),
                     style: ElevatedButton.styleFrom(

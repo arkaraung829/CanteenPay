@@ -11,6 +11,9 @@ import '../../widgets/error_card.dart';
 
 /// Main scan screen with camera QR scanner.
 class ScanScreen extends StatefulWidget {
+  /// Set to true to auto-start scanner (e.g. after "Scan Next")
+  static bool autoStartScanner = false;
+
   const ScanScreen({super.key});
 
   @override
@@ -27,6 +30,10 @@ class _ScanScreenState extends State<ScanScreen> {
   @override
   void initState() {
     super.initState();
+    if (ScanScreen.autoStartScanner) {
+      ScanScreen.autoStartScanner = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _startScanner());
+    }
   }
 
   @override
@@ -417,7 +424,7 @@ class _ScanScreenState extends State<ScanScreen> {
                     const SizedBox(width: 6),
                     Text(
                       l10n.stopScanning,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
