@@ -56,6 +56,8 @@ export default function StudentDetailPage() {
   const [editForm, setEditForm] = useState({ full_name: '', full_name_my: '', grade: '', class_name: '', daily_spending_limit: '', date_of_birth: '', parent_phone: '', parent_email: '', pin_code: '' });
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState('');
+  const [dynamicGrades, setDynamicGrades] = useState<{ id: string; name: string }[]>([]);
+  const [dynamicSections, setDynamicSections] = useState<{ id: string; name: string }[]>([]);
 
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
   const [txLoading, setTxLoading] = useState(true);
@@ -216,6 +218,19 @@ export default function StudentDetailPage() {
     fetchStudent();
     fetchTransactions();
     fetchParents();
+    // Fetch grades and sections for dropdowns
+    (async () => {
+      try {
+        const [gRes, sRes] = await Promise.all([
+          authFetch('/api/settings/grades'),
+          authFetch('/api/settings/sections'),
+        ]);
+        const gJson = await gRes.json();
+        const sJson = await sRes.json();
+        if (gJson.success) setDynamicGrades((gJson.data || []).filter((g: { is_active: boolean }) => g.is_active));
+        if (sJson.success) setDynamicSections((sJson.data || []).filter((s: { is_active: boolean }) => s.is_active));
+      } catch {}
+    })();
   }, [fetchStudent, fetchTransactions, fetchParents]);
 
   useEffect(() => {
@@ -439,14 +454,21 @@ export default function StudentDetailPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
                     <select value={editForm.grade} onChange={(e) => setEditForm(f => ({ ...f, grade: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
                       <option value="">-</option>
-                      {[1,2,3,4,5,6,7,8,9,10,11].map(g => (
-                        <option key={g} value={g}>Grade {g}</option>
-                      ))}
+                      {dynamicGrades.length > 0
+                        ? dynamicGrades.map(g => <option key={g.id} value={g.name}>{g.name}</option>)
+                        : [1,2,3,4,5,6,7,8,9,10,11].map(g => <option key={g} value={g}>Grade {g}</option>)
+                      }
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Class</label>
-                    <input type="text" value={editForm.class_name} onChange={(e) => setEditForm(f => ({ ...f, class_name: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500" placeholder="e.g. Grade 5-A" />
+                    <select value={editForm.class_name} onChange={(e) => setEditForm(f => ({ ...f, class_name: e.target.value }))} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                      <option value="">-</option>
+                      {dynamicSections.length > 0
+                        ? dynamicSections.map(s => <option key={s.id} value={`${editForm.grade}-${s.name}`}>{editForm.grade ? `${editForm.grade}-${s.name}` : s.name}</option>)
+                        : ['A', 'B', 'C', 'D', 'E', 'F'].map(s => <option key={s} value={`Grade ${editForm.grade}-${s}`}>Grade {editForm.grade}-{s}</option>)
+                      }
+                    </select>
                   </div>
                 </div>
                 <div>
