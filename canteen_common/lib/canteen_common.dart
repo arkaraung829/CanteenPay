@@ -93,3 +93,9 @@ export 'widgets/loading_overlay.dart';
 export 'widgets/empty_state_widget.dart';
 export 'widgets/connectivity_banner.dart';
 export 'widgets/transaction_detail_sheet.dart';
+
+// ============================================================================
+// L10N
+// ============================================================================
+
+export 'l10n/generated/app_localizations.dart';

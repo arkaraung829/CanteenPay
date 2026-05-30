@@ -112,6 +112,8 @@ class _ScanScreenState extends State<ScanScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = CanteenLocalizations.of(context)!;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -131,10 +133,10 @@ class _ScanScreenState extends State<ScanScreen> {
                   children: [
                     const Icon(Icons.storefront, color: Colors.white, size: 28),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
-                        'Paynow MM Seller',
-                        style: TextStyle(
+                        '${l10n.appTitle} ${l10n.seller}',
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -241,8 +243,8 @@ class _ScanScreenState extends State<ScanScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Text(
-                              "Today's Sales",
+                            Text(
+                              l10n.todaySales,
                               style: TextStyle(
                                 fontSize: 12,
                                 color: AppTheme.textSecondary,
@@ -291,6 +293,7 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildScanButton() {
+    final l10n = CanteenLocalizations.of(context)!;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -309,19 +312,19 @@ class _ScanScreenState extends State<ScanScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'Ready to scan',
-            style: TextStyle(
+          Text(
+            l10n.readyToScan,
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: AppTheme.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Tap the button below to start scanning\na student QR code',
+          Text(
+            l10n.tapToScan,
             textAlign: TextAlign.center,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
               color: AppTheme.textSecondary,
             ),
@@ -330,7 +333,7 @@ class _ScanScreenState extends State<ScanScreen> {
           FilledButton.icon(
             onPressed: _startScanner,
             icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scan Student QR'),
+            label: Text(l10n.scanStudentQr),
             style: FilledButton.styleFrom(
               backgroundColor: AppTheme.primary,
               padding: const EdgeInsets.symmetric(
@@ -349,6 +352,7 @@ class _ScanScreenState extends State<ScanScreen> {
   }
 
   Widget _buildScannerView() {
+    final l10n = CanteenLocalizations.of(context)!;
     return Stack(
       children: [
         // Camera
@@ -381,7 +385,7 @@ class _ScanScreenState extends State<ScanScreen> {
           left: 0,
           right: 0,
           child: Text(
-            'Point camera at student QR code',
+            l10n.pointCameraAtQr,
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.9),
@@ -412,7 +416,7 @@ class _ScanScreenState extends State<ScanScreen> {
                     Icon(Icons.close, color: Colors.white, size: 20),
                     SizedBox(width: 6),
                     Text(
-                      'Stop Scanning',
+                      l10n.stopScanning,
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 14,

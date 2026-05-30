@@ -15,7 +15,7 @@ class CanteenLocalizationsMy extends CanteenLocalizations {
   String get login => 'ပေါင်ဝင်ရန်';
 
   @override
-  String get signup => 'အကောင့်အသစ်ဖွင့်ရန်';
+  String get signup => 'အကောင့်အသစ်ဖွင့်ရန်';
 
   @override
   String get logout => 'ထွက်ရန်';
@@ -39,25 +39,25 @@ class CanteenLocalizationsMy extends CanteenLocalizations {
   String get resetPassword => 'စက်ဝှက်ပြန်သတ်မှတ်ရန်';
 
   @override
-  String get createAccount => 'အကောင့်အသစ်ဖွင့်ရန်';
+  String get createAccount => 'အကောင့်အသစ်ဖွင့်ရန်';
 
   @override
-  String get alreadyHaveAccount => 'အကောင့်ရှိပြီးသား။';
+  String get alreadyHaveAccount => 'အကောင့်ရှိပြီးသား။';
 
   @override
-  String get dontHaveAccount => 'အကောင့်မရှိသေး။';
+  String get dontHaveAccount => 'အကောင့်မရှိသေး။';
 
   @override
-  String get loginSuccess => 'အကောင့်ဝင်မှန်ပါသည်';
+  String get loginSuccess => 'အကောင့်ဝင်မှန်ပါသည်';
 
   @override
   String get loginFailed => 'ဝင်ရန်မအောင်မြင်ပါ။';
 
   @override
-  String get signupSuccess => 'အကောင့်ဖွင့်ပြီးပါပြီ';
+  String get signupSuccess => 'အကောင့်ဖွင့်ပြီးပါပြီ';
 
   @override
-  String get signupFailed => 'အကောင့်ဖွင့်ရန်မအောင်မြင်ပါ။';
+  String get signupFailed => 'အကောင့်ဖွင့်ရန်မအောင်မြင်ပါ။';
 
   @override
   String get logoutConfirm => 'ထွက်ရန်သေချာလား။';
@@ -75,7 +75,7 @@ class CanteenLocalizationsMy extends CanteenLocalizations {
   String get walletFrozen => 'ပိုက်ဆံအိတ်ပိတ်ထားသည်';
 
   @override
-  String get topUp => 'ငွေဖြည့်ရန်';
+  String get topUp => 'ငွေဖြည့်ရန်';
 
   @override
   String get deposit => 'ငွေသွင်းရန်';
@@ -159,7 +159,7 @@ class CanteenLocalizationsMy extends CanteenLocalizations {
   String get noStudentsFound => 'ကျာင်းသားရှာမတွေ့ပါ';
 
   @override
-  String get addStudent => 'ကျာင်းသားထည့်ရန်';
+  String get addStudent => 'ကျာင်းသားထည့်ရန်';
 
   @override
   String get profile => 'ပရိုဖိုင်';
@@ -213,7 +213,7 @@ class CanteenLocalizationsMy extends CanteenLocalizations {
   String get retry => 'ထပ်စမ်းရန်';
 
   @override
-  String get loading => 'ခဏက်စောင့်ပါ...';
+  String get loading => 'ခဏက်စောင့်ပါ...';
 
   @override
   String get search => 'ရှာရန်';
@@ -240,10 +240,10 @@ class CanteenLocalizationsMy extends CanteenLocalizations {
   String get unknownError => 'အမှားတစ်ခုဖြစ်ပါသည်။';
 
   @override
-  String get sessionExpired => 'သင့်စက်ရှင်ကုန်ဆုံးသွားပါပြီ။';
+  String get sessionExpired => 'သင့်စက်ရှင်ကုန်ဆုံးသွားပါပြီ။';
 
   @override
-  String get permissionDenied => 'ဒီလုပ်ဆောင်ရန်ခွင့်ပြုချက်မရှိပါ။';
+  String get permissionDenied => 'ဒီလုပ်ဆောင်ရန်ခွင့်ပြုချက်မရှိပါ။';
 
   @override
   String get announcements => 'ကြေညာချက်များ';
@@ -261,7 +261,7 @@ class CanteenLocalizationsMy extends CanteenLocalizations {
   String get seller => 'ရောင်းသူ';
 
   @override
-  String get admin => 'စီမံခန့်ရေးသူ';
+  String get admin => 'စီမံခန့်ရေးသူ';
 
   @override
   String get student => 'ကျာင်းသား';
@@ -273,8 +273,62 @@ class CanteenLocalizationsMy extends CanteenLocalizations {
   String get selectRole => 'အခန်းကဏ်ပေးရန်';
 
   @override
-  String get dailySpendingLimit => 'နေ့စြဲကုန်ကျသင့်ကန့်သတ်';
+  String get dailySpendingLimit => 'နေ့စဉ်ကုန်ကျသင့်ကန့်သတ်';
 
   @override
-  String get spendingLimitReached => 'နေ့စြဲကုန်ကျသင့်ကန့်သတ်ပြည့်မီးပါပြီ';
+  String get spendingLimitReached => 'နေ့စဉ်ကုန်ကျသင့်ကန့်သတ်ပြည့်မီပါပြီ';
+
+  @override
+  String get showQrAtCanteen => 'ဤ QR ကုဒ်ကို စားသောက်ဆိုင်တွင်ပြပါ';
+
+  @override
+  String get readyToScan => 'စကန်ဖတ်ရန်အဆင်သင့်ဖြစ်ပါပြီ';
+
+  @override
+  String get scanStudentQr => 'ကျောင်းသား QR စကန်ဖတ်ရန်';
+
+  @override
+  String get yourChildren => 'သင့်ကလေးများ';
+
+  @override
+  String get linkChild => 'ကလေးချိတ်ဆက်ရန်';
+
+  @override
+  String get home => 'ပင်မ';
+
+  @override
+  String get sales => 'ရောင်းအား';
+
+  @override
+  String get qrCard => 'QR ကတ်';
+
+  @override
+  String get history => 'မှတ်တမ်း';
+
+  @override
+  String get balanceEmpty => 'သင့်လက်ကျန်ငွေ ကုန်သွားပါပြီ။ မိဘကို ငွေဖြည့်ပေးရန် ပြောပါ။';
+
+  @override
+  String get todaySales => 'ယနေ့ရောင်းအား';
+
+  @override
+  String get pointCameraAtQr => 'ကျောင်းသား QR ကုဒ်ကို ကင်မရာချိန်ပါ';
+
+  @override
+  String get stopScanning => 'စကန်ရပ်ရန်';
+
+  @override
+  String get tapToScan => 'ကျောင်းသား QR ကုဒ်ကို စကန်ဖတ်ရန်\nအောက်ပါခလုတ်ကို နှိပ်ပါ';
+
+  @override
+  String get signOut => 'ထွက်ရန်';
+
+  @override
+  String get editProfile => 'ပရိုဖိုင်ပြင်ရန်';
+
+  @override
+  String get enrollmentYear => 'တက်ရောက်သည့်နှစ်';
+
+  @override
+  String get analyticsLabel => 'ခွဲခြမ်းစိတ်ဖြာ';
 }

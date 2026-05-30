@@ -14,6 +14,8 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final l10n = CanteenLocalizations.of(context)!;
+    final locale = context.watch<LocaleProvider>().locale;
 
     return Consumer<StudentProvider>(
       builder: (context, provider, _) {
@@ -22,7 +24,7 @@ class ProfileScreen extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: AppTheme.background,
-          appBar: AppBar(title: const Text('Profile')),
+          appBar: AppBar(title: Text(l10n.profile)),
           body: AnimatedFadeIn(
             child: ListView(
               padding: const EdgeInsets.all(AppTheme.spacingMd),
@@ -80,13 +82,13 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       _InfoTile(
                         icon: Icons.badge_outlined,
-                        label: 'Student Code',
+                        label: l10n.studentCode,
                         value: student?.studentCode ?? '-',
                       ),
                       const Divider(height: 1),
                       _InfoTile(
                         icon: Icons.school_outlined,
-                        label: 'Grade & Class',
+                        label: l10n.grade,
                         value: student != null
                             ? 'Grade ${student.gradeAndClass}'
                             : '-',
@@ -94,20 +96,20 @@ class ProfileScreen extends StatelessWidget {
                       const Divider(height: 1),
                       _InfoTile(
                         icon: Icons.calendar_today_outlined,
-                        label: 'Enrollment Year',
+                        label: l10n.enrollmentYear,
                         value: student?.enrollmentYear?.toString() ?? '-',
                       ),
                       const Divider(height: 1),
                       _InfoTile(
                         icon: Icons.account_balance_wallet_outlined,
-                        label: 'Balance',
+                        label: l10n.balance,
                         value: wallet?.formattedBalance ?? '0 MMK',
                         valueColor: AppTheme.primary,
                       ),
                       const Divider(height: 1),
                       _InfoTile(
                         icon: Icons.email_outlined,
-                        label: 'Email',
+                        label: l10n.email,
                         value: auth.user?.email ?? '-',
                       ),
                     ],
@@ -119,7 +121,7 @@ class ProfileScreen extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: () => context.push('/edit-profile'),
                   icon: const Icon(Icons.edit_rounded, size: 18),
-                  label: const Text('Edit Profile'),
+                  label: Text(l10n.editProfile),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.primary,
                     foregroundColor: Colors.white,
@@ -137,12 +139,13 @@ class ProfileScreen extends StatelessWidget {
                     boxShadow: AppTheme.shadowSm,
                   ),
                   child: ListTile(
-                    leading: const Icon(Icons.language),
-                    title: const Text('Language'),
-                    subtitle: Text(context.watch<LocaleProvider>().isMyanmar ? 'Myanmar' : 'English'),
+                    leading: const Icon(Icons.language, color: AppTheme.primary),
+                    title: Text(locale.languageCode == 'my' ? 'Myanmar' : 'English'),
                     trailing: Switch(
-                      value: context.watch<LocaleProvider>().isMyanmar,
-                      onChanged: (_) => context.read<LocaleProvider>().toggle(),
+                      value: locale.languageCode == 'my',
+                      onChanged: (val) {
+                        context.read<LocaleProvider>().setLocale(val ? const Locale('my') : const Locale('en'));
+                      },
                     ),
                   ),
                 ),
@@ -171,7 +174,7 @@ class ProfileScreen extends StatelessWidget {
                     }
                   },
                   icon: const Icon(Icons.logout),
-                  label: const Text('Sign Out'),
+                  label: Text(l10n.signOut),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppTheme.error,
                     side: const BorderSide(color: AppTheme.error),

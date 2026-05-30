@@ -50,7 +50,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
 
       final schoolId = profile?['school_id'];
       if (schoolId == null) {
-        setState(() => _announcementsLoading = false);
+        if (mounted) setState(() => _announcementsLoading = false);
         return;
       }
 
@@ -62,13 +62,15 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           .order('created_at', ascending: false)
           .limit(50);
 
-      setState(() {
-        _announcements = List<Map<String, dynamic>>.from(response);
-        _announcementsLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _announcements = List<Map<String, dynamic>>.from(response);
+          _announcementsLoading = false;
+        });
+      }
     } catch (e) {
       debugPrint('NotificationsScreen: failed to load announcements: $e');
-      setState(() => _announcementsLoading = false);
+      if (mounted) setState(() => _announcementsLoading = false);
     }
   }
 

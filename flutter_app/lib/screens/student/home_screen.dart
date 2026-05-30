@@ -74,6 +74,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = CanteenLocalizations.of(context)!;
+
     return Consumer<StudentProvider>(
       builder: (context, provider, _) {
         final student = provider.currentStudent;
@@ -258,7 +260,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
-                                          'Your balance is empty. Please ask your parent to top up.',
+                                          l10n.balanceEmpty,
                                           style: TextStyle(
                                             fontSize: 13,
                                             color: Colors.orange[800],
@@ -284,8 +286,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                     AppTheme.primary.withValues(alpha: 0.08),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Text(
-                                'Show this QR at the canteen',
+                              child: Text(
+                                l10n.showQrAtCanteen,
                                 style: TextStyle(
                                   fontSize: 13,
                                   color: AppTheme.primary,

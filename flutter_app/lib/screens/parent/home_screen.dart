@@ -148,6 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth = context.watch<AuthProvider>();
     final childrenProvider = context.watch<ChildrenProvider>();
     final notifProvider = context.watch<NotificationProvider>();
+    final l10n = CanteenLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
@@ -255,9 +256,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'My Children',
-                            style: TextStyle(
+                          Text(
+                            l10n.yourChildren,
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
                             ),
@@ -266,7 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             onPressed: () =>
                                 context.push('/parent/link-child'),
                             icon: const Icon(Icons.add, size: 18),
-                            label: const Text('Link Child'),
+                            label: Text(l10n.linkChild),
                           ),
                         ],
                       ),
