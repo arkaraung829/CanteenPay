@@ -59,7 +59,7 @@
 			<string>fetch</string>
 		</array>
 		<key>FirebaseAppDelegateProxyEnabled</key>
-		<false/>
+		<true/>
 		<key>CFBundleURLTypes</key>
 		<array>
 			<dict>
