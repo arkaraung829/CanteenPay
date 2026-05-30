@@ -20,6 +20,7 @@ class LinkChildScreen extends StatefulWidget {
 class _LinkChildScreenState extends State<LinkChildScreen> {
   final _codeController = TextEditingController();
   final _dobController = TextEditingController();
+  final _pinController = TextEditingController();
   bool _isSearching = false;
   bool _isLinking = false;
   bool _isLinked = false;
@@ -30,6 +31,7 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
   void dispose() {
     _codeController.dispose();
     _dobController.dispose();
+    _pinController.dispose();
     super.dispose();
   }
 
@@ -89,19 +91,17 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
   Future<void> _linkChild() async {
     if (_foundStudent == null) return;
 
-    // Verify DOB if the student has one set
-    if (_foundStudent!.dateOfBirth != null && _foundStudent!.dateOfBirth!.isNotEmpty) {
-      final enteredDob = _dobController.text.trim();
-      if (enteredDob.isEmpty) {
-        HapticService.error();
-        setState(() => _error = 'Please enter the date of birth to verify');
-        return;
-      }
-      if (enteredDob != _foundStudent!.dateOfBirth) {
-        HapticService.error();
-        setState(() => _error = "Date of birth doesn't match. Please contact school admin.");
-        return;
-      }
+    // Verify PIN code (required)
+    final enteredPin = _pinController.text.trim();
+    if (enteredPin.isEmpty) {
+      HapticService.error();
+      setState(() => _error = 'Please enter the student\'s 4-digit PIN code');
+      return;
+    }
+    if (enteredPin != _foundStudent!.pinCode) {
+      HapticService.error();
+      setState(() => _error = 'Incorrect PIN code. Please check with the school.');
+      return;
     }
 
     final auth = context.read<AuthProvider>();
@@ -271,25 +271,23 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
               ),
             ),
           ),
-          // DOB verification field (only shown if student has DOB set)
-          if (_foundStudent!.dateOfBirth != null && _foundStudent!.dateOfBirth!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            ValidatedTextField(
-              controller: _dobController,
-              label: 'Date of Birth (YYYYMMDD, e.g. 20150315)',
-              prefixIcon: Icons.cake_outlined,
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Date of birth is required for verification';
-                }
-                if (value.trim().length != 8 || int.tryParse(value.trim()) == null) {
-                  return 'Enter date in YYYYMMDD format';
-                }
-                return null;
-              },
-            ),
-          ],
+          // PIN verification field (always required)
+          const SizedBox(height: 16),
+          ValidatedTextField(
+            controller: _pinController,
+            label: 'Student PIN Code (4 digits)',
+            prefixIcon: Icons.pin_outlined,
+            keyboardType: TextInputType.number,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'PIN code is required';
+              }
+              if (value.trim().length != 4) {
+                return 'PIN code must be 4 digits';
+              }
+              return null;
+            },
+          ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _isLinking ? null : _linkChild,
