@@ -130,18 +130,22 @@ class _NotificationsScreenState extends State<NotificationsScreen>
         ],
         bottom: TabBar(
           controller: _tabController,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
+          indicatorWeight: 3,
           tabs: [
             Tab(
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('Activity'),
+                  const Text('Activity', style: TextStyle(fontWeight: FontWeight.w600)),
                   if (provider.unreadCount > 0) ...[
                     const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: AppTheme.error,
+                        color: Colors.red,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -153,7 +157,7 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 ],
               ),
             ),
-            const Tab(text: 'Announcements'),
+            const Tab(child: Text('Announcements', style: TextStyle(fontWeight: FontWeight.w600))),
           ],
         ),
       ),
@@ -189,9 +193,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           final color = _colorForType(notif.type ?? 'system');
           return ListTile(
             tileColor:
-                notif.isRead ? null : AppTheme.primary.withValues(alpha: 0.04),
+                notif.isRead ? null : AppTheme.primary.withValues(alpha: 0.06),
             leading: CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.1),
+              backgroundColor: color.withValues(alpha: 0.12),
               child: Icon(
                 _iconForType(notif.type ?? 'system'),
                 color: color,
@@ -201,16 +205,27 @@ class _NotificationsScreenState extends State<NotificationsScreen>
             title: Text(
               notif.title,
               style: TextStyle(
+                fontSize: 14,
                 fontWeight:
-                    notif.isRead ? FontWeight.normal : FontWeight.bold,
+                    notif.isRead ? FontWeight.w500 : FontWeight.w700,
+                color: Colors.black87,
               ),
             ),
-            subtitle: Text(notif.body),
+            subtitle: Text(
+              notif.body,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
             trailing: Text(
               _timeAgo(notif.timestamp),
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppTheme.textSecondary,
+              style: TextStyle(
+                fontSize: 11,
+                color: Colors.grey[400],
+                fontWeight: FontWeight.w500,
               ),
             ),
             onTap: () => provider.markAsRead(notif.id),
@@ -285,7 +300,8 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                             a['title'] ?? '',
                             style: const TextStyle(
                               fontSize: 15,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black87,
                             ),
                           ),
                           if (schoolName != null || date != null)
@@ -316,13 +332,13 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 const SizedBox(height: 12),
                 Text(
                   a['body'] ?? '',
-                  style: const TextStyle(fontSize: 14, height: 1.4),
+                  style: const TextStyle(fontSize: 14, height: 1.5, color: Colors.black87),
                 ),
                 if (a['body_my'] != null && (a['body_my'] as String).isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
                     a['body_my'],
-                    style: TextStyle(fontSize: 14, height: 1.4, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 14, height: 1.5, color: Colors.grey[700]),
                   ),
                 ],
               ],
