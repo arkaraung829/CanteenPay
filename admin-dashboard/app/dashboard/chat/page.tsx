@@ -5,6 +5,14 @@ import { MessageCircle, Send, Loader2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useSchoolContext } from '@/lib/school-context';
 
+interface StudentInfo {
+  id: string;
+  full_name: string;
+  student_code: string;
+  grade: string | null;
+  class_name: string | null;
+}
+
 interface Conversation {
   id: string;
   parent_id: string;
@@ -13,6 +21,7 @@ interface Conversation {
   last_message_at: string | null;
   created_at: string;
   parent_name?: string;
+  students?: StudentInfo[];
 }
 
 interface Message {
@@ -51,6 +60,7 @@ export default function ChatPage() {
           last_message_at: c.last_message_at as string | null,
           created_at: c.created_at as string,
           parent_name: (profile?.full_name as string) || 'Parent',
+          students: (c.students as StudentInfo[]) || [],
         };
       });
       setConversations(mapped);
@@ -172,6 +182,11 @@ export default function ChatPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{conv.parent_name}</p>
+                      {conv.students && conv.students.length > 0 && (
+                        <p className="text-xs text-blue-600 truncate">
+                          {conv.students.map(s => s.full_name).join(', ')}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-400">
                         {conv.last_message_at ? formatTime(conv.last_message_at) : 'No messages'}
                       </p>
@@ -198,7 +213,16 @@ export default function ChatPage() {
               <div className="border-b border-gray-200 px-5 py-3 flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-900">{selectedConv.parent_name}</p>
-                  <p className="text-xs text-gray-400">{selectedConv.status}</p>
+                  {selectedConv.students && selectedConv.students.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {selectedConv.students.map(s => (
+                        <span key={s.id} className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-700">
+                          {s.full_name} · {s.student_code}
+                          {s.grade ? ` · G${s.grade}` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => { setSelectedConv(null); setMessages([]); }}

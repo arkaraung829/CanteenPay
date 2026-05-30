@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     return Response.json({ success: true, data: data || [] });
   }
 
-  // Otherwise return conversations
+  // Otherwise return conversations with parent + linked students
   let query = supabase
     .from('chat_conversations')
     .select('*, profiles!chat_conversations_parent_id_fkey(full_name)')
@@ -38,7 +38,37 @@ export async function GET(request: NextRequest) {
     return Response.json({ success: false, error: error.message }, { status: 500 });
   }
 
-  return Response.json({ success: true, data: data || [] });
+  // Fetch linked students for each parent
+  const parentIds = [...new Set((data || []).map((c: Record<string, unknown>) => c.parent_id as string))];
+  const { data: links } = await supabase
+    .from('parent_student_links')
+    .select('parent_id, students(id, full_name, student_code, grade, class_name)')
+    .in('parent_id', parentIds.length > 0 ? parentIds : ['none']);
+
+  // Build parent → students map
+  const parentStudentsMap: Record<string, Array<{ id: string; full_name: string; student_code: string; grade: string | null; class_name: string | null }>> = {};
+  for (const link of (links || [])) {
+    const pid = (link as Record<string, unknown>).parent_id as string;
+    const student = (link as Record<string, unknown>).students as Record<string, unknown> | null;
+    if (student) {
+      if (!parentStudentsMap[pid]) parentStudentsMap[pid] = [];
+      parentStudentsMap[pid].push({
+        id: student.id as string,
+        full_name: student.full_name as string,
+        student_code: student.student_code as string,
+        grade: student.grade as string | null,
+        class_name: student.class_name as string | null,
+      });
+    }
+  }
+
+  // Attach students to each conversation
+  const enriched = (data || []).map((c: Record<string, unknown>) => ({
+    ...c,
+    students: parentStudentsMap[c.parent_id as string] || [],
+  }));
+
+  return Response.json({ success: true, data: enriched });
 }
 
 export async function POST(request: NextRequest) {
