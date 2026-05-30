@@ -228,7 +228,10 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 fontWeight: FontWeight.w500,
               ),
             ),
-            onTap: () => provider.markAsRead(notif.id),
+            onTap: () {
+              provider.markAsRead(notif.id);
+              _showNotificationDetail(context, notif);
+            },
           );
         },
       ),
@@ -271,7 +274,9 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           final schools = a['schools'];
           final schoolName = schools is Map ? schools['name'] : null;
 
-          return Container(
+          return GestureDetector(
+            onTap: () => _showAnnouncementDetail(context, a),
+            child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -343,8 +348,171 @@ class _NotificationsScreenState extends State<NotificationsScreen>
                 ],
               ],
             ),
+          ),
           );
         },
+      ),
+    );
+  }
+
+  void _showNotificationDetail(BuildContext context, NotificationItem notif) {
+    final color = _colorForType(notif.type ?? 'system');
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: color.withValues(alpha: 0.12),
+                  child: Icon(_iconForType(notif.type ?? 'system'), color: color, size: 22),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(notif.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                      Text(_timeAgo(notif.timestamp), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(notif.body, style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.black87)),
+            if (notif.data != null) ...[
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+              if (notif.data!['amount'] != null)
+                _detailRow('Amount', '${notif.data!['amount']} MMK'),
+              if (notif.data!['balance_after'] != null)
+                _detailRow('Balance', '${notif.data!['balance_after']} MMK'),
+              if (notif.data!['student_id'] != null)
+                _detailRow('Type', notif.type ?? '-'),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showAnnouncementDetail(BuildContext context, Map<String, dynamic> a) {
+    final schools = a['schools'];
+    final schoolName = schools is Map ? schools['name'] : null;
+    final publishedAt = a['published_at'] ?? a['created_at'];
+    final date = publishedAt != null ? DateTime.tryParse(publishedAt) : null;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.3,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (_, scrollController) => Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
+          child: ListView(
+            controller: scrollController,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.campaign, color: AppTheme.primary, size: 24),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          a['title'] ?? '',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                        ),
+                        if (a['title_my'] != null && (a['title_my'] as String).isNotEmpty)
+                          Text(a['title_my'], style: TextStyle(fontSize: 15, color: Colors.grey[600])),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            if (schoolName != null)
+                              Text(schoolName, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                            if (schoolName != null && date != null)
+                              Text(' · ', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                            if (date != null)
+                              Text(_timeAgo(date), style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                a['body'] ?? '',
+                style: const TextStyle(fontSize: 15, height: 1.6, color: Colors.black87),
+              ),
+              if (a['body_my'] != null && (a['body_my'] as String).isNotEmpty) ...[
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    a['body_my'],
+                    style: TextStyle(fontSize: 15, height: 1.6, color: Colors.grey[700]),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(width: 80, child: Text(label, style: TextStyle(fontSize: 13, color: Colors.grey[600]))),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        ],
       ),
     );
   }
