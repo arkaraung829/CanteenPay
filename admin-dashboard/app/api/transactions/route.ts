@@ -1,7 +1,11 @@
 import { createAdminClient } from '@/lib/supabase';
+import { verifyAdmin, unauthorizedResponse } from '@/lib/api-auth';
 import { NextRequest } from 'next/server';
 
 export async function GET(request: NextRequest) {
+  const auth = await verifyAdmin(request);
+  if (!auth) return unauthorizedResponse();
+
   const supabase = createAdminClient();
   const searchParams = request.nextUrl.searchParams;
   const type = searchParams.get('type') || '';

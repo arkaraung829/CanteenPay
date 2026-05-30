@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase';
+import { verifyAdmin, unauthorizedResponse } from '@/lib/api-auth';
 
 export async function GET() {
   const supabase = createAdminClient();

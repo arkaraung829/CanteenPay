@@ -288,7 +288,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               child: Text(
                                 l10n.showQrAtCanteen,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 13,
                                   color: AppTheme.primary,
                                   fontWeight: FontWeight.w500,

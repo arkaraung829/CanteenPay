@@ -1,7 +1,11 @@
 import { createAdminClient } from '@/lib/supabase';
+import { verifyAdmin, unauthorizedResponse } from '@/lib/api-auth';
 import { NextRequest } from 'next/server';
 
 export async function PATCH(request: NextRequest) {
+  const auth = await verifyAdmin(request);
+  if (!auth) return unauthorizedResponse();
+
   const supabase = createAdminClient();
 
   try {
@@ -45,6 +49,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const auth = await verifyAdmin(request);
+  if (!auth) return unauthorizedResponse();
+
   const supabase = createAdminClient();
 
   try {

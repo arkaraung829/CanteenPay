@@ -14,10 +14,12 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final user = auth.user;
+    final l10n = CanteenLocalizations.of(context)!;
+    final locale = context.watch<LocaleProvider>().locale;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: Text(l10n.profile),
       ),
       body: AnimatedFadeIn(
         child: ListView(
@@ -83,7 +85,7 @@ class ProfileScreen extends StatelessWidget {
           ElevatedButton.icon(
             onPressed: () => context.push('/edit-profile'),
             icon: const Icon(Icons.edit_rounded, size: 18),
-            label: const Text('Edit Profile'),
+            label: Text(l10n.editProfile),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppTheme.primary,
               foregroundColor: Colors.white,
@@ -101,12 +103,13 @@ class ProfileScreen extends StatelessWidget {
               boxShadow: AppTheme.shadowSm,
             ),
             child: ListTile(
-              leading: const Icon(Icons.language),
-              title: const Text('Language'),
-              subtitle: Text(context.watch<LocaleProvider>().isMyanmar ? 'Myanmar' : 'English'),
+              leading: const Icon(Icons.language, color: AppTheme.primary),
+              title: Text(locale.languageCode == 'my' ? 'Myanmar' : 'English'),
               trailing: Switch(
-                value: context.watch<LocaleProvider>().isMyanmar,
-                onChanged: (_) => context.read<LocaleProvider>().toggle(),
+                value: locale.languageCode == 'my',
+                onChanged: (val) {
+                  context.read<LocaleProvider>().setLocale(val ? const Locale('my') : const Locale('en'));
+                },
               ),
             ),
           ),
@@ -134,9 +137,9 @@ class ProfileScreen extends StatelessWidget {
                 }
               },
               icon: const Icon(Icons.logout, color: AppTheme.error),
-              label: const Text(
-                'Sign Out',
-                style: TextStyle(color: AppTheme.error),
+              label: Text(
+                l10n.signOut,
+                style: const TextStyle(color: AppTheme.error),
               ),
               style: OutlinedButton.styleFrom(
                 side: const BorderSide(color: AppTheme.error),
