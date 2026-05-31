@@ -448,18 +448,20 @@ export default function ReportsPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {sellerDailySales.length > 0 && (
-              <button
-                onClick={exportSellerCSV}
-                className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
-              >
-                <Download className="h-4 w-4" /> CSV
-              </button>
-              <button
-                onClick={exportSellerPDF}
-                className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
-              >
-                <Download className="h-4 w-4" /> PDF
-              </button>
+              <>
+                <button
+                  onClick={exportSellerCSV}
+                  className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  <Download className="h-4 w-4" /> CSV
+                </button>
+                <button
+                  onClick={exportSellerPDF}
+                  className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  <Download className="h-4 w-4" /> PDF
+                </button>
+              </>
             )}
             {sellerDailySales.length > 0 && (
               <span className="text-sm font-medium text-gray-700">
