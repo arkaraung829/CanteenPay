@@ -13,6 +13,8 @@
 **/android/.gradle/
 **/android/local.properties
 **/android/key.properties
+**/*.jks
+**/*.keystore
 **/android/*.jks
 
 # iOS
