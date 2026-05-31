@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BarChart3, TrendingUp, Calendar } from 'lucide-react';
+import { BarChart3, TrendingUp, Calendar, Download } from 'lucide-react';
 import StatCard from '@/components/StatCard';
 import { formatMMK } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
@@ -25,11 +25,37 @@ interface SellerDailySale {
   name: string;
   sales: number;
   count: number;
+  avg: number;
+}
+
+interface SellerOption {
+  id: string;
+  stall_name: string;
 }
 
 /** Format a Date as YYYY-MM-DD using local timezone */
 function toLocalDateStr(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Convert a local date string to the start-of-day UTC ISO string */
+function localDateToUTCStart(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00`).toISOString();
+}
+
+/** Convert a local date string to the end-of-day UTC ISO string */
+function localDateToUTCEnd(dateStr: string): string {
+  return new Date(`${dateStr}T23:59:59.999`).toISOString();
+}
+
+function downloadCSV(filename: string, csvContent: string) {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function ReportsPage() {
@@ -38,11 +64,32 @@ export default function ReportsPage() {
   const [topSellers, setTopSellers] = useState<TopSeller[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Seller Daily Sales state
-  const [sellerDailyDate, setSellerDailyDate] = useState(() => toLocalDateStr(new Date()));
+  // Seller Daily Sales state - date range
+  const [sellerDateFrom, setSellerDateFrom] = useState(() => toLocalDateStr(new Date()));
+  const [sellerDateTo, setSellerDateTo] = useState(() => toLocalDateStr(new Date()));
+  const [sellerFilter, setSellerFilter] = useState('all');
+  const [sellerOptions, setSellerOptions] = useState<SellerOption[]>([]);
   const [sellerDailySales, setSellerDailySales] = useState<SellerDailySale[]>([]);
   const [sellerDailyLoading, setSellerDailyLoading] = useState(false);
   const [sellerDailyTotal, setSellerDailyTotal] = useState(0);
+  const [sellerDailyTotalCount, setSellerDailyTotalCount] = useState(0);
+
+  // Fetch seller options for the filter dropdown
+  useEffect(() => {
+    async function fetchSellerOptions() {
+      let query = supabase
+        .from('canteen_sellers')
+        .select('id, stall_name')
+        .eq('is_active', true)
+        .order('stall_name');
+      if (selectedSchoolId) {
+        query = query.eq('school_id', selectedSchoolId);
+      }
+      const { data } = await query;
+      setSellerOptions(data || []);
+    }
+    fetchSellerOptions();
+  }, [selectedSchoolId]);
 
   useEffect(() => {
     async function fetchReports() {
@@ -64,10 +111,8 @@ export default function ReportsPage() {
       }
 
       // Convert local date boundaries to UTC for Supabase query
-      const weekStartLocal = new Date(`${days[0].date}T00:00:00`);
-      const weekEndLocal = new Date(`${days[days.length - 1].date}T23:59:59`);
-      const weekStart = weekStartLocal.toISOString();
-      const weekEnd = weekEndLocal.toISOString();
+      const weekStart = localDateToUTCStart(days[0].date);
+      const weekEnd = localDateToUTCEnd(days[days.length - 1].date);
 
       // Fetch all transactions for the week
       const { data: txData } = await supabase
@@ -154,23 +199,27 @@ export default function ReportsPage() {
     fetchReports();
   }, [selectedSchoolId]);
 
-  // Fetch seller daily sales for settlement
+  // Fetch seller daily sales for settlement (date range + seller filter)
   useEffect(() => {
     async function fetchSellerDailySales() {
       setSellerDailyLoading(true);
       try {
-        // Convert local date to UTC range
-        const dayStartLocal = new Date(`${sellerDailyDate}T00:00:00`);
-        const dayEndLocal = new Date(`${sellerDailyDate}T23:59:59`);
-        const dayStartUTC = dayStartLocal.toISOString();
-        const dayEndUTC = dayEndLocal.toISOString();
+        const dayStartUTC = localDateToUTCStart(sellerDateFrom);
+        const dayEndUTC = localDateToUTCEnd(sellerDateTo);
 
-        const { data: txData } = await supabase
+        let query = supabase
           .from('transactions')
           .select('type, amount, created_at, seller_id, wallet:wallets(student:students(school_id))')
           .eq('type', 'purchase')
           .gte('created_at', dayStartUTC)
           .lte('created_at', dayEndUTC);
+
+        // If a specific seller is selected, filter at query level
+        if (sellerFilter !== 'all') {
+          query = query.eq('seller_id', sellerFilter);
+        }
+
+        const { data: txData } = await query;
 
         let transactions = txData || [];
 
@@ -217,11 +266,15 @@ export default function ReportsPage() {
             name: sellerNames[id] || 'Unknown',
             sales: data.total,
             count: data.count,
+            avg: data.count > 0 ? Math.round(data.total / data.count) : 0,
           }))
           .sort((a, b) => b.sales - a.sales);
 
         setSellerDailySales(salesList);
-        setSellerDailyTotal(salesList.reduce((sum, s) => sum + s.sales, 0));
+        const totalAmount = salesList.reduce((sum, s) => sum + s.sales, 0);
+        const totalCount = salesList.reduce((sum, s) => sum + s.count, 0);
+        setSellerDailyTotal(totalAmount);
+        setSellerDailyTotalCount(totalCount);
       } catch (e) {
         console.error('Error fetching seller daily sales:', e);
       }
@@ -229,7 +282,38 @@ export default function ReportsPage() {
     }
 
     fetchSellerDailySales();
-  }, [sellerDailyDate, selectedSchoolId]);
+  }, [sellerDateFrom, sellerDateTo, sellerFilter, selectedSchoolId]);
+
+  // Export seller report as CSV
+  function exportSellerCSV() {
+    if (sellerDailySales.length === 0) return;
+
+    const dateRange = sellerDateFrom === sellerDateTo
+      ? sellerDateFrom
+      : `${sellerDateFrom} to ${sellerDateTo}`;
+
+    const lines: string[] = [];
+    lines.push('Date Range,Seller Name,Sales Count,Total Amount (MMK),Average Per Sale (MMK)');
+
+    sellerDailySales.forEach((s) => {
+      lines.push(`"${dateRange}","${s.name}",${s.count},${s.sales},${s.avg}`);
+    });
+
+    // Totals row
+    const grandAvg = sellerDailyTotalCount > 0 ? Math.round(sellerDailyTotal / sellerDailyTotalCount) : 0;
+    lines.push(`"${dateRange}","GRAND TOTAL",${sellerDailyTotalCount},${sellerDailyTotal},${grandAvg}`);
+
+    // Summary section
+    lines.push('');
+    lines.push('--- Summary ---');
+    lines.push(`Grand Total Amount,${sellerDailyTotal} MMK`);
+    lines.push(`Date Range,"${dateRange}"`);
+    lines.push(`Generated,${new Date().toLocaleString()}`);
+
+    const csv = lines.join('\n');
+    const filename = `seller-report-${sellerDateFrom}${sellerDateFrom !== sellerDateTo ? '-to-' + sellerDateTo : ''}.csv`;
+    downloadCSV(filename, csv);
+  }
 
   const totalDeposits = dailyData.reduce((sum, d) => sum + d.deposits, 0);
   const totalPurchases = dailyData.reduce((sum, d) => sum + d.purchases, 0);
@@ -374,23 +458,67 @@ export default function ReportsPage() {
 
       {/* Seller Daily Sales - for settlement */}
       <div className="mt-6 rounded-xl border border-gray-200 bg-white p-6">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
           <div>
             <h3 className="text-sm font-semibold text-gray-900">Seller Daily Sales</h3>
             <p className="text-xs text-gray-500 mt-0.5">For daily settlement with each seller</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {sellerDailySales.length > 0 && (
+              <button
+                onClick={exportSellerCSV}
+                className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                <Download className="h-4 w-4" /> Export CSV
+              </button>
+            )}
             {sellerDailySales.length > 0 && (
               <span className="text-sm font-medium text-gray-700">
                 Total: {formatMMK(sellerDailyTotal)}
               </span>
             )}
+          </div>
+        </div>
+
+        {/* Filters row */}
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
             <input
               type="date"
-              value={sellerDailyDate}
-              onChange={(e) => setSellerDailyDate(e.target.value)}
+              value={sellerDateFrom}
+              onChange={(e) => {
+                setSellerDateFrom(e.target.value);
+                // Ensure TO is not before FROM
+                if (e.target.value > sellerDateTo) {
+                  setSellerDateTo(e.target.value);
+                }
+              }}
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
+            <input
+              type="date"
+              value={sellerDateTo}
+              min={sellerDateFrom}
+              onChange={(e) => setSellerDateTo(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Seller</label>
+            <select
+              value={sellerFilter}
+              onChange={(e) => setSellerFilter(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="all">All Sellers</option>
+              {sellerOptions.map((s) => (
+                <option key={s.id} value={s.id}>{s.stall_name}</option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -402,7 +530,7 @@ export default function ReportsPage() {
             </svg>
           </div>
         ) : sellerDailySales.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">No sales data for this date</p>
+          <p className="py-8 text-center text-sm text-gray-400">No sales data for this date range</p>
         ) : (
           <div className="overflow-hidden rounded-lg border border-gray-200">
             <table className="min-w-full divide-y divide-gray-200">
@@ -412,6 +540,7 @@ export default function ReportsPage() {
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Seller</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">No. of Sales</th>
                   <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Total Amount</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Avg / Sale</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
@@ -421,12 +550,16 @@ export default function ReportsPage() {
                     <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{seller.name}</td>
                     <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-600 text-right">{seller.count}</td>
                     <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900 text-right">{formatMMK(seller.sales)}</td>
+                    <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-600 text-right">{formatMMK(seller.avg)}</td>
                   </tr>
                 ))}
                 <tr className="bg-gray-50 font-medium">
-                  <td className="px-6 py-3 text-sm text-gray-500" colSpan={2}>Total</td>
-                  <td className="px-6 py-3 text-sm text-gray-700 text-right">{sellerDailySales.reduce((s, x) => s + x.count, 0)}</td>
+                  <td className="px-6 py-3 text-sm text-gray-500" colSpan={2}>Grand Total</td>
+                  <td className="px-6 py-3 text-sm text-gray-700 text-right">{sellerDailyTotalCount}</td>
                   <td className="px-6 py-3 text-sm font-semibold text-gray-900 text-right">{formatMMK(sellerDailyTotal)}</td>
+                  <td className="px-6 py-3 text-sm text-gray-700 text-right">
+                    {formatMMK(sellerDailyTotalCount > 0 ? Math.round(sellerDailyTotal / sellerDailyTotalCount) : 0)}
+                  </td>
                 </tr>
               </tbody>
             </table>

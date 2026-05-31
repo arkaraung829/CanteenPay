@@ -5,7 +5,7 @@ import { useSchoolContext } from '@/lib/school-context';
 import { supabase } from '@/lib/supabase';
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Users, Check, X, Clock, Loader2, ClipboardCheck,
+  Users, Check, X, Clock, Loader2, ClipboardCheck, Download,
 } from 'lucide-react';
 
 interface StudentAttendance {
@@ -33,13 +33,47 @@ interface TeacherRecord {
   assigned_classes: string[];
 }
 
+/** Format a Date as YYYY-MM-DD using local timezone */
+function toLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function downloadCSV(filename: string, csvContent: string) {
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Get all dates in a range as YYYY-MM-DD strings */
+function getDateRange(from: string, to: string): string[] {
+  const dates: string[] = [];
+  const start = new Date(`${from}T00:00:00`);
+  const end = new Date(`${to}T00:00:00`);
+  const current = new Date(start);
+  while (current <= end) {
+    dates.push(toLocalDateStr(current));
+    current.setDate(current.getDate() + 1);
+  }
+  return dates;
+}
+
 export default function AttendancePage() {
   const { selectedSchoolId, userRole } = useSchoolContext();
 
   // Filters
-  const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(() => toLocalDateStr(new Date()));
   const [grade, setGrade] = useState('');
   const [className, setClassName] = useState('');
+
+  // Export date range
+  const [exportDateFrom, setExportDateFrom] = useState(() => toLocalDateStr(new Date()));
+  const [exportDateTo, setExportDateTo] = useState(() => toLocalDateStr(new Date()));
+  const [showExportPanel, setShowExportPanel] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Options for dropdowns
   const [grades, setGrades] = useState<GradeOption[]>([]);
@@ -244,6 +278,90 @@ export default function AttendancePage() {
     setSaving(false);
   }
 
+  // Set export to full current month
+  function setExportFullMonth() {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    setExportDateFrom(toLocalDateStr(firstDay));
+    setExportDateTo(toLocalDateStr(lastDay));
+  }
+
+  // Export attendance as CSV
+  async function handleExportAttendance() {
+    if (!grade || !className) {
+      setError('Please select a grade and section to export.');
+      return;
+    }
+    setExporting(true);
+    setError('');
+
+    try {
+      const dates = getDateRange(exportDateFrom, exportDateTo);
+
+      // Fetch students for this class
+      const params = new URLSearchParams({ date: dates[0], grade, class_name: classNameFilter });
+      if (selectedSchoolId) params.set('school_id', selectedSchoolId);
+      const studentsRes = await authFetch(`/api/attendance?${params}`);
+      const studentsJson = await studentsRes.json();
+
+      if (!studentsJson.success) {
+        setError(studentsJson.error || 'Failed to fetch students for export');
+        setExporting(false);
+        return;
+      }
+
+      const studentList: StudentAttendance[] = studentsJson.students || [];
+      if (studentList.length === 0) {
+        setError('No students found for this class.');
+        setExporting(false);
+        return;
+      }
+
+      // Fetch attendance records for the full date range from Supabase
+      const studentIds = studentList.map(s => s.id);
+      const { data: attendanceData, error: attErr } = await supabase
+        .from('attendance')
+        .select('student_id, date, status, notes')
+        .in('student_id', studentIds)
+        .gte('date', exportDateFrom)
+        .lte('date', exportDateTo);
+
+      if (attErr) {
+        setError('Failed to fetch attendance records: ' + attErr.message);
+        setExporting(false);
+        return;
+      }
+
+      // Build a lookup: student_id -> date -> { status, notes }
+      const attMap = new Map<string, Map<string, { status: string; notes: string }>>();
+      (attendanceData || []).forEach((r: { student_id: string; date: string; status: string; notes: string | null }) => {
+        if (!attMap.has(r.student_id)) attMap.set(r.student_id, new Map());
+        attMap.get(r.student_id)!.set(r.date, { status: r.status, notes: r.notes || '' });
+      });
+
+      // Build CSV
+      const lines: string[] = [];
+      lines.push('Student Name,Student Code,Date,Status,Notes');
+
+      for (const dateStr of dates) {
+        for (const student of studentList) {
+          const record = attMap.get(student.id)?.get(dateStr);
+          const status = record?.status || 'Not Marked';
+          const notes = record?.notes || '';
+          lines.push(`"${student.full_name}","${student.student_code}","${dateStr}","${status.charAt(0).toUpperCase() + status.slice(1)}","${notes.replace(/"/g, '""')}"`);
+        }
+      }
+
+      const csv = lines.join('\n');
+      const filename = `attendance-${classNameFilter.replace(/\s+/g, '-')}-${exportDateFrom}${exportDateFrom !== exportDateTo ? '-to-' + exportDateTo : ''}.csv`;
+      downloadCSV(filename, csv);
+    } catch {
+      setError('Error exporting attendance');
+    }
+    setExporting(false);
+  }
+
   // Summary counts
   const presentCount = Array.from(localRecords.values()).filter(r => r.status === 'present').length;
   const absentCount = Array.from(localRecords.values()).filter(r => r.status === 'absent').length;
@@ -257,7 +375,65 @@ export default function AttendancePage() {
           <h1 className="text-2xl font-bold text-gray-900">Attendance</h1>
           <p className="mt-1 text-sm text-gray-500">Mark daily attendance for students</p>
         </div>
+        <button
+          onClick={() => setShowExportPanel(!showExportPanel)}
+          className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 self-start"
+        >
+          <Download className="h-4 w-4" /> Export
+        </button>
       </div>
+
+      {/* Export panel */}
+      {showExportPanel && (
+        <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-3">Export Attendance to CSV</h3>
+          <p className="text-xs text-gray-500 mb-3">
+            Exports attendance for the selected class ({classNameFilter || 'select grade + section above'}) within the date range below.
+          </p>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">From</label>
+              <input
+                type="date"
+                value={exportDateFrom}
+                onChange={(e) => {
+                  setExportDateFrom(e.target.value);
+                  if (e.target.value > exportDateTo) setExportDateTo(e.target.value);
+                }}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">To</label>
+              <input
+                type="date"
+                value={exportDateTo}
+                min={exportDateFrom}
+                onChange={(e) => setExportDateTo(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <button
+              onClick={setExportFullMonth}
+              className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+            >
+              Full Month
+            </button>
+            <button
+              onClick={handleExportAttendance}
+              disabled={exporting || !grade || !className}
+              className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {exporting ? 'Exporting...' : 'Download CSV'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Top bar: Date, Grade, Section */}
       <div className="mb-6 flex flex-col sm:flex-row gap-3">
