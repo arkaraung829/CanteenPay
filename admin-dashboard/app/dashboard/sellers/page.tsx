@@ -110,38 +110,35 @@ export default function SellersPage() {
     setAddLoading(true);
     setAddError('');
 
-    // Get school id - use selected school or fall back to first school
-    let schoolId = selectedSchoolId;
-    if (!schoolId) {
-      const { data: schools } = await supabase.from('schools').select('id').limit(1);
-      schoolId = schools?.[0]?.id;
-    }
-    if (!schoolId) {
-      setAddError('No school found. Please create a school first.');
-      setAddLoading(false);
-      return;
-    }
+    try {
+      // Normalize phone
+      let normalizedPhone: string | null = null;
+      if (newPhone) {
+        let ph = newPhone.replace(/\s+/g, '');
+        if (ph.startsWith('0')) ph = '+95' + ph.substring(1);
+        else if (!ph.startsWith('+')) ph = '+' + ph;
+        normalizedPhone = ph;
+      }
 
-    // Normalize phone
-    let normalizedPhone: string | null = null;
-    if (newPhone) {
-      let ph = newPhone.replace(/\s+/g, '');
-      if (ph.startsWith('0')) ph = '+95' + ph.substring(1);
-      else if (!ph.startsWith('+')) ph = '+' + ph;
-      normalizedPhone = ph;
-    }
-
-    const { error } = await supabase.from('canteen_sellers').insert({
-      stall_name: newStallName,
-      stall_number: newStallNumber || null,
-      school_id: schoolId,
-      phone: normalizedPhone,
-      email: newEmail ? newEmail.toLowerCase() : null,
-      is_active: true,
-    });
-
-    if (error) {
-      setAddError(error.message);
+      const res = await authFetch('/api/sellers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stall_name: newStallName,
+          stall_number: newStallNumber || null,
+          school_id: selectedSchoolId || null,
+          phone: normalizedPhone,
+          email: newEmail ? newEmail.toLowerCase() : null,
+        }),
+      });
+      const json = await res.json();
+      if (!json.success) {
+        setAddError(json.error || 'Failed to add seller');
+        setAddLoading(false);
+        return;
+      }
+    } catch {
+      setAddError('Network error');
       setAddLoading(false);
       return;
     }

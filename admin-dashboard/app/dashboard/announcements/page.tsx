@@ -161,11 +161,13 @@ export default function AnnouncementsPage() {
   async function handleDelete(id: string) {
     if (!confirm('Delete this announcement?')) return;
     setDeleteLoading(id);
-    await authFetch('/api/announcements', {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
+    try {
+      await authFetch('/api/announcements', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+    } catch { /* network error */ }
     await fetchAnnouncements();
     setDeleteLoading(null);
   }

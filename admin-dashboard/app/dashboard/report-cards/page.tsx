@@ -57,14 +57,6 @@ interface StudentGradeDetail {
   letter_grade: string | null;
 }
 
-function getCurrentAcademicYear(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  if (month >= 6) return `${year}-${year + 1}`;
-  return `${year - 1}-${year}`;
-}
-
 function resultColor(result: string | null): string {
   switch (result) {
     case 'Distinction': return 'bg-green-100 text-green-700';
@@ -101,13 +93,14 @@ export default function ReportCardsPage() {
   // Filters
   const [grade, setGrade] = useState('');
   const [className, setClassName] = useState('');
-  const [academicYear, setAcademicYear] = useState(getCurrentAcademicYear);
+  const [academicYear, setAcademicYear] = useState('');
   const [term, setTerm] = useState('');
 
   // Dropdown options
   const [grades, setGrades] = useState<GradeOption[]>([]);
   const [sections, setSections] = useState<SectionOption[]>([]);
   const [terms, setTerms] = useState<string[]>([]);
+  const [academicYears, setAcademicYears] = useState<string[]>([]);
 
   // Teacher assignment data
   const [teacherRecord, setTeacherRecord] = useState<TeacherRecord | null>(null);
@@ -155,14 +148,17 @@ export default function ReportCardsPage() {
         const gradeParams = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
         const sectionParams = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
         const examParams = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
-        const [gradesRes, sectionsRes, examRes] = await Promise.all([
+        const academicParams = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
+        const [gradesRes, sectionsRes, examRes, academicRes] = await Promise.all([
           authFetch(`/api/settings/grades${gradeParams}`),
           authFetch(`/api/settings/sections${sectionParams}`),
           authFetch(`/api/exam-types${examParams}`),
+          authFetch(`/api/settings/academic${academicParams}`),
         ]);
         const gradesJson = await gradesRes.json();
         const sectionsJson = await sectionsRes.json();
         const examJson = await examRes.json();
+        const academicJson = await academicRes.json();
 
         if (gradesJson.success) {
           let active = (gradesJson.data || []).filter((g: GradeOption) => g.is_active);
@@ -182,7 +178,20 @@ export default function ReportCardsPage() {
           setSections(active);
           if (active.length > 0 && !className) setClassName(active[0].name);
         }
-        if (examJson.success) {
+        if (academicJson.success && academicJson.data) {
+          setAcademicYears(academicJson.data.academic_years || []);
+          if (!academicYear && academicJson.data.academic_year) {
+            setAcademicYear(academicJson.data.academic_year);
+          }
+          const apiTerms: string[] = academicJson.data.terms || [];
+          setTerms(apiTerms);
+          if (!term && academicJson.data.term) {
+            setTerm(academicJson.data.term);
+          } else if (!term && apiTerms.length > 0) {
+            setTerm(apiTerms[apiTerms.length - 1]);
+          }
+        } else if (examJson.success) {
+          // Fallback: extract terms from exam_types if academic API unavailable
           const uniqueTerms = [...new Set(
             (examJson.data || [])
               .filter((e: { term: string | null; is_active: boolean }) => e.is_active && e.term)
@@ -399,13 +408,16 @@ export default function ReportCardsPage() {
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Academic Year</label>
-          <input
-            type="text"
+          <select
             value={academicYear}
             onChange={(e) => setAcademicYear(e.target.value)}
-            placeholder="e.g. 2025-2026"
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-32"
-          />
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            <option value="">Select Year</option>
+            {academicYears.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Term</label>
