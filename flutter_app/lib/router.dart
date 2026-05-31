@@ -37,6 +37,7 @@ import 'screens/seller/profile_screen.dart' as seller_profile;
 import 'screens/teacher/home_screen.dart' as teacher;
 import 'screens/teacher/scan_screen.dart' as teacher_scan;
 import 'screens/teacher/profile_screen.dart' as teacher_profile;
+import 'screens/teacher/attendance_screen.dart' as teacher_attendance;
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _studentShellKey =
@@ -239,6 +240,11 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
         path: '/teacher/scan',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const teacher_scan.TeacherScanScreen(),
+      ),
+      GoRoute(
+        path: '/teacher/attendance',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const teacher_attendance.AttendanceScreen(),
       ),
       GoRoute(
         path: '/teacher/notifications',

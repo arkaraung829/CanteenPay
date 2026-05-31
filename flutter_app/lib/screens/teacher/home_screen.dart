@@ -57,43 +57,12 @@ class TeacherHomeScreen extends StatelessWidget {
                   label: 'Attendance',
                   sublabel: 'ကျောင်းတက်စာရင်း',
                   color: Colors.green,
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Use the web dashboard for attendance marking')),
-                    );
-                  },
+                  onTap: () => context.push('/teacher/attendance'),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 24),
-
-          // Info card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppTheme.primary.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.primary.withValues(alpha: 0.15)),
-            ),
-            child: Column(
-              children: [
-                const Icon(Icons.laptop_mac, size: 36, color: AppTheme.primary),
-                const SizedBox(height: 12),
-                const Text(
-                  'Mark Attendance on Web Dashboard',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'ကျောင်းတက်စာရင်း စစ်ဆေးခြင်းကို admin dashboard မှ လုပ်ဆောင်ပါ။',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
