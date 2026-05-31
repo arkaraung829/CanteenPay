@@ -215,8 +215,46 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm text-gray-500">Overview of today&apos;s activity</p>
       </div>
 
+      {/* Quick Actions - top priority */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
+          <Link href="/dashboard/deposits" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-3 hover:bg-green-50 hover:border-green-300 transition-all hover:shadow-sm">
+            <Banknote className="h-7 w-7 text-green-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Deposit</span>
+          </Link>
+          <Link href="/dashboard/attendance" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-3 hover:bg-teal-50 hover:border-teal-300 transition-all hover:shadow-sm">
+            <ClipboardCheck className="h-7 w-7 text-teal-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Attendance</span>
+          </Link>
+          <Link href="/dashboard/students" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-3 hover:bg-blue-50 hover:border-blue-300 transition-all hover:shadow-sm">
+            <Users className="h-7 w-7 text-blue-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Students</span>
+          </Link>
+          <Link href="/dashboard/grades" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-3 hover:bg-indigo-50 hover:border-indigo-300 transition-all hover:shadow-sm">
+            <GraduationCap className="h-7 w-7 text-indigo-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Grades</span>
+          </Link>
+          <Link href="/dashboard/reports" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-3 hover:bg-rose-50 hover:border-rose-300 transition-all hover:shadow-sm">
+            <TrendingUp className="h-7 w-7 text-rose-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Reports</span>
+          </Link>
+          <Link href="/dashboard/transactions" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-3 hover:bg-purple-50 hover:border-purple-300 transition-all hover:shadow-sm">
+            <ArrowLeftRight className="h-7 w-7 text-purple-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Transactions</span>
+          </Link>
+          <Link href="/dashboard/announcements" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-3 hover:bg-orange-50 hover:border-orange-300 transition-all hover:shadow-sm">
+            <Megaphone className="h-7 w-7 text-orange-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Announce</span>
+          </Link>
+          <Link href="/dashboard/chat" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-3 hover:bg-amber-50 hover:border-amber-300 transition-all hover:shadow-sm">
+            <MessageCircle className="h-7 w-7 text-amber-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Messages</span>
+          </Link>
+        </div>
+      </div>
+
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Students"
           value={s.totalStudents.toString()}
@@ -253,37 +291,6 @@ export default function DashboardPage() {
           iconColor="text-amber-600"
           iconBg="bg-amber-100"
         />
-      </div>
-
-      {/* Quick Actions - top priority for daily tasks */}
-      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-          <Link href="/dashboard/attendance" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-green-50 hover:border-green-300 transition-all hover:shadow-sm">
-            <ClipboardCheck className="h-7 w-7 text-green-600" />
-            <span className="text-xs font-medium text-gray-700 text-center">Attendance</span>
-          </Link>
-          <Link href="/dashboard/students" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-blue-50 hover:border-blue-300 transition-all hover:shadow-sm">
-            <UserPlus className="h-7 w-7 text-blue-600" />
-            <span className="text-xs font-medium text-gray-700 text-center">Students</span>
-          </Link>
-          <Link href="/dashboard/grades" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-indigo-50 hover:border-indigo-300 transition-all hover:shadow-sm">
-            <GraduationCap className="h-7 w-7 text-indigo-600" />
-            <span className="text-xs font-medium text-gray-700 text-center">Grades</span>
-          </Link>
-          <Link href="/dashboard/reports" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-rose-50 hover:border-rose-300 transition-all hover:shadow-sm">
-            <TrendingUp className="h-7 w-7 text-rose-600" />
-            <span className="text-xs font-medium text-gray-700 text-center">Reports</span>
-          </Link>
-          <Link href="/dashboard/announcements" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-purple-50 hover:border-purple-300 transition-all hover:shadow-sm">
-            <Megaphone className="h-7 w-7 text-purple-600" />
-            <span className="text-xs font-medium text-gray-700 text-center">Announce</span>
-          </Link>
-          <Link href="/dashboard/chat" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-amber-50 hover:border-amber-300 transition-all hover:shadow-sm">
-            <MessageCircle className="h-7 w-7 text-amber-600" />
-            <span className="text-xs font-medium text-gray-700 text-center">Messages</span>
-          </Link>
-        </div>
       </div>
 
       {/* Today's Summary */}
