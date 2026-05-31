@@ -83,9 +83,12 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
         debugPrint('Attendance upsert failed: $e');
       }
 
-      // Success feedback
+      // Success feedback — multiple haptic patterns for stronger feel
       HapticFeedback.heavyImpact();
-      SystemSound.play(SystemSoundType.click);
+      await Future.delayed(const Duration(milliseconds: 100));
+      HapticFeedback.mediumImpact();
+      // Play system alert sound (more audible than click)
+      SystemSound.play(SystemSoundType.alert);
 
       setState(() {
         _scannedList.insert(0, _ScannedStudent(
