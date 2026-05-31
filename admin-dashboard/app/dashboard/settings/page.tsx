@@ -62,6 +62,49 @@ interface UserItem {
   created_at: string;
 }
 
+// --- Grading Scale Types ---
+interface GradeScaleEntry {
+  letter: string;
+  label: string;
+  min: number;
+  color: string;
+}
+
+const GRADE_COLORS = ['green', 'blue', 'purple', 'yellow', 'orange', 'pink', 'teal', 'red'] as const;
+
+const GRADE_COLOR_CLASSES: Record<string, { bg: string; text: string }> = {
+  green: { bg: 'bg-green-100', text: 'text-green-700' },
+  blue: { bg: 'bg-blue-100', text: 'text-blue-700' },
+  purple: { bg: 'bg-purple-100', text: 'text-purple-700' },
+  yellow: { bg: 'bg-yellow-100', text: 'text-yellow-700' },
+  orange: { bg: 'bg-orange-100', text: 'text-orange-700' },
+  pink: { bg: 'bg-pink-100', text: 'text-pink-700' },
+  teal: { bg: 'bg-teal-100', text: 'text-teal-700' },
+  red: { bg: 'bg-red-100', text: 'text-red-700' },
+};
+
+const DEFAULT_GRADING_SCALE: GradeScaleEntry[] = [
+  { letter: 'A', label: 'Distinction', min: 80, color: 'green' },
+  { letter: 'B', label: 'Credit', min: 65, color: 'blue' },
+  { letter: 'C', label: 'Pass', min: 40, color: 'yellow' },
+  { letter: 'F', label: 'Fail', min: 0, color: 'red' },
+];
+
+/** Convert old { a_min, b_min, c_min } format to new array format */
+function normalizeGradingScale(raw: unknown): GradeScaleEntry[] {
+  if (Array.isArray(raw)) return raw as GradeScaleEntry[];
+  if (raw && typeof raw === 'object' && 'a_min' in (raw as Record<string, unknown>)) {
+    const obj = raw as { a_min?: number; b_min?: number; c_min?: number };
+    return [
+      { letter: 'A', label: 'Distinction', min: obj.a_min ?? 80, color: 'green' },
+      { letter: 'B', label: 'Credit', min: obj.b_min ?? 65, color: 'blue' },
+      { letter: 'C', label: 'Pass', min: obj.c_min ?? 40, color: 'yellow' },
+      { letter: 'F', label: 'Fail', min: 0, color: 'red' },
+    ];
+  }
+  return DEFAULT_GRADING_SCALE;
+}
+
 // --- School Settings Types ---
 interface SchoolSettingsData {
   // Direct school columns
@@ -80,10 +123,8 @@ interface SchoolSettingsData {
   term_semester: string;
   default_daily_spending_limit: string;
   low_balance_alert_threshold: string;
-  // Grading scale
-  grading_a_min: string;
-  grading_b_min: string;
-  grading_c_min: string;
+  // Grading scale (new array format)
+  grading_scale: GradeScaleEntry[];
 }
 
 const DEFAULT_SETTINGS: SchoolSettingsData = {
@@ -101,9 +142,7 @@ const DEFAULT_SETTINGS: SchoolSettingsData = {
   term_semester: '',
   default_daily_spending_limit: '5000',
   low_balance_alert_threshold: '1000',
-  grading_a_min: '80',
-  grading_b_min: '65',
-  grading_c_min: '40',
+  grading_scale: DEFAULT_GRADING_SCALE,
 };
 
 const MONTHS = [
@@ -186,9 +225,7 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
           term_semester: s.term_semester || DEFAULT_SETTINGS.term_semester,
           default_daily_spending_limit: s.default_daily_spending_limit?.toString() || DEFAULT_SETTINGS.default_daily_spending_limit,
           low_balance_alert_threshold: s.low_balance_alert_threshold?.toString() || DEFAULT_SETTINGS.low_balance_alert_threshold,
-          grading_a_min: s.grading_scale?.a_min?.toString() || DEFAULT_SETTINGS.grading_a_min,
-          grading_b_min: s.grading_scale?.b_min?.toString() || DEFAULT_SETTINGS.grading_b_min,
-          grading_c_min: s.grading_scale?.c_min?.toString() || DEFAULT_SETTINGS.grading_c_min,
+          grading_scale: normalizeGradingScale(s.grading_scale),
         });
       }
     } catch {
@@ -208,7 +245,7 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
     }
   }, [toast]);
 
-  function updateField(field: keyof SchoolSettingsData, value: string) {
+  function updateField(field: Exclude<keyof SchoolSettingsData, 'grading_scale'>, value: string) {
     setSettings((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -235,11 +272,7 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
             term_semester: settings.term_semester,
             default_daily_spending_limit: parseInt(settings.default_daily_spending_limit) || 0,
             low_balance_alert_threshold: parseInt(settings.low_balance_alert_threshold) || 0,
-            grading_scale: {
-              a_min: parseInt(settings.grading_a_min) || 80,
-              b_min: parseInt(settings.grading_b_min) || 65,
-              c_min: parseInt(settings.grading_c_min) || 40,
-            },
+            grading_scale: settings.grading_scale,
           },
         }),
       });
@@ -383,72 +416,137 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
       {/* Grading Scale */}
       <SettingsSection icon={Award} title="Grading Scale">
         <p className="text-sm text-gray-500 mb-4">
-          Configure the minimum percentage thresholds for each letter grade.
+          Configure letter grades, labels, minimum percentage thresholds, and colors.
+          Rows are auto-sorted by minimum % descending. The bottom row (0%) cannot be removed.
         </p>
         <div className="space-y-3">
-          {/* A row */}
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-700 text-sm font-bold shrink-0">A</span>
-            <span className="text-sm text-gray-700 w-24 shrink-0">Distinction</span>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Min %</label>
-              <input
-                type="number"
-                value={settings.grading_a_min}
-                onChange={(e) => updateField('grading_a_min', e.target.value)}
-                min="0"
-                max="100"
-                className={inputClass + ' !w-20'}
-              />
-            </div>
-          </div>
-          {/* B row */}
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold shrink-0">B</span>
-            <span className="text-sm text-gray-700 w-24 shrink-0">Credit</span>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Min %</label>
-              <input
-                type="number"
-                value={settings.grading_b_min}
-                onChange={(e) => updateField('grading_b_min', e.target.value)}
-                min="0"
-                max="100"
-                className={inputClass + ' !w-20'}
-              />
-            </div>
-          </div>
-          {/* C row */}
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-100 text-yellow-700 text-sm font-bold shrink-0">C</span>
-            <span className="text-sm text-gray-700 w-24 shrink-0">Pass</span>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Min %</label>
-              <input
-                type="number"
-                value={settings.grading_c_min}
-                onChange={(e) => updateField('grading_c_min', e.target.value)}
-                min="0"
-                max="100"
-                className={inputClass + ' !w-20'}
-              />
-            </div>
-          </div>
-          {/* F row (read-only) */}
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-100 text-red-700 text-sm font-bold shrink-0">F</span>
-            <span className="text-sm text-gray-700 w-24 shrink-0">Fail</span>
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500">Below</label>
-              <input
-                type="text"
-                value={`${settings.grading_c_min}%`}
-                readOnly
-                className={readOnlyClass + ' !w-20'}
-              />
-            </div>
-          </div>
+          {[...settings.grading_scale]
+            .sort((a, b) => b.min - a.min)
+            .map((entry, idx) => {
+              const isBottom = entry.min === 0;
+              const colorClasses = GRADE_COLOR_CLASSES[entry.color] || GRADE_COLOR_CLASSES.red;
+              return (
+                <div key={idx} className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                  {/* Color dot */}
+                  <span className={`inline-flex items-center justify-center h-8 w-8 rounded-full ${colorClasses.bg} ${colorClasses.text} text-sm font-bold shrink-0`}>
+                    {entry.letter}
+                  </span>
+                  {/* Letter input */}
+                  <input
+                    type="text"
+                    value={entry.letter}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase().slice(0, 2);
+                      setSettings(prev => ({
+                        ...prev,
+                        grading_scale: prev.grading_scale.map(g =>
+                          g === entry ? { ...g, letter: val } : g
+                        ),
+                      }));
+                    }}
+                    maxLength={2}
+                    className={inputClass + ' !w-16'}
+                    placeholder="A"
+                  />
+                  {/* Label input */}
+                  <input
+                    type="text"
+                    value={entry.label}
+                    onChange={(e) => {
+                      setSettings(prev => ({
+                        ...prev,
+                        grading_scale: prev.grading_scale.map(g =>
+                          g === entry ? { ...g, label: e.target.value } : g
+                        ),
+                      }));
+                    }}
+                    className={inputClass + ' !w-32'}
+                    placeholder="Label"
+                  />
+                  {/* Min % input */}
+                  <div className="flex items-center gap-1">
+                    <label className="text-xs text-gray-500 shrink-0">Min %</label>
+                    <input
+                      type="number"
+                      value={entry.min}
+                      onChange={(e) => {
+                        const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                        setSettings(prev => ({
+                          ...prev,
+                          grading_scale: prev.grading_scale.map(g =>
+                            g === entry ? { ...g, min: val } : g
+                          ),
+                        }));
+                      }}
+                      min="0"
+                      max="100"
+                      disabled={isBottom}
+                      className={(isBottom ? readOnlyClass : inputClass) + ' !w-20'}
+                    />
+                  </div>
+                  {/* Color picker */}
+                  <select
+                    value={entry.color}
+                    onChange={(e) => {
+                      setSettings(prev => ({
+                        ...prev,
+                        grading_scale: prev.grading_scale.map(g =>
+                          g === entry ? { ...g, color: e.target.value } : g
+                        ),
+                      }));
+                    }}
+                    className={inputClass + ' !w-24'}
+                  >
+                    {GRADE_COLORS.map(c => (
+                      <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                    ))}
+                  </select>
+                  {/* Delete button (not for the bottom 0% row) */}
+                  {!isBottom ? (
+                    <button
+                      onClick={() => {
+                        setSettings(prev => ({
+                          ...prev,
+                          grading_scale: prev.grading_scale.filter(g => g !== entry),
+                        }));
+                      }}
+                      className="shrink-0 rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      title="Remove grade"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  ) : (
+                    <div className="w-[30px] shrink-0" />
+                  )}
+                </div>
+              );
+            })}
         </div>
+        {/* Add Grade button */}
+        <button
+          onClick={() => {
+            setSettings(prev => {
+              const sorted = [...prev.grading_scale].sort((a, b) => b.min - a.min);
+              // Find a gap for the new grade's min %
+              const secondLowest = sorted.length >= 2 ? sorted[sorted.length - 2].min : 50;
+              const newMin = Math.max(1, Math.round(secondLowest / 2));
+              // Pick a color not yet used
+              const usedColors = new Set(prev.grading_scale.map(g => g.color));
+              const availColor = GRADE_COLORS.find(c => !usedColors.has(c)) || 'blue';
+              return {
+                ...prev,
+                grading_scale: [
+                  ...prev.grading_scale,
+                  { letter: '', label: '', min: newMin, color: availColor },
+                ],
+              };
+            });
+          }}
+          className="mt-4 flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+        >
+          <Plus className="h-4 w-4" />
+          Add Grade
+        </button>
       </SettingsSection>
 
       {/* Financial Settings */}

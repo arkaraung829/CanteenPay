@@ -47,31 +47,62 @@ interface TeacherRecord {
   assigned_classes: string[];
 }
 
-interface GradingScale {
-  a_min: number;
-  b_min: number;
-  c_min: number;
+interface GradeScaleEntry {
+  letter: string;
+  label: string;
+  min: number;
+  color: string;
 }
 
-const DEFAULT_GRADING_SCALE: GradingScale = { a_min: 80, b_min: 65, c_min: 40 };
+const DEFAULT_GRADING_SCALE: GradeScaleEntry[] = [
+  { letter: 'A', label: 'Distinction', min: 80, color: 'green' },
+  { letter: 'B', label: 'Credit', min: 65, color: 'blue' },
+  { letter: 'C', label: 'Pass', min: 40, color: 'yellow' },
+  { letter: 'F', label: 'Fail', min: 0, color: 'red' },
+];
 
-function computeLetterGrade(score: number | null, fullMarks: number, scale: GradingScale = DEFAULT_GRADING_SCALE): string | null {
+/** Convert old { a_min, b_min, c_min } format to new array format */
+function normalizeGradingScale(raw: unknown): GradeScaleEntry[] {
+  if (Array.isArray(raw)) return raw as GradeScaleEntry[];
+  if (raw && typeof raw === 'object' && 'a_min' in (raw as Record<string, unknown>)) {
+    const obj = raw as { a_min?: number; b_min?: number; c_min?: number };
+    return [
+      { letter: 'A', label: 'Distinction', min: obj.a_min ?? 80, color: 'green' },
+      { letter: 'B', label: 'Credit', min: obj.b_min ?? 65, color: 'blue' },
+      { letter: 'C', label: 'Pass', min: obj.c_min ?? 40, color: 'yellow' },
+      { letter: 'F', label: 'Fail', min: 0, color: 'red' },
+    ];
+  }
+  return DEFAULT_GRADING_SCALE;
+}
+
+function computeLetterGrade(score: number | null, fullMarks: number, scale: GradeScaleEntry[] = DEFAULT_GRADING_SCALE): string | null {
   if (score === null || score === undefined || fullMarks === 0) return null;
   const pct = (score / fullMarks) * 100;
-  if (pct >= scale.a_min) return 'A';
-  if (pct >= scale.b_min) return 'B';
-  if (pct >= scale.c_min) return 'C';
-  return 'F';
+  // Scale must be sorted by min descending
+  const sorted = [...scale].sort((a, b) => b.min - a.min);
+  for (const level of sorted) {
+    if (pct >= level.min) return level.letter;
+  }
+  return sorted[sorted.length - 1]?.letter || 'F';
 }
 
-function letterGradeColor(grade: string | null): string {
-  switch (grade) {
-    case 'A': return 'text-green-600';
-    case 'B': return 'text-blue-600';
-    case 'C': return 'text-yellow-600';
-    case 'F': return 'text-red-600';
-    default: return 'text-gray-400';
-  }
+const GRADE_COLOR_MAP: Record<string, string> = {
+  green: 'text-green-600',
+  blue: 'text-blue-600',
+  yellow: 'text-yellow-600',
+  red: 'text-red-600',
+  purple: 'text-purple-600',
+  orange: 'text-orange-600',
+  pink: 'text-pink-600',
+  teal: 'text-teal-600',
+};
+
+function letterGradeColor(grade: string | null, scale: GradeScaleEntry[] = DEFAULT_GRADING_SCALE): string {
+  if (!grade) return 'text-gray-400';
+  const entry = scale.find(e => e.letter === grade);
+  if (entry) return GRADE_COLOR_MAP[entry.color] || 'text-gray-600';
+  return 'text-gray-400';
 }
 
 export default function GradesPage() {
@@ -101,7 +132,7 @@ export default function GradesPage() {
   const [successMsg, setSuccessMsg] = useState('');
 
   // Grading scale from school settings
-  const [gradingScale, setGradingScale] = useState<GradingScale>(DEFAULT_GRADING_SCALE);
+  const [gradingScale, setGradingScale] = useState<GradeScaleEntry[]>(DEFAULT_GRADING_SCALE);
 
   // Local edits: student_id -> subject_id -> score
   const [localScores, setLocalScores] = useState<Map<string, Map<string, number | null>>>(new Map());
@@ -133,12 +164,7 @@ export default function GradesPage() {
         const res = await authFetch(`/api/settings/school?school_id=${selectedSchoolId}`);
         const json = await res.json();
         if (json.success && json.data?.settings?.grading_scale) {
-          const gs = json.data.settings.grading_scale;
-          setGradingScale({
-            a_min: gs.a_min ?? DEFAULT_GRADING_SCALE.a_min,
-            b_min: gs.b_min ?? DEFAULT_GRADING_SCALE.b_min,
-            c_min: gs.c_min ?? DEFAULT_GRADING_SCALE.c_min,
-          });
+          setGradingScale(normalizeGradingScale(json.data.settings.grading_scale));
         }
       } catch { /* use defaults */ }
     }
@@ -500,7 +526,7 @@ export default function GradesPage() {
                                 className="w-16 rounded border border-gray-200 px-2 py-1.5 text-sm text-center focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                 placeholder="-"
                               />
-                              <span className={`text-xs font-bold w-4 ${letterGradeColor(letterGrade)}`}>
+                              <span className={`text-xs font-bold w-4 ${letterGradeColor(letterGrade, gradingScale)}`}>
                                 {letterGrade || ''}
                               </span>
                             </div>

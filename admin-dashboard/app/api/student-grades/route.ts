@@ -2,21 +2,43 @@ import { createAdminClient } from '@/lib/supabase';
 import { verifyAdminOrTeacher, unauthorizedResponse } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
 
-interface GradingScale {
-  a_min: number;
-  b_min: number;
-  c_min: number;
+interface GradeScaleEntry {
+  letter: string;
+  label: string;
+  min: number;
+  color: string;
 }
 
-const DEFAULT_GRADING_SCALE: GradingScale = { a_min: 80, b_min: 65, c_min: 40 };
+const DEFAULT_GRADING_SCALE: GradeScaleEntry[] = [
+  { letter: 'A', label: 'Distinction', min: 80, color: 'green' },
+  { letter: 'B', label: 'Credit', min: 65, color: 'blue' },
+  { letter: 'C', label: 'Pass', min: 40, color: 'yellow' },
+  { letter: 'F', label: 'Fail', min: 0, color: 'red' },
+];
 
-function computeLetterGrade(score: number | null, fullMarks: number, scale: GradingScale = DEFAULT_GRADING_SCALE): string | null {
+/** Convert old { a_min, b_min, c_min } format to new array format */
+function normalizeGradingScale(raw: unknown): GradeScaleEntry[] {
+  if (Array.isArray(raw)) return raw as GradeScaleEntry[];
+  if (raw && typeof raw === 'object' && 'a_min' in (raw as Record<string, unknown>)) {
+    const obj = raw as { a_min?: number; b_min?: number; c_min?: number };
+    return [
+      { letter: 'A', label: 'Distinction', min: obj.a_min ?? 80, color: 'green' },
+      { letter: 'B', label: 'Credit', min: obj.b_min ?? 65, color: 'blue' },
+      { letter: 'C', label: 'Pass', min: obj.c_min ?? 40, color: 'yellow' },
+      { letter: 'F', label: 'Fail', min: 0, color: 'red' },
+    ];
+  }
+  return DEFAULT_GRADING_SCALE;
+}
+
+function computeLetterGrade(score: number | null, fullMarks: number, scale: GradeScaleEntry[] = DEFAULT_GRADING_SCALE): string | null {
   if (score === null || score === undefined || fullMarks === 0) return null;
   const pct = (score / fullMarks) * 100;
-  if (pct >= scale.a_min) return 'A';
-  if (pct >= scale.b_min) return 'B';
-  if (pct >= scale.c_min) return 'C';
-  return 'F';
+  const sorted = [...scale].sort((a, b) => b.min - a.min);
+  for (const level of sorted) {
+    if (pct >= level.min) return level.letter;
+  }
+  return sorted[sorted.length - 1]?.letter || 'F';
 }
 
 export async function GET(request: NextRequest) {
@@ -149,7 +171,7 @@ export async function POST(request: NextRequest) {
     const subjectMap = new Map((subjects || []).map((s: { id: string; full_marks: number }) => [s.id, s.full_marks]));
 
     // Fetch grading scale from school settings
-    let gradingScale: GradingScale = DEFAULT_GRADING_SCALE;
+    let gradingScale: GradeScaleEntry[] = DEFAULT_GRADING_SCALE;
     const schoolId = subjects?.[0]?.school_id;
     if (schoolId) {
       const { data: schoolData } = await supabase
@@ -158,12 +180,7 @@ export async function POST(request: NextRequest) {
         .eq('id', schoolId)
         .single();
       if (schoolData?.settings?.grading_scale) {
-        const gs = schoolData.settings.grading_scale;
-        gradingScale = {
-          a_min: gs.a_min ?? DEFAULT_GRADING_SCALE.a_min,
-          b_min: gs.b_min ?? DEFAULT_GRADING_SCALE.b_min,
-          c_min: gs.c_min ?? DEFAULT_GRADING_SCALE.c_min,
-        };
+        gradingScale = normalizeGradingScale(schoolData.settings.grading_scale);
       }
     }
 
