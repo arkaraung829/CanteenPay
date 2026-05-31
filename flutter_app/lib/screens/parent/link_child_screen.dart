@@ -132,13 +132,12 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
       }
     }
 
-    // If admin didn't register any parent contact, allow with just PIN
-    if (studentParentPhone == null && studentParentEmail == null) {
-      identityMatched = true;
-    }
+    // If admin didn't register any parent contact, reject — contact school
     if ((studentParentPhone == null || studentParentPhone.isEmpty) &&
         (studentParentEmail == null || studentParentEmail.isEmpty)) {
-      identityMatched = true;
+      HapticService.error();
+      setState(() => _error = 'No parent contact registered for this student. Please contact the school.');
+      return;
     }
 
     if (!identityMatched) {

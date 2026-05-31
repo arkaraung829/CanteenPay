@@ -121,11 +121,15 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { full_name, full_name_my, grade, class_name, parent_phone, date_of_birth } = body;
+    const { full_name, full_name_my, grade, class_name, parent_phone, parent_email, date_of_birth } = body;
     let { school_id } = body;
 
     if (!full_name) {
       return Response.json({ success: false, error: 'full_name is required' }, { status: 400 });
+    }
+
+    if (!parent_phone && !parent_email) {
+      return Response.json({ success: false, error: 'Parent phone or email is required for secure linking' }, { status: 400 });
     }
 
     if (!school_id) {
@@ -160,7 +164,7 @@ export async function POST(request: NextRequest) {
       full_name, full_name_my: full_name_my || null, grade: grade || null,
       class_name: class_name || null, student_code: studentCode,
       qr_data: crypto.randomUUID(), pin_code: pinCode, school_id,
-      is_active: true, parent_phone: normalizedPhone, date_of_birth: date_of_birth || null,
+      is_active: true, parent_phone: normalizedPhone, parent_email: parent_email ? parent_email.toLowerCase() : null, date_of_birth: date_of_birth || null,
     }).select().single();
 
     if (error) return Response.json({ success: false, error: error.message }, { status: 500 });
