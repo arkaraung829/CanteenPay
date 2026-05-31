@@ -705,7 +705,7 @@ export default function ReportCardsPage() {
                           </div>
                           <div>
                             <div className="text-sm font-medium text-gray-900">{rc.students.full_name}</div>
-                            <div className="text-xs text-gray-400 font-mono">{rc.students.student_code}</div>
+                            <div className="text-xs text-gray-400">{rc.students.student_code} · {rc.students.grade} {rc.students.class_name || ''}</div>
                           </div>
                         </div>
                       </td>
@@ -766,16 +766,11 @@ export default function ReportCardsPage() {
                                 <h4 className="text-sm font-semibold text-gray-700 mb-2">Subject Breakdown</h4>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                                   {expandedDetails.map((d, idx) => (
-                                    <div key={idx} className="rounded-lg border border-gray-200 bg-white px-3 py-2">
-                                      <div className="text-xs text-gray-500">{d.subject_name}</div>
-                                      <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-sm font-medium text-gray-900">
-                                          {d.score !== null ? d.score : '-'} / {d.full_marks}
-                                        </span>
-                                        <span className={`text-xs font-bold ${gradeColor(d.letter_grade)}`}>
-                                          {d.letter_grade || ''}
-                                        </span>
-                                      </div>
+                                    <div key={idx} className="rounded-lg border border-gray-200 bg-white px-3 py-2 flex items-center justify-between">
+                                      <span className="text-sm text-gray-700">{d.subject_name}</span>
+                                      <span className={`text-sm font-bold ${gradeColor(d.letter_grade)}`}>
+                                        {d.letter_grade || '-'}
+                                      </span>
                                     </div>
                                   ))}
                                   {expandedDetails.length === 0 && (
