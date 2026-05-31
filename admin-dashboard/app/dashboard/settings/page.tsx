@@ -321,48 +321,6 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
         </div>
       </SettingsSection>
 
-      {/* Operating Hours */}
-      <SettingsSection icon={Clock} title="Operating Hours">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className={labelClass}>School Start Time</label>
-            <input
-              type="time"
-              value={settings.school_start_time}
-              onChange={(e) => updateField('school_start_time', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>School End Time</label>
-            <input
-              type="time"
-              value={settings.school_end_time}
-              onChange={(e) => updateField('school_end_time', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Canteen Open Time</label>
-            <input
-              type="time"
-              value={settings.canteen_open_time}
-              onChange={(e) => updateField('canteen_open_time', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Canteen Close Time</label>
-            <input
-              type="time"
-              value={settings.canteen_close_time}
-              onChange={(e) => updateField('canteen_close_time', e.target.value)}
-              className={inputClass}
-            />
-          </div>
-        </div>
-      </SettingsSection>
-
       {/* Academic Settings */}
       <SettingsSection icon={BookOpen} title="Academic Settings">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
