@@ -34,6 +34,9 @@ import 'screens/seller/payment_success_screen.dart';
 import 'screens/seller/sales_history_screen.dart';
 import 'screens/seller/analytics_screen.dart';
 import 'screens/seller/profile_screen.dart' as seller_profile;
+import 'screens/teacher/home_screen.dart' as teacher;
+import 'screens/teacher/scan_screen.dart' as teacher_scan;
+import 'screens/teacher/profile_screen.dart' as teacher_profile;
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
 final GlobalKey<NavigatorState> _studentShellKey =
@@ -54,6 +57,8 @@ String _homePathForRole(String? role) {
     case 'admin':
     case 'counter_staff':
       return '/seller';
+    case 'teacher':
+      return '/teacher';
     default:
       return '/login';
   }
@@ -209,6 +214,36 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
           final conversationId = state.pathParameters['id']!;
           return ChatScreen(conversationId: conversationId);
         },
+      ),
+
+      // ========== Teacher Routes ==========
+      ShellRoute(
+        builder: (context, state, child) => _TeacherShell(child: child),
+        routes: [
+          GoRoute(
+            path: '/teacher',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: teacher.TeacherHomeScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/teacher/profile',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: teacher_profile.TeacherProfileScreen(),
+            ),
+          ),
+        ],
+      ),
+      // Teacher full-screen routes
+      GoRoute(
+        path: '/teacher/scan',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const teacher_scan.TeacherScanScreen(),
+      ),
+      GoRoute(
+        path: '/teacher/notifications',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const NotificationsScreen(),
       ),
 
       // ========== Shared Routes ==========
@@ -432,6 +467,49 @@ class _SellerShell extends StatelessWidget {
             icon: const Icon(Icons.person_outlined),
             selectedIcon: const Icon(Icons.person),
             label: l10n?.profile ?? 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Teacher bottom navigation shell.
+class _TeacherShell extends StatelessWidget {
+  final Widget child;
+  const _TeacherShell({required this.child});
+
+  int _currentIndex(BuildContext context) {
+    final location = GoRouterState.of(context).uri.path;
+    if (location.startsWith('/teacher/profile')) return 1;
+    return 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final index = _currentIndex(context);
+    return Scaffold(
+      body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (i) {
+          switch (i) {
+            case 0:
+              context.go('/teacher');
+            case 1:
+              context.go('/teacher/profile');
+          }
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outlined),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
           ),
         ],
       ),
