@@ -336,50 +336,116 @@ export default function ReportCardsPage() {
   }, [selectedSchoolId]);
 
   // Export PDF
+  const pdfStyles = `
+    body { font-family: Arial, sans-serif; padding: 30px; color: #333; }
+    h1 { font-size: 20px; text-align: center; margin: 0; }
+    h2 { font-size: 14px; text-align: center; color: #666; margin: 4px 0 16px; }
+    h3 { font-size: 13px; margin: 16px 0 6px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th { background: #f3f4f6; text-align: left; padding: 7px 10px; font-size: 11px; border-bottom: 2px solid #e5e7eb; }
+    td { padding: 7px 10px; font-size: 11px; border-bottom: 1px solid #e5e7eb; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+    .bold { font-weight: bold; }
+    .green { color: #15803d; } .blue { color: #1d4ed8; } .yellow { color: #ca8a04; } .red { color: #dc2626; }
+    .summary { margin-top: 12px; padding: 10px; background: #f9fafb; border-radius: 6px; font-size: 12px; }
+    .footer { margin-top: 30px; font-size: 10px; color: #999; text-align: center; }
+    .page-break { page-break-after: always; }
+    .comment { margin-top: 12px; padding: 8px; background: #fffbeb; border-left: 3px solid #f59e0b; font-size: 11px; }
+    .signature { margin-top: 40px; display: flex; justify-content: space-between; }
+    .sig-line { border-top: 1px solid #333; width: 150px; text-align: center; padding-top: 4px; font-size: 11px; }
+    @media print { @page { size: A4 portrait; margin: 15mm; } }
+  `;
+
+  function gradeColor(grade: string | null): string {
+    if (!grade) return '';
+    const g = grade.toUpperCase();
+    if (g === 'S' || g === 'A') return 'green';
+    if (g === 'B') return 'blue';
+    if (g === 'C' || g === 'D') return 'yellow';
+    return 'red';
+  }
+
+  // Export class summary PDF
   function handleExportPDF() {
     if (reportCards.length === 0) return;
-    const html = `
-      <html><head><style>
-        body { font-family: Arial, sans-serif; padding: 30px; color: #333; }
-        h1 { font-size: 20px; text-align: center; margin: 0; }
-        h2 { font-size: 14px; text-align: center; color: #666; margin: 4px 0 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-        th { background: #f3f4f6; text-align: left; padding: 8px 10px; font-size: 12px; border-bottom: 2px solid #e5e7eb; }
-        td { padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #e5e7eb; }
-        .right { text-align: right; }
-        .center { text-align: center; }
-        .distinction { color: #15803d; font-weight: bold; }
-        .credit { color: #1d4ed8; font-weight: bold; }
-        .pass { color: #ca8a04; font-weight: bold; }
-        .fail { color: #dc2626; font-weight: bold; }
-        .footer { margin-top: 30px; font-size: 10px; color: #999; text-align: center; }
-        @media print { @page { size: A4 landscape; margin: 15mm; } }
-      </style></head><body>
-        <h1>${schoolName || 'Paynow MM'}</h1>
-        <h2>Report Cards — ${grade} ${className ? '- ' + className : ''} | ${academicYear} | ${term}</h2>
-        <table>
-          <tr>
-            <th>#</th><th>Student Name</th><th>Student Code</th>
-            <th class="right">Total Score</th><th class="right">Percentage</th>
-            <th class="center">Rank</th><th class="center">Grade</th><th class="center">Result</th>
-          </tr>
-          ${reportCards.map((rc, i) => {
-            const resultClass = rc.result === 'Distinction' ? 'distinction' : rc.result === 'Credit' ? 'credit' : rc.result === 'Pass' ? 'pass' : 'fail';
-            return `<tr>
-              <td>${i + 1}</td>
-              <td>${rc.students.full_name}</td>
-              <td>${rc.students.student_code}</td>
-              <td class="right">${rc.total_score ?? '-'} / ${rc.total_full_marks ?? '-'}</td>
-              <td class="right">${rc.percentage ?? '-'}%</td>
-              <td class="center">${rc.rank_in_class ?? '-'}</td>
-              <td class="center"><strong>${rc.overall_grade || '-'}</strong></td>
-              <td class="center ${resultClass}">${rc.result || '-'}</td>
-            </tr>`;
-          }).join('')}
-        </table>
-        <div class="footer">Generated: ${new Date().toLocaleString()} | ${schoolName}</div>
-      </body></html>
-    `;
+    const html = `<html><head><style>${pdfStyles}</style></head><body>
+      <h1>${schoolName || 'Paynow MM'}</h1>
+      <h2>Class Report — ${grade} ${className ? '- ' + className : ''} | ${academicYear} | ${term}</h2>
+      <table>
+        <tr><th>#</th><th>Student Name</th><th>Code</th><th class="right">Total</th><th class="right">%</th><th class="center">Rank</th><th class="center">Grade</th><th class="center">Result</th></tr>
+        ${reportCards.map((rc, i) => `<tr>
+          <td>${i + 1}</td><td>${rc.students.full_name}</td><td>${rc.students.student_code}</td>
+          <td class="right">${rc.total_score ?? '-'} / ${rc.total_full_marks ?? '-'}</td>
+          <td class="right">${rc.percentage ?? '-'}%</td><td class="center">${rc.rank_in_class ?? '-'}</td>
+          <td class="center bold ${gradeColor(rc.overall_grade)}">${rc.overall_grade || '-'}</td>
+          <td class="center bold ${gradeColor(rc.overall_grade)}">${rc.result || '-'}</td>
+        </tr>`).join('')}
+      </table>
+      <div class="footer">Generated: ${new Date().toLocaleString()} | ${schoolName}</div>
+    </body></html>`;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  }
+
+  // Export individual student report card PDF with subjects
+  async function handleStudentPDF(rc: ReportCard) {
+    // Fetch subject scores
+    const { data: gradesData } = await supabase
+      .from('student_grades')
+      .select('score, full_marks, letter_grade, subjects(name)')
+      .eq('student_id', rc.student_id)
+      .eq('academic_year', rc.academic_year);
+
+    const subjects = (gradesData || []).map((g: Record<string, unknown>) => {
+      const sub = g.subjects as { name: string } | { name: string }[] | null;
+      const subName = Array.isArray(sub) ? sub[0]?.name : sub?.name || 'Unknown';
+      return { name: subName, score: g.score as number | null, full_marks: g.full_marks as number, grade: g.letter_grade as string | null };
+    });
+
+    const totalStudents = reportCards.length;
+    const html = `<html><head><style>${pdfStyles}</style></head><body>
+      <h1>${schoolName || 'Paynow MM'}</h1>
+      <h2>Student Report Card</h2>
+
+      <div class="summary">
+        <strong>Name:</strong> ${rc.students.full_name} &nbsp; | &nbsp;
+        <strong>Code:</strong> ${rc.students.student_code} &nbsp; | &nbsp;
+        <strong>Class:</strong> ${grade} ${className || ''} &nbsp; | &nbsp;
+        <strong>Year:</strong> ${rc.academic_year} &nbsp; | &nbsp;
+        <strong>Term:</strong> ${rc.term}
+      </div>
+
+      <h3>Subject Scores</h3>
+      <table>
+        <tr><th>#</th><th>Subject</th><th class="right">Score</th><th class="right">Full Marks</th><th class="center">Grade</th></tr>
+        ${subjects.map((s: { name: string; score: number | null; full_marks: number; grade: string | null }, i: number) => `<tr>
+          <td>${i + 1}</td><td>${s.name}</td>
+          <td class="right">${s.score ?? '-'}</td><td class="right">${s.full_marks}</td>
+          <td class="center bold ${gradeColor(s.grade)}">${s.grade || '-'}</td>
+        </tr>`).join('')}
+        <tr style="background:#f3f4f6; font-weight:bold;">
+          <td></td><td>Total</td>
+          <td class="right">${rc.total_score ?? '-'}</td><td class="right">${rc.total_full_marks ?? '-'}</td>
+          <td class="center bold ${gradeColor(rc.overall_grade)}">${rc.overall_grade || '-'}</td>
+        </tr>
+      </table>
+
+      <div class="summary">
+        <strong>Percentage:</strong> ${rc.percentage ?? '-'}% &nbsp; | &nbsp;
+        <strong>Rank:</strong> ${rc.rank_in_class ?? '-'} of ${totalStudents} &nbsp; | &nbsp;
+        <strong>Result:</strong> <span class="bold ${gradeColor(rc.overall_grade)}">${rc.result || '-'}</span>
+      </div>
+
+      ${rc.teacher_comment ? `<div class="comment"><strong>Teacher Comment:</strong> ${rc.teacher_comment}</div>` : ''}
+
+      <div class="signature">
+        <div class="sig-line">Class Teacher</div>
+        <div class="sig-line">Principal</div>
+        <div class="sig-line">Parent/Guardian</div>
+      </div>
+      <div class="footer">Generated: ${new Date().toLocaleString()} | ${schoolName}</div>
+    </body></html>`;
     const w = window.open('', '_blank');
     if (w) { w.document.write(html); w.document.close(); w.print(); }
   }
@@ -595,16 +661,25 @@ export default function ReportCardsPage() {
                         </span>
                       </td>
                       <td className="whitespace-nowrap px-4 py-4 text-center">
-                        <button
-                          onClick={() => toggleExpand(rc)}
-                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                        >
-                          {expandedId === rc.id ? (
-                            <ChevronUp className="h-5 w-5" />
-                          ) : (
-                            <ChevronDown className="h-5 w-5" />
-                          )}
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={() => handleStudentPDF(rc)}
+                            className="rounded p-1 text-blue-500 hover:bg-blue-50 hover:text-blue-700"
+                            title="Print report card"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => toggleExpand(rc)}
+                            className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          >
+                            {expandedId === rc.id ? (
+                              <ChevronUp className="h-5 w-5" />
+                            ) : (
+                              <ChevronDown className="h-5 w-5" />
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
 
