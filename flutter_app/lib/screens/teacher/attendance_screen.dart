@@ -65,15 +65,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           .from('students')
           .select('id, full_name, full_name_my, student_code, class_name, grade, is_active')
           .eq('school_id', _schoolId!)
-          .eq('is_active', true)
-          .order('full_name');
+          .eq('is_active', true);
 
       // Filter by class if selected (not "All")
       if (_selectedClass != null && _selectedClass!.isNotEmpty) {
         query = query.eq('class_name', _selectedClass!);
       }
 
-      final response = await query;
+      final response = await query.order('full_name');
 
       // Load existing attendance for selected date
       final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
