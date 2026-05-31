@@ -477,13 +477,51 @@ export default function ReportCardsPage() {
   }
 
   const [studentSearch, setStudentSearch] = useState('');
+  const [searchResults, setSearchResults] = useState<ReportCard[]>([]);
+  const [searching, setSearching] = useState(false);
 
-  const filteredReportCards = studentSearch.trim()
-    ? reportCards.filter(rc =>
-        rc.students.full_name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-        rc.students.student_code.toLowerCase().includes(studentSearch.toLowerCase())
-      )
-    : reportCards;
+  // Search student by name/code across all report cards
+  async function handleStudentSearch() {
+    const q = studentSearch.trim();
+    if (!q || !academicYear) return;
+    setSearching(true);
+    try {
+      // Find students matching search
+      const { data: students } = await supabase
+        .from('students')
+        .select('id')
+        .or(`full_name.ilike.%${q}%,student_code.ilike.%${q}%`)
+        .eq('is_active', true)
+        .limit(10);
+
+      if (students && students.length > 0) {
+        const studentIds = students.map((s: { id: string }) => s.id);
+        let rcQuery = supabase
+          .from('report_cards')
+          .select('*, students(id, full_name, student_code)')
+          .in('student_id', studentIds)
+          .eq('academic_year', academicYear);
+        if (term) rcQuery = rcQuery.eq('term', term);
+
+        const { data: rcs } = await rcQuery.order('rank_in_class');
+        setSearchResults((rcs || []) as ReportCard[]);
+      } else {
+        setSearchResults([]);
+      }
+    } catch {
+      setSearchResults([]);
+    }
+    setSearching(false);
+  }
+
+  // Combine: if searching show search results, else show class report cards
+  const displayCards = studentSearch.trim() && searchResults.length > 0
+    ? searchResults
+    : studentSearch.trim() && searchResults.length === 0 && !searching
+      ? []
+      : reportCards;
+
+  const filteredReportCards = displayCards;
 
   const filtersReady = grade && academicYear && term;
 
@@ -584,13 +622,23 @@ export default function ReportCardsPage() {
           </select>
         <div>
           <label className="block text-xs font-medium text-gray-500 mb-1">Search Student</label>
-          <input
-            type="text"
-            value={studentSearch}
-            onChange={(e) => setStudentSearch(e.target.value)}
-            placeholder="Name or code..."
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={studentSearch}
+              onChange={(e) => { setStudentSearch(e.target.value); if (!e.target.value.trim()) setSearchResults([]); }}
+              onKeyDown={(e) => { if (e.key === 'Enter') handleStudentSearch(); }}
+              placeholder="Name or code..."
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
+            />
+            <button
+              onClick={handleStudentSearch}
+              disabled={searching || !studentSearch.trim()}
+              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {searching ? '...' : 'Search'}
+            </button>
+          </div>
         </div>
         </div>
       </div>
