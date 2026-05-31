@@ -79,9 +79,9 @@ Deno.serve(async (req) => {
     const payload: WebhookPayload = await req.json();
     const record = payload.record;
 
-    // Only notify on absent
-    if (record.status !== 'absent') {
-      return new Response(JSON.stringify({ message: 'Skipped: not absent' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    // Only notify on present (scanned attendance)
+    if (record.status !== 'present') {
+      return new Response(JSON.stringify({ message: 'Skipped: not present' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
     if (!fcmServiceAccountJson) {
@@ -111,9 +111,11 @@ Deno.serve(async (req) => {
     }
 
     const studentName = student?.full_name || 'Your child';
-    const title = 'Absent Notice';
-    const body = `${studentName} was marked absent on ${record.date}`;
-    const data = { type: 'attendance', student_id: record.student_id, status: 'absent', date: record.date };
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const title = 'Attendance: Present';
+    const body = `${studentName} arrived at school at ${timeStr}`;
+    const data = { type: 'attendance', student_id: record.student_id, status: 'present', date: record.date };
 
     const sa = JSON.parse(fcmServiceAccountJson);
     const accessToken = await getAccessToken(sa);
