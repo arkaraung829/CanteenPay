@@ -109,7 +109,7 @@ export async function PATCH(request: NextRequest) {
       return Response.json({ success: false, error: 'School id is required' }, { status: 400 });
     }
 
-    const allowedFields = ['name', 'name_my', 'code', 'address', 'phone', 'is_active'];
+    const allowedFields = ['name', 'name_my', 'code', 'address', 'phone', 'is_active', 'settings'];
     const safeUpdates: Record<string, unknown> = {};
     for (const key of allowedFields) {
       if (key in updates) {

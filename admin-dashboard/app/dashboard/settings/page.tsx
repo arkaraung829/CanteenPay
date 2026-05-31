@@ -7,6 +7,7 @@ import {
   Settings, Plus, Trash2, ChevronUp, ChevronDown,
   Loader2, Pencil, Check, X, GripVertical,
   Users, School, Eye, EyeOff,
+  Clock, BookOpen, DollarSign, Building2, Save,
 } from 'lucide-react';
 import { useSchoolContext } from '@/lib/school-context';
 
@@ -36,6 +37,404 @@ interface UserItem {
   phone?: string;
   is_active: boolean;
   created_at: string;
+}
+
+// --- School Settings Types ---
+interface SchoolSettingsData {
+  // Direct school columns
+  name: string;
+  name_my: string;
+  code: string;
+  address: string;
+  phone: string;
+  // JSONB settings
+  school_start_time: string;
+  school_end_time: string;
+  canteen_open_time: string;
+  canteen_close_time: string;
+  academic_year_start: string;
+  academic_year_end: string;
+  term_semester: string;
+  default_daily_spending_limit: string;
+  low_balance_alert_threshold: string;
+}
+
+const DEFAULT_SETTINGS: SchoolSettingsData = {
+  name: '',
+  name_my: '',
+  code: '',
+  address: '',
+  phone: '',
+  school_start_time: '08:00',
+  school_end_time: '15:30',
+  canteen_open_time: '07:30',
+  canteen_close_time: '14:00',
+  academic_year_start: '6',
+  academic_year_end: '3',
+  term_semester: '',
+  default_daily_spending_limit: '5000',
+  low_balance_alert_threshold: '1000',
+};
+
+const MONTHS = [
+  { value: '1', label: 'January' },
+  { value: '2', label: 'February' },
+  { value: '3', label: 'March' },
+  { value: '4', label: 'April' },
+  { value: '5', label: 'May' },
+  { value: '6', label: 'June' },
+  { value: '7', label: 'July' },
+  { value: '8', label: 'August' },
+  { value: '9', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+];
+
+// --- Collapsible Section Wrapper ---
+function SettingsSection({
+  icon: Icon,
+  title,
+  children,
+  defaultOpen = true,
+}: {
+  icon: React.ElementType;
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between px-6 py-4 text-left"
+      >
+        <div className="flex items-center gap-3">
+          <Icon className="h-5 w-5 text-gray-400" />
+          <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+        </div>
+        <ChevronDown
+          className={`h-5 w-5 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && <div className="border-t border-gray-200 px-6 py-5">{children}</div>}
+    </div>
+  );
+}
+
+// --- School Settings Component ---
+function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
+  const [settings, setSettings] = useState<SchoolSettingsData>(DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchSettings = useCallback(async () => {
+    if (!schoolId) return;
+    setLoading(true);
+    try {
+      const res = await authFetch(`/api/settings/school?school_id=${schoolId}`);
+      const json = await res.json();
+      if (json.success && json.data) {
+        const d = json.data;
+        const s = d.settings || {};
+        setSettings({
+          name: d.name || '',
+          name_my: d.name_my || '',
+          code: d.code || '',
+          address: d.address || '',
+          phone: d.phone || '',
+          school_start_time: s.school_start_time || DEFAULT_SETTINGS.school_start_time,
+          school_end_time: s.school_end_time || DEFAULT_SETTINGS.school_end_time,
+          canteen_open_time: s.canteen_open_time || DEFAULT_SETTINGS.canteen_open_time,
+          canteen_close_time: s.canteen_close_time || DEFAULT_SETTINGS.canteen_close_time,
+          academic_year_start: s.academic_year_start || DEFAULT_SETTINGS.academic_year_start,
+          academic_year_end: s.academic_year_end || DEFAULT_SETTINGS.academic_year_end,
+          term_semester: s.term_semester || DEFAULT_SETTINGS.term_semester,
+          default_daily_spending_limit: s.default_daily_spending_limit?.toString() || DEFAULT_SETTINGS.default_daily_spending_limit,
+          low_balance_alert_threshold: s.low_balance_alert_threshold?.toString() || DEFAULT_SETTINGS.low_balance_alert_threshold,
+        });
+      }
+    } catch {
+      setError('Failed to load school settings');
+    }
+    setLoading(false);
+  }, [schoolId]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  function updateField(field: keyof SchoolSettingsData, value: string) {
+    setSettings((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await authFetch('/api/settings/school', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          school_id: schoolId,
+          name: settings.name,
+          name_my: settings.name_my || null,
+          address: settings.address || null,
+          phone: settings.phone || null,
+          settings: {
+            school_start_time: settings.school_start_time,
+            school_end_time: settings.school_end_time,
+            canteen_open_time: settings.canteen_open_time,
+            canteen_close_time: settings.canteen_close_time,
+            academic_year_start: settings.academic_year_start,
+            academic_year_end: settings.academic_year_end,
+            term_semester: settings.term_semester,
+            default_daily_spending_limit: parseInt(settings.default_daily_spending_limit) || 0,
+            low_balance_alert_threshold: parseInt(settings.low_balance_alert_threshold) || 0,
+          },
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setToast('Settings saved successfully');
+      } else {
+        setError(json.error || 'Failed to save settings');
+      }
+    } catch {
+      setError('Network error while saving');
+    }
+    setSaving(false);
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
+  const inputClass =
+    'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
+  const labelClass = 'block text-sm font-medium text-gray-700 mb-1';
+  const readOnlyClass =
+    'w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500 cursor-not-allowed';
+
+  return (
+    <div className="space-y-6">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed right-6 top-6 z-50 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800 shadow-lg">
+          {toast}
+        </div>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+          <button onClick={() => setError(null)} className="ml-2 font-medium hover:underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* School Profile */}
+      <SettingsSection icon={Building2} title="School Profile">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>School Name</label>
+            <input
+              type="text"
+              value={settings.name}
+              onChange={(e) => updateField('name', e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>School Name (Myanmar)</label>
+            <input
+              type="text"
+              value={settings.name_my}
+              onChange={(e) => updateField('name_my', e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>School Code</label>
+            <input type="text" value={settings.code} readOnly className={readOnlyClass} />
+          </div>
+          <div>
+            <label className={labelClass}>Phone</label>
+            <input
+              type="text"
+              value={settings.phone}
+              onChange={(e) => updateField('phone', e.target.value)}
+              placeholder="e.g. 09-123456789"
+              className={inputClass}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>Address</label>
+            <input
+              type="text"
+              value={settings.address}
+              onChange={(e) => updateField('address', e.target.value)}
+              placeholder="School address"
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Operating Hours */}
+      <SettingsSection icon={Clock} title="Operating Hours">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>School Start Time</label>
+            <input
+              type="time"
+              value={settings.school_start_time}
+              onChange={(e) => updateField('school_start_time', e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>School End Time</label>
+            <input
+              type="time"
+              value={settings.school_end_time}
+              onChange={(e) => updateField('school_end_time', e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Canteen Open Time</label>
+            <input
+              type="time"
+              value={settings.canteen_open_time}
+              onChange={(e) => updateField('canteen_open_time', e.target.value)}
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>Canteen Close Time</label>
+            <input
+              type="time"
+              value={settings.canteen_close_time}
+              onChange={(e) => updateField('canteen_close_time', e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Academic Settings */}
+      <SettingsSection icon={BookOpen} title="Academic Settings">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Academic Year Start</label>
+            <select
+              value={settings.academic_year_start}
+              onChange={(e) => updateField('academic_year_start', e.target.value)}
+              className={inputClass}
+            >
+              {MONTHS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Academic Year End</label>
+            <select
+              value={settings.academic_year_end}
+              onChange={(e) => updateField('academic_year_end', e.target.value)}
+              className={inputClass}
+            >
+              {MONTHS.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>Term / Semester</label>
+            <input
+              type="text"
+              value={settings.term_semester}
+              onChange={(e) => updateField('term_semester', e.target.value)}
+              placeholder="e.g. Term 1 2026-2027"
+              className={inputClass}
+            />
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Financial Settings */}
+      <SettingsSection icon={DollarSign} title="Financial Settings">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Default Daily Spending Limit (MMK)</label>
+            <input
+              type="number"
+              value={settings.default_daily_spending_limit}
+              onChange={(e) => updateField('default_daily_spending_limit', e.target.value)}
+              placeholder="e.g. 5000"
+              min="0"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-400">Applied to new students by default</p>
+          </div>
+          <div>
+            <label className={labelClass}>Low Balance Alert Threshold (MMK)</label>
+            <input
+              type="number"
+              value={settings.low_balance_alert_threshold}
+              onChange={(e) => updateField('low_balance_alert_threshold', e.target.value)}
+              placeholder="e.g. 1000"
+              min="0"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-400">Triggers parent notification</p>
+          </div>
+          <div>
+            <label className={labelClass}>Currency</label>
+            <input type="text" value="MMK" readOnly className={readOnlyClass} />
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Save Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 rounded-lg bg-green-600 px-6 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-green-700 disabled:opacity-50 transition-colors"
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          {saving ? 'Saving...' : 'Save Settings'}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 // --- Reusable list management component ---
@@ -826,32 +1225,43 @@ export default function SettingsPage() {
 
       {/* Tab content */}
       {activeTab === 'school' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ManageableList
-            title="Grades"
-            items={grades}
-            loading={gradesLoading}
-            onAdd={addGrade}
-            onDelete={deleteGrade}
-            onToggleActive={toggleGradeActive}
-            onRename={renameGrade}
-            onMoveUp={moveGradeUp}
-            onMoveDown={moveGradeDown}
-            addPlaceholder="e.g. Grade 12"
-          />
+        <div className="space-y-8">
+          {/* School Settings */}
+          {selectedSchoolId && <SchoolSettingsPanel schoolId={selectedSchoolId} />}
+          {!selectedSchoolId && (
+            <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-6 py-4 text-sm text-yellow-800">
+              Please select a school to configure settings.
+            </div>
+          )}
 
-          <ManageableList
-            title="Sections"
-            items={sections}
-            loading={sectionsLoading}
-            onAdd={addSection}
-            onDelete={deleteSection}
-            onToggleActive={toggleSectionActive}
-            onRename={renameSection}
-            onMoveUp={moveSectionUp}
-            onMoveDown={moveSectionDown}
-            addPlaceholder="e.g. Section F"
-          />
+          {/* Grades & Sections */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <ManageableList
+              title="Grades"
+              items={grades}
+              loading={gradesLoading}
+              onAdd={addGrade}
+              onDelete={deleteGrade}
+              onToggleActive={toggleGradeActive}
+              onRename={renameGrade}
+              onMoveUp={moveGradeUp}
+              onMoveDown={moveGradeDown}
+              addPlaceholder="e.g. Grade 12"
+            />
+
+            <ManageableList
+              title="Sections"
+              items={sections}
+              loading={sectionsLoading}
+              onAdd={addSection}
+              onDelete={deleteSection}
+              onToggleActive={toggleSectionActive}
+              onRename={renameSection}
+              onMoveUp={moveSectionUp}
+              onMoveDown={moveSectionDown}
+              addPlaceholder="e.g. Section F"
+            />
+          </div>
         </div>
       )}
 
