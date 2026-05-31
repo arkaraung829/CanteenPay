@@ -108,7 +108,9 @@ class _LoginScreenState extends State<LoginScreen>
       // Device supports biometric?
       final biometric = BiometricService();
       if (!await biometric.isAvailable()) {
-        setState(() => _checkingBiometric = false);
+        // No biometric — sign out so user can login via OTP/Google
+        await Supabase.instance.client.auth.signOut();
+        if (mounted) setState(() => _checkingBiometric = false);
         return;
       }
 
@@ -127,22 +129,20 @@ class _LoginScreenState extends State<LoginScreen>
         HapticService.success();
         // Session is still active — clear flag so router can redirect
         LoginScreen.biometricInProgress = false;
-        // Wait for AuthProvider to load profile, then router will redirect
         final auth = context.read<AuthProvider>();
         for (int i = 0; i < 20; i++) {
           await Future.delayed(const Duration(milliseconds: 200));
           if (auth.isAuthenticated && auth.user != null) {
-            // Force router to re-evaluate by notifying listeners
             auth.safeNotifyListeners();
             return;
           }
         }
       } else if (!authenticated && mounted) {
-        // Biometric cancelled — sign out to stay on login screen
+        // Biometric cancelled — sign out so user can login via OTP/Google
         await Supabase.instance.client.auth.signOut();
       }
     } catch (_) {
-      // Biometric error — sign out to stay on login
+      // Biometric error — sign out so user can login manually
       if (mounted) {
         try { await Supabase.instance.client.auth.signOut(); } catch (_) {}
       }
