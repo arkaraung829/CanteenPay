@@ -55,6 +55,9 @@ dependencies:
 
   # Image picker for photo upload
   image_picker: ^1.1.2
+
+  # Audio for scan beep
+  audioplayers: ^6.1.0
   pdf: ^3.12.0
   printing: ^5.14.3
 
@@ -70,6 +73,7 @@ flutter:
   assets:
     - assets/icons/
     - assets/onboarding/
+    - assets/sounds/
 
 # App Icon configuration
 flutter_launcher_icons:

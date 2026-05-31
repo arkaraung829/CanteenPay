@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 /// Teacher QR scanner — continuous scan, mark attendance on each scan.
 class TeacherScanScreen extends StatefulWidget {
@@ -14,6 +15,7 @@ class TeacherScanScreen extends StatefulWidget {
 
 class _TeacherScanScreenState extends State<TeacherScanScreen> {
   final MobileScannerController _controller = MobileScannerController();
+  final AudioPlayer _audioPlayer = AudioPlayer();
   bool _processing = false;
   final List<_ScannedStudent> _scannedList = [];
   String? _error;
@@ -39,6 +41,7 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
   @override
   void dispose() {
     _controller.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -83,12 +86,12 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
         debugPrint('Attendance upsert failed: $e');
       }
 
-      // Success feedback — multiple haptic patterns for stronger feel
+      // Success feedback
       HapticFeedback.heavyImpact();
-      await Future.delayed(const Duration(milliseconds: 100));
-      HapticFeedback.mediumImpact();
-      // Play system alert sound (more audible than click)
-      SystemSound.play(SystemSoundType.alert);
+      // Play beep sound (works even in silent mode)
+      try {
+        await _audioPlayer.play(AssetSource('sounds/beep.wav'));
+      } catch (_) {}
 
       setState(() {
         _scannedList.insert(0, _ScannedStudent(
