@@ -217,6 +217,11 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
           _router ??= createRouter(authProvider, initialOnboarding: widget.showOnboarding);
           final router = _router!;
 
+          // Reload notifications when auth state changes (after login)
+          if (authProvider.isAuthenticated && authProvider.user != null) {
+            context.read<NotificationProvider>().loadNotifications();
+          }
+
           try {
             NotificationService.instance.onNotificationTapped = (data) {
               final type = data['type']?.toString();
