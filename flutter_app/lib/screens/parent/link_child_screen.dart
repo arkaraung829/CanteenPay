@@ -104,6 +104,49 @@ class _LinkChildScreenState extends State<LinkChildScreen> {
       return;
     }
 
+    // Verify parent's phone or email matches what admin registered
+    final authUser = Supabase.instance.client.auth.currentUser;
+    final parentPhone = authUser?.phone;
+    final parentEmail = authUser?.email;
+    final studentParentPhone = _foundStudent!.parentPhone;
+    final studentParentEmail = _foundStudent!.parentEmail;
+
+    bool identityMatched = false;
+
+    // Check phone match (normalize both)
+    if (studentParentPhone != null && studentParentPhone.isNotEmpty && parentPhone != null) {
+      final normalizedParent = parentPhone.replaceAll(RegExp(r'[^\d]'), '');
+      final normalizedStudent = studentParentPhone.replaceAll(RegExp(r'[^\d]'), '');
+      if (normalizedParent.endsWith(normalizedStudent) || normalizedStudent.endsWith(normalizedParent)) {
+        identityMatched = true;
+      }
+    }
+
+    // Check email match
+    if (!identityMatched && studentParentEmail != null && studentParentEmail.isNotEmpty && parentEmail != null) {
+      // Skip fake phone emails
+      if (!parentEmail.contains('phone') && !parentEmail.contains('@canteenpay.com')) {
+        if (parentEmail.toLowerCase() == studentParentEmail.toLowerCase()) {
+          identityMatched = true;
+        }
+      }
+    }
+
+    // If admin didn't register any parent contact, allow with just PIN
+    if (studentParentPhone == null && studentParentEmail == null) {
+      identityMatched = true;
+    }
+    if ((studentParentPhone == null || studentParentPhone.isEmpty) &&
+        (studentParentEmail == null || studentParentEmail.isEmpty)) {
+      identityMatched = true;
+    }
+
+    if (!identityMatched) {
+      HapticService.error();
+      setState(() => _error = 'Your phone number or email does not match the registered parent. Please contact the school.');
+      return;
+    }
+
     final auth = context.read<AuthProvider>();
     final parentId = auth.user?.id;
     if (parentId == null) {

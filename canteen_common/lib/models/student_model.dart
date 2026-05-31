@@ -18,6 +18,7 @@ class StudentModel {
   final DateTime? createdAt;
   final String? dateOfBirth;
   final String? parentPhone;
+  final String? parentEmail;
   final String? pinCode;
   final String? schoolName;
   final String? schoolNameMy;
@@ -39,6 +40,7 @@ class StudentModel {
     this.createdAt,
     this.dateOfBirth,
     this.parentPhone,
+    this.parentEmail,
     this.pinCode,
     this.schoolName,
     this.schoolNameMy,
@@ -76,6 +78,7 @@ class StudentModel {
               : null,
       dateOfBirth: json['date_of_birth'] ?? json['dateOfBirth'],
       parentPhone: json['parent_phone'] ?? json['parentPhone'],
+      parentEmail: json['parent_email'] ?? json['parentEmail'],
       pinCode: json['pin_code'] ?? json['pinCode'],
       schoolName: schoolName,
       schoolNameMy: schoolNameMy,
@@ -101,6 +104,7 @@ class StudentModel {
       if (createdAt != null) 'created_at': createdAt!.toIso8601String(),
       if (dateOfBirth != null) 'date_of_birth': dateOfBirth,
       if (parentPhone != null) 'parent_phone': parentPhone,
+      if (parentEmail != null) 'parent_email': parentEmail,
       if (pinCode != null) 'pin_code': pinCode,
       if (schoolName != null) 'school_name': schoolName,
       if (schoolNameMy != null) 'school_name_my': schoolNameMy,
@@ -134,6 +138,7 @@ class StudentModel {
     DateTime? createdAt,
     String? dateOfBirth,
     String? parentPhone,
+    String? parentEmail,
     String? pinCode,
     String? schoolName,
     String? schoolNameMy,
@@ -155,6 +160,7 @@ class StudentModel {
       createdAt: createdAt ?? this.createdAt,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       parentPhone: parentPhone ?? this.parentPhone,
+      parentEmail: parentEmail ?? this.parentEmail,
       pinCode: pinCode ?? this.pinCode,
       schoolName: schoolName ?? this.schoolName,
       schoolNameMy: schoolNameMy ?? this.schoolNameMy,
