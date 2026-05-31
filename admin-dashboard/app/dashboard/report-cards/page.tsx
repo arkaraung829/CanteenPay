@@ -476,6 +476,15 @@ export default function ReportCardsPage() {
     downloadCSV(filename, csv);
   }
 
+  const [studentSearch, setStudentSearch] = useState('');
+
+  const filteredReportCards = studentSearch.trim()
+    ? reportCards.filter(rc =>
+        rc.students.full_name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+        rc.students.student_code.toLowerCase().includes(studentSearch.toLowerCase())
+      )
+    : reportCards;
+
   const filtersReady = grade && academicYear && term;
 
   return (
@@ -573,6 +582,16 @@ export default function ReportCardsPage() {
               <option key={t} value={t}>{t}</option>
             ))}
           </select>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Search Student</label>
+          <input
+            type="text"
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+            placeholder="Name or code..."
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
+          />
+        </div>
         </div>
       </div>
 
@@ -609,7 +628,7 @@ export default function ReportCardsPage() {
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
           </div>
         </div>
-      ) : reportCards.length === 0 ? (
+      ) : filteredReportCards.length === 0 ? (
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="flex flex-col items-center justify-center py-16 px-4">
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gray-100 mb-4">
@@ -637,7 +656,7 @@ export default function ReportCardsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {reportCards.map((rc) => (
+                {filteredReportCards.map((rc) => (
                   <React.Fragment key={rc.id}>
                     <tr className="hover:bg-gray-50">
                       <td className="whitespace-nowrap px-6 py-4">
