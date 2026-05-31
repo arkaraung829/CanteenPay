@@ -18,27 +18,15 @@ class NotificationsScreen extends StatefulWidget {
   State<NotificationsScreen> createState() => _NotificationsScreenState();
 }
 
-class _NotificationsScreenState extends State<NotificationsScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
+class _NotificationsScreenState extends State<NotificationsScreen> {
   List<Map<String, dynamic>> _announcements = [];
   bool _announcementsLoading = true;
 
   @override
   void initState() {
     super.initState();
-    final initialTab = NotificationsScreen.openAnnouncements ? 1 : 0;
-    NotificationsScreen.openAnnouncements = false;
-    _tabController = TabController(length: 2, vsync: this, initialIndex: initialTab);
     _loadAnnouncements();
-    // Clear app icon badge when user opens notifications screen
     NotificationService.instance.clearBadge();
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadAnnouncements() async {
@@ -130,6 +118,32 @@ class _NotificationsScreenState extends State<NotificationsScreen>
   Widget build(BuildContext context) {
     final provider = context.watch<NotificationProvider>();
 
+    // Merge activities + announcements into one list sorted by time
+    final List<_MergedItem> items = [];
+
+    // Add activity notifications
+    for (final notif in provider.notifications) {
+      items.add(_MergedItem(
+        type: 'activity',
+        timestamp: notif.timestamp,
+        notification: notif,
+      ));
+    }
+
+    // Add announcements
+    for (final a in _announcements) {
+      final publishedAt = a['published_at'] ?? a['created_at'];
+      final date = publishedAt != null ? DateTime.tryParse(publishedAt) : null;
+      items.add(_MergedItem(
+        type: 'announcement',
+        timestamp: date ?? DateTime.now(),
+        announcement: a,
+      ));
+    }
+
+    // Sort by time, newest first
+    items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
@@ -137,227 +151,85 @@ class _NotificationsScreenState extends State<NotificationsScreen>
           if (provider.unreadCount > 0)
             TextButton(
               onPressed: () => provider.markAllAsRead(),
-              child: const Text(
-                'Mark all read',
-                style: TextStyle(color: Colors.white),
-              ),
+              child: const Text('Mark all read', style: TextStyle(color: Colors.white)),
             ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          tabs: [
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Activity', style: TextStyle(fontWeight: FontWeight.w600)),
-                  if (provider.unreadCount > 0) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.red,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${provider.unreadCount}',
-                        style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const Tab(child: Text('Announcements', style: TextStyle(fontWeight: FontWeight.w600))),
-          ],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildActivityTab(provider),
-          _buildAnnouncementsTab(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityTab(NotificationProvider provider) {
-    final notifications = provider.notifications;
-
-    if (provider.isLoading) {
-      return ListView(
-        children: [for (int i = 0; i < 6; i++) ShimmerLoading.listTile()],
-      );
-    }
-
-    if (notifications.isEmpty) {
-      return EmptyStateWidget.noNotifications();
-    }
-
-    return AnimatedFadeIn(
-      child: ListView.separated(
-        itemCount: notifications.length,
-        separatorBuilder: (_, __) => const Divider(height: 1),
-        itemBuilder: (context, index) {
-          final notif = notifications[index];
-          final color = _colorForType(notif.type ?? 'system');
-          return ListTile(
-            tileColor:
-                notif.isRead ? null : AppTheme.primary.withValues(alpha: 0.06),
-            leading: CircleAvatar(
-              backgroundColor: color.withValues(alpha: 0.12),
-              child: Icon(
-                _iconForType(notif.type ?? 'system'),
-                color: color,
-                size: 20,
-              ),
-            ),
-            title: Text(
-              notif.title,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight:
-                    notif.isRead ? FontWeight.w500 : FontWeight.w700,
-                color: Colors.black87,
-              ),
-            ),
-            subtitle: Text(
-              notif.body,
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[600],
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: Text(
-              _timeAgo(notif.timestamp),
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey[400],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            onTap: () {
-              provider.markAsRead(notif.id);
-              _showNotificationDetail(context, notif);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildAnnouncementsTab() {
-    if (_announcementsLoading) {
-      return ListView(
-        children: [for (int i = 0; i < 4; i++) ShimmerLoading.listTile()],
-      );
-    }
-
-    if (_announcements.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.campaign_outlined, size: 48, color: AppTheme.textHint),
-            SizedBox(height: 12),
-            Text('No announcements yet',
-                style: TextStyle(color: AppTheme.textSecondary)),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadAnnouncements,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _announcements.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final a = _announcements[index];
-          final publishedAt = a['published_at'] ?? a['created_at'];
-          final date = publishedAt != null
-              ? DateTime.tryParse(publishedAt)
-              : null;
-          final schools = a['schools'];
-          final schoolName = schools is Map ? schools['name'] : null;
-
-          return GestureDetector(
-            onTap: () => _showAnnouncementDetail(context, a),
-            child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: AppTheme.shadowSm,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.campaign, color: AppTheme.primary, size: 20),
+      body: (provider.isLoading && _announcementsLoading)
+          ? ListView(children: [for (int i = 0; i < 6; i++) ShimmerLoading.listTile()])
+          : items.isEmpty
+              ? EmptyStateWidget.noNotifications()
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    await provider.loadNotifications();
+                    await _loadAnnouncements();
+                  },
+                  child: AnimatedFadeIn(
+                    child: ListView.separated(
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        if (item.type == 'announcement') {
+                          return _buildAnnouncementTile(context, item.announcement!);
+                        } else {
+                          return _buildActivityTile(context, provider, item.notification!);
+                        }
+                      },
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            a['title'] ?? '',
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          if (schoolName != null || date != null)
-                            Text(
-                              [
-                                if (schoolName != null) schoolName,
-                                if (date != null) _timeAgo(date),
-                              ].join(' · '),
-                              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  a['body'] ?? '',
-                  style: const TextStyle(fontSize: 14, height: 1.5, color: Colors.black87),
-                ),
-                if (a['body_my'] != null && (a['body_my'] as String).isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    a['body_my'],
-                    style: TextStyle(fontSize: 14, height: 1.5, color: Colors.grey[700]),
                   ),
-                ],
-              ],
-            ),
-          ),
-          );
-        },
-      ),
+                ),
     );
   }
+
+  Widget _buildActivityTile(BuildContext context, NotificationProvider provider, NotificationItem notif) {
+    final color = _colorForType(notif.type ?? 'system');
+    return ListTile(
+      tileColor: notif.isRead ? null : AppTheme.primary.withValues(alpha: 0.06),
+      leading: CircleAvatar(
+        backgroundColor: color.withValues(alpha: 0.12),
+        child: Icon(_iconForType(notif.type ?? 'system'), color: color, size: 20),
+      ),
+      title: Text(
+        notif.title,
+        style: TextStyle(fontSize: 14, fontWeight: notif.isRead ? FontWeight.w500 : FontWeight.w700, color: Colors.black87),
+      ),
+      subtitle: Text(notif.body, style: TextStyle(fontSize: 13, color: Colors.grey[600]), maxLines: 2, overflow: TextOverflow.ellipsis),
+      trailing: Text(_timeAgo(notif.timestamp), style: TextStyle(fontSize: 11, color: Colors.grey[400], fontWeight: FontWeight.w500)),
+      onTap: () {
+        provider.markAsRead(notif.id);
+        _showNotificationDetail(context, notif);
+      },
+    );
+  }
+
+  Widget _buildAnnouncementTile(BuildContext context, Map<String, dynamic> a) {
+    final publishedAt = a['published_at'] ?? a['created_at'];
+    final date = publishedAt != null ? DateTime.tryParse(publishedAt) : null;
+    return ListTile(
+      leading: CircleAvatar(
+        backgroundColor: AppTheme.primary.withValues(alpha: 0.12),
+        child: const Icon(Icons.campaign, color: AppTheme.primary, size: 20),
+      ),
+      title: Text(
+        a['title'] ?? '',
+        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black87),
+      ),
+      subtitle: Text(
+        a['body'] ?? '',
+        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Text(
+        date != null ? _timeAgo(date) : '',
+        style: TextStyle(fontSize: 11, color: Colors.grey[400], fontWeight: FontWeight.w500),
+      ),
+      onTap: () => _showAnnouncementDetail(context, a),
+    );
+  }
+
+  // _MergedItem removed — defined at bottom of file
 
   void _showNotificationDetail(BuildContext context, NotificationItem notif) {
     final color = _colorForType(notif.type ?? 'system');
@@ -521,4 +393,19 @@ class _NotificationsScreenState extends State<NotificationsScreen>
       ),
     );
   }
+}
+
+/// Merged item for the single notification list
+class _MergedItem {
+  final String type; // 'activity' or 'announcement'
+  final DateTime timestamp;
+  final NotificationItem? notification;
+  final Map<String, dynamic>? announcement;
+
+  _MergedItem({
+    required this.type,
+    required this.timestamp,
+    this.notification,
+    this.announcement,
+  });
 }
