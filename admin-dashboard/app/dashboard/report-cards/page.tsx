@@ -326,6 +326,64 @@ export default function ReportCardsPage() {
     setSavingComment(false);
   }
 
+  // Fetch school name
+  const [schoolName, setSchoolName] = useState('');
+  useEffect(() => {
+    if (!selectedSchoolId) return;
+    supabase.from('schools').select('name').eq('id', selectedSchoolId).single().then(({ data }) => {
+      if (data) setSchoolName(data.name);
+    });
+  }, [selectedSchoolId]);
+
+  // Export PDF
+  function handleExportPDF() {
+    if (reportCards.length === 0) return;
+    const html = `
+      <html><head><style>
+        body { font-family: Arial, sans-serif; padding: 30px; color: #333; }
+        h1 { font-size: 20px; text-align: center; margin: 0; }
+        h2 { font-size: 14px; text-align: center; color: #666; margin: 4px 0 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        th { background: #f3f4f6; text-align: left; padding: 8px 10px; font-size: 12px; border-bottom: 2px solid #e5e7eb; }
+        td { padding: 8px 10px; font-size: 12px; border-bottom: 1px solid #e5e7eb; }
+        .right { text-align: right; }
+        .center { text-align: center; }
+        .distinction { color: #15803d; font-weight: bold; }
+        .credit { color: #1d4ed8; font-weight: bold; }
+        .pass { color: #ca8a04; font-weight: bold; }
+        .fail { color: #dc2626; font-weight: bold; }
+        .footer { margin-top: 30px; font-size: 10px; color: #999; text-align: center; }
+        @media print { @page { size: A4 landscape; margin: 15mm; } }
+      </style></head><body>
+        <h1>${schoolName || 'Paynow MM'}</h1>
+        <h2>Report Cards — ${grade} ${className ? '- ' + className : ''} | ${academicYear} | ${term}</h2>
+        <table>
+          <tr>
+            <th>#</th><th>Student Name</th><th>Student Code</th>
+            <th class="right">Total Score</th><th class="right">Percentage</th>
+            <th class="center">Rank</th><th class="center">Grade</th><th class="center">Result</th>
+          </tr>
+          ${reportCards.map((rc, i) => {
+            const resultClass = rc.result === 'Distinction' ? 'distinction' : rc.result === 'Credit' ? 'credit' : rc.result === 'Pass' ? 'pass' : 'fail';
+            return `<tr>
+              <td>${i + 1}</td>
+              <td>${rc.students.full_name}</td>
+              <td>${rc.students.student_code}</td>
+              <td class="right">${rc.total_score ?? '-'} / ${rc.total_full_marks ?? '-'}</td>
+              <td class="right">${rc.percentage ?? '-'}%</td>
+              <td class="center">${rc.rank_in_class ?? '-'}</td>
+              <td class="center"><strong>${rc.overall_grade || '-'}</strong></td>
+              <td class="center ${resultClass}">${rc.result || '-'}</td>
+            </tr>`;
+          }).join('')}
+        </table>
+        <div class="footer">Generated: ${new Date().toLocaleString()} | ${schoolName}</div>
+      </body></html>
+    `;
+    const w = window.open('', '_blank');
+    if (w) { w.document.write(html); w.document.close(); w.print(); }
+  }
+
   // Export CSV
   function handleExportCSV() {
     if (reportCards.length === 0) return;
@@ -354,12 +412,20 @@ export default function ReportCardsPage() {
         </div>
         <div className="flex gap-2 self-start">
           {reportCards.length > 0 && (
-            <button
-              onClick={handleExportCSV}
-              className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-            >
-              <Download className="h-4 w-4" /> Export CSV
-            </button>
+            <>
+              <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                <Download className="h-4 w-4" /> CSV
+              </button>
+              <button
+                onClick={handleExportPDF}
+                className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                <FileText className="h-4 w-4" /> PDF
+              </button>
+            </>
           )}
           {userRole !== 'teacher' && filtersReady && (
             <button
