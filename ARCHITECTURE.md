@@ -37,6 +37,165 @@
 | Shared Code | canteen_common Flutter package |
 | Deploy | Vercel (dashboard), TestFlight/App Store (mobile) |
 
+## How the Flutter App Connects
+
+The Flutter app connects **directly to Supabase** (no middleware server). Security is enforced by RLS at the database level.
+
+```
+Flutter App (anon key + user JWT)
+    │
+    ├── REST API:   https://quwwkpbiovsaujhtkgzt.supabase.co/rest/v1/...
+    ├── Auth:       https://quwwkpbiovsaujhtkgzt.supabase.co/auth/v1/...
+    ├── RPC:        https://quwwkpbiovsaujhtkgzt.supabase.co/rest/v1/rpc/...
+    ├── Realtime:   wss://quwwkpbiovsaujhtkgzt.supabase.co/realtime/v1/...
+    └── Storage:    https://quwwkpbiovsaujhtkgzt.supabase.co/storage/v1/...
+
+Admin Dashboard (service role key — server-side only)
+    │
+    └── Vercel API Routes ──► Supabase (bypasses RLS)
+```
+
+The **anon key** is safe to expose (like a Firebase API key). Every request includes the user's JWT token — Supabase extracts `auth.uid()` and RLS policies filter the data automatically.
+
+## Row Level Security (RLS)
+
+RLS = database rules that control who can see/edit which rows. Every query is automatically filtered based on the logged-in user.
+
+**How it works:**
+```
+Parent queries: SELECT * FROM students
+    ↓
+PostgreSQL checks RLS policy:
+    "Can this user see this row?"
+    ↓
+Policy: parent can only see students WHERE EXISTS (
+    SELECT 1 FROM parent_student_links
+    WHERE student_id = students.id
+    AND parent_id = auth.uid()  ← current logged-in user
+)
+    ↓
+Result: only the parent's linked children are returned
+(other students are invisible — database blocks them)
+```
+
+**Example policies:**
+
+| Who | Table | Can Do | Rule |
+|-----|-------|--------|------|
+| Parent | students | SELECT only | Only linked children (via parent_student_links) |
+| Parent | wallets | SELECT only | Only linked children's wallets |
+| Parent | transactions | SELECT only | Only linked children's transactions |
+| Parent | attendance | SELECT only | Only linked children's attendance |
+| Student | students | SELECT only | Only own record (profile_id = auth.uid()) |
+| Seller | students | SELECT only | Only students in same school |
+| Admin/Staff | ALL tables | Full CRUD | Everything in their school |
+| Teacher | attendance | Full CRUD | Only their school |
+
+**Why this matters:** Even if someone decompiles the app and gets the Supabase URL + anon key, they can ONLY access data their account is allowed to see. The database enforces security, not the app code.
+
+## Supabase Realtime
+
+Realtime = live WebSocket connection. The database **pushes** changes to the app instantly — no polling or pull-to-refresh needed.
+
+```
+Parent has app open (WebSocket connected)
+    │
+    ├── Seller charges student 500 MMK
+    │       ↓
+    │   wallets table updated (balance: 10000 → 9500)
+    │       ↓
+    │   Supabase Realtime detects the UPDATE
+    │       ↓
+    │   Pushes change to parent's WebSocket
+    │       ↓
+    └── Parent's app updates balance instantly
+        (no refresh needed, no API call)
+```
+
+**Where we use Realtime:**
+
+| Subscription | Table | Event | Purpose |
+|-------------|-------|-------|---------|
+| `parent-wallets` | wallets | UPDATE | Balance updates instantly when purchase/deposit happens |
+| `parent-transactions` | transactions | INSERT | New transactions appear in activity list without refresh |
+| `chat:{conversationId}` | chat_messages | INSERT | Chat messages appear instantly for both sides |
+
+**How it's set up in code:**
+```dart
+// In children_provider.dart
+Supabase.instance.client
+    .channel('parent-wallets')
+    .onPostgresChanges(
+      event: PostgresChangeEvent.update,
+      table: 'wallets',
+      callback: (payload) {
+        // Update local wallet balance
+        final updatedWallet = WalletModel.fromJson(payload.newRecord);
+        _wallets[updatedWallet.studentId] = updatedWallet;
+        notifyListeners(); // UI rebuilds automatically
+      },
+    )
+    .subscribe();
+```
+
+## Supabase Edge Functions
+
+Edge Functions = server-side code running on Supabase's servers (Deno runtime). Used for operations that the Flutter app **can't do directly** — like sending push notifications (requires secret FCM credentials).
+
+```
+Transaction INSERT (purchase/deposit/refund)
+    │
+    ↓
+PostgreSQL trigger fires: notify_on_transaction()
+    │
+    ↓
+Trigger calls Edge Function via HTTP (pg_net extension)
+    POST https://quwwkpbiovsaujhtkgzt.supabase.co/functions/v1/on-transaction
+    │
+    ↓
+Edge Function (supabase/functions/on-transaction/index.ts):
+    │
+    ├── 1. Read transaction data from webhook payload
+    ├── 2. Look up wallet → student → parent_student_links
+    ├── 3. Get parent FCM tokens from profiles table
+    ├── 4. Sign JWT with FCM_SERVICE_ACCOUNT (secret)
+    ├── 5. Get Google OAuth2 access token
+    ├── 6. Call FCM v1 API for each parent device:
+    │       POST https://fcm.googleapis.com/v1/projects/canteenpay-a64a1/messages:send
+    │       {
+    │         "message": {
+    │           "token": "parent_fcm_token",
+    │           "notification": {
+    │             "title": "Purchase: 500 MMK",
+    │             "body": "Aung Aung spent 500 MMK at Canteen. Balance: 9,500 MMK"
+    │           }
+    │         }
+    │       }
+    │
+    └── 7. If balance < 2,000 MMK → send low balance alert too
+
+Parent's phone receives push notification
+```
+
+**Why Edge Function (not Flutter app)?**
+- FCM service account key is a **secret** — can't be in the app
+- The notification must be sent even if the **seller's app closes** after payment
+- Database trigger guarantees it runs for **every** transaction
+
+**Current Edge Functions:**
+
+| Function | Trigger | Purpose |
+|----------|---------|---------|
+| `on-transaction` | INSERT on `transactions` table | Send FCM push notification to linked parents |
+
+**Secrets stored in Edge Function environment:**
+
+| Secret | Purpose |
+|--------|---------|
+| `FCM_SERVICE_ACCOUNT` | Google service account JSON for FCM v1 API authentication |
+| `SUPABASE_URL` | Supabase project URL (auto-set) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin access to query parent tokens (auto-set) |
+
 ## Project Structure
 
 ```
