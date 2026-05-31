@@ -2,12 +2,20 @@ import { createAdminClient } from '@/lib/supabase';
 import { verifyAdminOrTeacher, unauthorizedResponse } from '@/lib/api-auth';
 import { NextRequest, NextResponse } from 'next/server';
 
-function computeLetterGrade(score: number | null, fullMarks: number): string | null {
+interface GradingScale {
+  a_min: number;
+  b_min: number;
+  c_min: number;
+}
+
+const DEFAULT_GRADING_SCALE: GradingScale = { a_min: 80, b_min: 65, c_min: 40 };
+
+function computeLetterGrade(score: number | null, fullMarks: number, scale: GradingScale = DEFAULT_GRADING_SCALE): string | null {
   if (score === null || score === undefined || fullMarks === 0) return null;
   const pct = (score / fullMarks) * 100;
-  if (pct >= 80) return 'A';
-  if (pct >= 60) return 'B';
-  if (pct >= 40) return 'C';
+  if (pct >= scale.a_min) return 'A';
+  if (pct >= scale.b_min) return 'B';
+  if (pct >= scale.c_min) return 'C';
   return 'F';
 }
 
@@ -131,14 +139,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get subject full_marks for letter grade computation
+    // Get subject full_marks and school_id for letter grade computation
     const subjectIds = [...new Set(records.map((r: { subject_id: string }) => r.subject_id))];
     const { data: subjects } = await supabase
       .from('subjects')
-      .select('id, full_marks')
+      .select('id, full_marks, school_id')
       .in('id', subjectIds);
 
     const subjectMap = new Map((subjects || []).map((s: { id: string; full_marks: number }) => [s.id, s.full_marks]));
+
+    // Fetch grading scale from school settings
+    let gradingScale: GradingScale = DEFAULT_GRADING_SCALE;
+    const schoolId = subjects?.[0]?.school_id;
+    if (schoolId) {
+      const { data: schoolData } = await supabase
+        .from('schools')
+        .select('settings')
+        .eq('id', schoolId)
+        .single();
+      if (schoolData?.settings?.grading_scale) {
+        const gs = schoolData.settings.grading_scale;
+        gradingScale = {
+          a_min: gs.a_min ?? DEFAULT_GRADING_SCALE.a_min,
+          b_min: gs.b_min ?? DEFAULT_GRADING_SCALE.b_min,
+          c_min: gs.c_min ?? DEFAULT_GRADING_SCALE.c_min,
+        };
+      }
+    }
 
     // Build upsert rows
     const rows = records.map((r: { student_id: string; subject_id: string; score: number | null; remarks?: string }) => {
@@ -150,7 +177,7 @@ export async function POST(request: NextRequest) {
         academic_year,
         score: r.score,
         full_marks: fullMarks,
-        letter_grade: computeLetterGrade(r.score, fullMarks),
+        letter_grade: computeLetterGrade(r.score, fullMarks, gradingScale),
         remarks: r.remarks || null,
         graded_by: auth.userId,
       };

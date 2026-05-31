@@ -47,12 +47,20 @@ interface TeacherRecord {
   assigned_classes: string[];
 }
 
-function computeLetterGrade(score: number | null, fullMarks: number): string | null {
+interface GradingScale {
+  a_min: number;
+  b_min: number;
+  c_min: number;
+}
+
+const DEFAULT_GRADING_SCALE: GradingScale = { a_min: 80, b_min: 65, c_min: 40 };
+
+function computeLetterGrade(score: number | null, fullMarks: number, scale: GradingScale = DEFAULT_GRADING_SCALE): string | null {
   if (score === null || score === undefined || fullMarks === 0) return null;
   const pct = (score / fullMarks) * 100;
-  if (pct >= 80) return 'A';
-  if (pct >= 60) return 'B';
-  if (pct >= 40) return 'C';
+  if (pct >= scale.a_min) return 'A';
+  if (pct >= scale.b_min) return 'B';
+  if (pct >= scale.c_min) return 'C';
   return 'F';
 }
 
@@ -92,6 +100,9 @@ export default function GradesPage() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Grading scale from school settings
+  const [gradingScale, setGradingScale] = useState<GradingScale>(DEFAULT_GRADING_SCALE);
+
   // Local edits: student_id -> subject_id -> score
   const [localScores, setLocalScores] = useState<Map<string, Map<string, number | null>>>(new Map());
 
@@ -113,6 +124,26 @@ export default function GradesPage() {
     }
     fetchTeacherRecord();
   }, [userRole]);
+
+  // Fetch grading scale from school settings
+  useEffect(() => {
+    async function fetchGradingScale() {
+      if (!selectedSchoolId) return;
+      try {
+        const res = await authFetch(`/api/settings/school?school_id=${selectedSchoolId}`);
+        const json = await res.json();
+        if (json.success && json.data?.settings?.grading_scale) {
+          const gs = json.data.settings.grading_scale;
+          setGradingScale({
+            a_min: gs.a_min ?? DEFAULT_GRADING_SCALE.a_min,
+            b_min: gs.b_min ?? DEFAULT_GRADING_SCALE.b_min,
+            c_min: gs.c_min ?? DEFAULT_GRADING_SCALE.c_min,
+          });
+        }
+      } catch { /* use defaults */ }
+    }
+    fetchGradingScale();
+  }, [selectedSchoolId]);
 
   // Fetch filter options
   useEffect(() => {
@@ -455,7 +486,7 @@ export default function GradesPage() {
                       </td>
                       {subjects.map(sub => {
                         const score = getScore(student.id, sub.id);
-                        const letterGrade = computeLetterGrade(score, sub.full_marks);
+                        const letterGrade = computeLetterGrade(score, sub.full_marks, gradingScale);
                         return (
                           <td key={sub.id} className="px-2 py-2 text-center">
                             <div className="flex items-center justify-center gap-1">

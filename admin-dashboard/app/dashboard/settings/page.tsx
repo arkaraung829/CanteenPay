@@ -7,7 +7,7 @@ import {
   Settings, Plus, Trash2, ChevronUp, ChevronDown,
   Loader2, Pencil, Check, X, GripVertical,
   Users, School, Eye, EyeOff,
-  Clock, BookOpen, DollarSign, Building2, Save,
+  Clock, BookOpen, DollarSign, Building2, Save, Award,
 } from 'lucide-react';
 import { useSchoolContext } from '@/lib/school-context';
 
@@ -80,6 +80,10 @@ interface SchoolSettingsData {
   term_semester: string;
   default_daily_spending_limit: string;
   low_balance_alert_threshold: string;
+  // Grading scale
+  grading_a_min: string;
+  grading_b_min: string;
+  grading_c_min: string;
 }
 
 const DEFAULT_SETTINGS: SchoolSettingsData = {
@@ -97,6 +101,9 @@ const DEFAULT_SETTINGS: SchoolSettingsData = {
   term_semester: '',
   default_daily_spending_limit: '5000',
   low_balance_alert_threshold: '1000',
+  grading_a_min: '80',
+  grading_b_min: '65',
+  grading_c_min: '40',
 };
 
 const MONTHS = [
@@ -179,6 +186,9 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
           term_semester: s.term_semester || DEFAULT_SETTINGS.term_semester,
           default_daily_spending_limit: s.default_daily_spending_limit?.toString() || DEFAULT_SETTINGS.default_daily_spending_limit,
           low_balance_alert_threshold: s.low_balance_alert_threshold?.toString() || DEFAULT_SETTINGS.low_balance_alert_threshold,
+          grading_a_min: s.grading_scale?.a_min?.toString() || DEFAULT_SETTINGS.grading_a_min,
+          grading_b_min: s.grading_scale?.b_min?.toString() || DEFAULT_SETTINGS.grading_b_min,
+          grading_c_min: s.grading_scale?.c_min?.toString() || DEFAULT_SETTINGS.grading_c_min,
         });
       }
     } catch {
@@ -225,6 +235,11 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
             term_semester: settings.term_semester,
             default_daily_spending_limit: parseInt(settings.default_daily_spending_limit) || 0,
             low_balance_alert_threshold: parseInt(settings.low_balance_alert_threshold) || 0,
+            grading_scale: {
+              a_min: parseInt(settings.grading_a_min) || 80,
+              b_min: parseInt(settings.grading_b_min) || 65,
+              c_min: parseInt(settings.grading_c_min) || 40,
+            },
           },
         }),
       });
@@ -361,6 +376,77 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
               placeholder="e.g. Term 1 2026-2027"
               className={inputClass}
             />
+          </div>
+        </div>
+      </SettingsSection>
+
+      {/* Grading Scale */}
+      <SettingsSection icon={Award} title="Grading Scale">
+        <p className="text-sm text-gray-500 mb-4">
+          Configure the minimum percentage thresholds for each letter grade.
+        </p>
+        <div className="space-y-3">
+          {/* A row */}
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-green-100 text-green-700 text-sm font-bold shrink-0">A</span>
+            <span className="text-sm text-gray-700 w-24 shrink-0">Distinction</span>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Min %</label>
+              <input
+                type="number"
+                value={settings.grading_a_min}
+                onChange={(e) => updateField('grading_a_min', e.target.value)}
+                min="0"
+                max="100"
+                className={inputClass + ' !w-20'}
+              />
+            </div>
+          </div>
+          {/* B row */}
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-100 text-blue-700 text-sm font-bold shrink-0">B</span>
+            <span className="text-sm text-gray-700 w-24 shrink-0">Credit</span>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Min %</label>
+              <input
+                type="number"
+                value={settings.grading_b_min}
+                onChange={(e) => updateField('grading_b_min', e.target.value)}
+                min="0"
+                max="100"
+                className={inputClass + ' !w-20'}
+              />
+            </div>
+          </div>
+          {/* C row */}
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-yellow-100 text-yellow-700 text-sm font-bold shrink-0">C</span>
+            <span className="text-sm text-gray-700 w-24 shrink-0">Pass</span>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Min %</label>
+              <input
+                type="number"
+                value={settings.grading_c_min}
+                onChange={(e) => updateField('grading_c_min', e.target.value)}
+                min="0"
+                max="100"
+                className={inputClass + ' !w-20'}
+              />
+            </div>
+          </div>
+          {/* F row (read-only) */}
+          <div className="flex items-center gap-4">
+            <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-red-100 text-red-700 text-sm font-bold shrink-0">F</span>
+            <span className="text-sm text-gray-700 w-24 shrink-0">Fail</span>
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500">Below</label>
+              <input
+                type="text"
+                value={`${settings.grading_c_min}%`}
+                readOnly
+                className={readOnlyClass + ' !w-20'}
+              />
+            </div>
           </div>
         </div>
       </SettingsSection>
