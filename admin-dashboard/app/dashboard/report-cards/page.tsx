@@ -480,31 +480,42 @@ export default function ReportCardsPage() {
   const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; student_code: string; grade: string }[]>([]);
   const [studentReportCards, setStudentReportCards] = useState<ReportCard[]>([]);
 
-  // Fetch all students for dropdown
+  // Fetch all students for dropdown via API
   useEffect(() => {
     async function fetchAllStudents() {
-      let q = supabase.from('students').select('id, full_name, student_code, grade').eq('is_active', true).order('full_name');
-      if (selectedSchoolId) q = q.eq('school_id', selectedSchoolId);
-      const { data } = await q;
-      setAllStudents((data || []) as { id: string; full_name: string; student_code: string; grade: string }[]);
+      try {
+        const params = new URLSearchParams({ limit: '500' });
+        if (selectedSchoolId) params.set('school_id', selectedSchoolId);
+        const res = await authFetch(`/api/students?${params}`);
+        const json = await res.json();
+        if (json.success) {
+          setAllStudents((json.data || []).map((s: { id: string; full_name: string; student_code: string; grade: string }) => ({
+            id: s.id, full_name: s.full_name, student_code: s.student_code, grade: s.grade || '',
+          })));
+        }
+      } catch { /* ignore */ }
     }
     fetchAllStudents();
   }, [selectedSchoolId]);
 
-  // When student selected, fetch their report cards
+  // When student selected, fetch their report cards via API
   async function handleStudentSelect(studentId: string) {
     setSelectedStudentId(studentId);
     if (!studentId || !academicYear) { setStudentReportCards([]); return; }
 
-    let rcQuery = supabase
-      .from('report_cards')
-      .select('*, students(id, full_name, student_code)')
-      .eq('student_id', studentId)
-      .eq('academic_year', academicYear);
-    if (term) rcQuery = rcQuery.eq('term', term);
-
-    const { data } = await rcQuery;
-    setStudentReportCards((data || []) as ReportCard[]);
+    try {
+      const params = new URLSearchParams({ student_id: studentId, academic_year: academicYear });
+      if (term) params.set('term', term);
+      const res = await authFetch(`/api/report-cards?${params}`);
+      const json = await res.json();
+      if (json.success) {
+        setStudentReportCards(json.data || []);
+      } else {
+        setStudentReportCards([]);
+      }
+    } catch {
+      setStudentReportCards([]);
+    }
   }
 
   // Show individual student results or class results
