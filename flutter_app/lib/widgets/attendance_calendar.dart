@@ -139,25 +139,41 @@ class AttendanceCalendar extends StatelessWidget {
                   final status = isFuture ? null : attendanceMap[date];
                   final color = isFuture ? Colors.grey[200]! : _statusColor(status);
 
+                  final statusLabel = status == 'present' ? 'Present' : status == 'absent' ? 'Absent' : status == 'late' ? 'Late' : isFuture ? '' : 'No record';
+
                   return Expanded(
-                    child: Center(
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.25),
-                          shape: BoxShape.circle,
-                          border: isToday
-                              ? Border.all(color: AppTheme.primary, width: 2)
-                              : null,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          '$dayIndex',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
-                            color: isToday ? AppTheme.primary : Colors.grey[700],
+                    child: GestureDetector(
+                      onTap: isFuture ? null : () {
+                        final dayName = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][date.weekday - 1];
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('$dayName, ${months[month - 1]} $dayIndex: $statusLabel'),
+                            duration: const Duration(seconds: 2),
+                            behavior: SnackBarBehavior.floating,
+                            backgroundColor: status != null ? color : Colors.grey[600],
+                          ),
+                        );
+                      },
+                      child: Center(
+                        child: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.25),
+                            shape: BoxShape.circle,
+                            border: isToday
+                                ? Border.all(color: AppTheme.primary, width: 2)
+                                : null,
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            '$dayIndex',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                              color: isToday ? AppTheme.primary : Colors.grey[700],
+                            ),
                           ),
                         ),
                       ),
