@@ -357,12 +357,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                               separatorBuilder: (_, __) => const SizedBox(height: 6),
                               itemBuilder: (context, index) {
                                 final s = _students[index];
+                                final isMarked = s.status.isNotEmpty;
                                 return Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                   decoration: BoxDecoration(
-                                    color: Colors.white,
+                                    color: isMarked ? Colors.white : Colors.grey[50],
                                     borderRadius: BorderRadius.circular(10),
-                                    boxShadow: AppTheme.shadowSm,
+                                    boxShadow: isMarked ? AppTheme.shadowSm : null,
+                                    border: isMarked ? null : Border.all(color: Colors.grey[200]!),
                                   ),
                                   child: Row(
                                     children: [
@@ -398,20 +400,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _statusButton(int index, String status, IconData icon, Color color) {
-    final isSelected = _students[index].status == status;
+    final current = _students[index].status;
+    final isSelected = current == status;
+    final isUnmarked = current.isEmpty;
     return GestureDetector(
       onTap: () {
         HapticFeedback.selectionClick();
-        setState(() => _students[index].status = status);
+        // Toggle: tap same status again to unmark
+        setState(() => _students[index].status = isSelected ? '' : status);
       },
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: isSelected ? color.withValues(alpha: 0.15) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: isSelected ? color : Colors.grey[300]!, width: isSelected ? 1.5 : 1),
+          border: Border.all(
+            color: isSelected ? color : Colors.grey[isUnmarked ? 200 : 300]!,
+            width: isSelected ? 1.5 : 1,
+          ),
         ),
-        child: Icon(icon, size: 20, color: isSelected ? color : Colors.grey[400]),
+        child: Icon(icon, size: 20, color: isSelected ? color : Colors.grey[isUnmarked ? 300 : 400]),
       ),
     );
   }
