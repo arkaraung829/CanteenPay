@@ -42,9 +42,10 @@ export default function DashboardPage() {
 
     async function fetchDashboard() {
       setLoading(true);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayISO = today.toISOString();
+      // Use local midnight converted to UTC for correct timezone
+      const now = new Date();
+      const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayISO = localMidnight.toISOString();
 
       // Build queries with optional school_id filter
       let studentsQuery = supabase.from('students').select('id', { count: 'exact', head: true });
