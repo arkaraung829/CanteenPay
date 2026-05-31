@@ -130,7 +130,7 @@ async function sendNotification(
           notification: { title, body },
           data,
           android: { priority: 'high' },
-          apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+          apns: { payload: { aps: { sound: 'default', badge: 1, 'content-available': 1, 'mutable-content': 1 } } },
         },
       }),
     },

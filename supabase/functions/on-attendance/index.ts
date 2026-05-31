@@ -69,7 +69,7 @@ async function sendNotification(projectId: string, accessToken: string, token: s
   const res = await fetch(`https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-    body: JSON.stringify({ message: { token, notification: { title, body }, data, android: { priority: 'high' }, apns: { payload: { aps: { sound: 'default', badge: 1 } } } } }),
+    body: JSON.stringify({ message: { token, notification: { title, body }, data, android: { priority: 'high' }, apns: { payload: { aps: { sound: 'default', badge: 1, 'content-available': 1, 'mutable-content': 1 } } } } }),
   });
   return res.json();
 }
