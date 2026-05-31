@@ -111,10 +111,18 @@ Deno.serve(async (req) => {
     }
 
     const studentName = student?.full_name || 'Your child';
+    // Convert to Myanmar time (UTC+6:30)
     const now = new Date();
-    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const myanmarOffset = 6.5 * 60 * 60 * 1000;
+    const myanmarTime = new Date(now.getTime() + myanmarOffset);
+    const hours = myanmarTime.getUTCHours();
+    const minutes = myanmarTime.getUTCMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const h12 = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
+    const timeStr = `${h12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+    const dateStr = `${myanmarTime.getUTCDate()}/${myanmarTime.getUTCMonth() + 1}/${myanmarTime.getUTCFullYear()}`;
     const title = 'Attendance: Present';
-    const body = `${studentName} arrived at school at ${timeStr}`;
+    const body = `${studentName} arrived at school on ${dateStr} at ${timeStr}`;
     const data = { type: 'attendance', student_id: record.student_id, status: 'present', date: record.date };
 
     const sa = JSON.parse(fcmServiceAccountJson);
