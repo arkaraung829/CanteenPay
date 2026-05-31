@@ -30,7 +30,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
     await Firebase.initializeApp();
   } catch (_) {}
-  if (message.notification != null) {
+  if (message.notification != null && message.data['type'] != 'announcement') {
     await NotificationStorageService.saveNotification(
       title: message.notification!.title ?? 'Notification',
       body: message.notification!.body ?? '',

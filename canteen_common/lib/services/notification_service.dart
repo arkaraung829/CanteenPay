@@ -124,7 +124,7 @@ class NotificationService {
           debugPrint(
               'NotificationService: onMessageOpenedApp - ${message.notification?.title}');
         }
-        if (message.notification != null) {
+        if (message.notification != null && message.data['type'] != 'announcement') {
           NotificationStorageService.saveNotification(
             title: message.notification!.title ?? 'Notification',
             body: message.notification!.body ?? '',
@@ -141,7 +141,7 @@ class NotificationService {
           debugPrint(
               'NotificationService: getInitialMessage - ${initialMessage.notification?.title}');
         }
-        if (initialMessage.notification != null) {
+        if (initialMessage.notification != null && initialMessage.data['type'] != 'announcement') {
           await NotificationStorageService.saveNotification(
             title: initialMessage.notification!.title ?? 'Notification',
             body: initialMessage.notification!.body ?? '',
@@ -349,12 +349,16 @@ class NotificationService {
       }
 
       if (message.notification != null) {
-        // Store in local history
-        NotificationStorageService.saveNotification(
-          title: message.notification!.title ?? 'Notification',
-          body: message.notification!.body ?? '',
-          data: message.data,
-        );
+        final isAnnouncement = message.data['type'] == 'announcement';
+
+        // Don't save announcements to activity — they show in Announcements tab
+        if (!isAnnouncement) {
+          NotificationStorageService.saveNotification(
+            title: message.notification!.title ?? 'Notification',
+            body: message.notification!.body ?? '',
+            data: message.data,
+          );
+        }
 
         // Notify listeners (badge count update)
         _notificationController.add({
@@ -364,7 +368,6 @@ class NotificationService {
         });
 
         // Show local notification on both Android and iOS
-        // iOS setForegroundNotificationPresentationOptions may not always work
         showLocalNotification(
           id: message.hashCode,
           title: message.notification!.title ?? 'Paynow MM',
