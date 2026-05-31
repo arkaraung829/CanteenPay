@@ -1,7 +1,10 @@
 import { createAdminClient } from '@/lib/supabase';
 import { verifyAdmin, unauthorizedResponse } from '@/lib/api-auth';
 
-export async function GET() {
+export async function GET(request: Request) {
+  const auth = await verifyAdmin(request as never);
+  if (!auth) return unauthorizedResponse();
+
   const supabase = createAdminClient();
 
   // Fetch all students with wallet balance
