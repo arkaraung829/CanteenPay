@@ -23,25 +23,61 @@ import {
   FileText,
 } from 'lucide-react';
 
-const adminNavigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Students', href: '/dashboard/students', icon: Users },
-  { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardCheck },
-  { name: 'Grades', href: '/dashboard/grades', icon: BookOpen },
-  { name: 'Report Cards', href: '/dashboard/report-cards', icon: FileText },
-  { name: 'Teachers', href: '/dashboard/teachers', icon: GraduationCap },
-  { name: 'Deposits', href: '/dashboard/deposits', icon: Banknote },
-  { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowLeftRight },
-  { name: 'Sellers', href: '/dashboard/sellers', icon: Store },
-  { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
-  { name: 'Announcements', href: '/dashboard/announcements', icon: Megaphone },
-  { name: 'Messages', href: '/dashboard/chat', icon: MessageCircle },
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+}
+
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
+const adminSections: NavSection[] = [
+  {
+    label: '',
+    items: [
+      { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: 'Academic',
+    items: [
+      { name: 'Students', href: '/dashboard/students', icon: Users },
+      { name: 'Teachers', href: '/dashboard/teachers', icon: GraduationCap },
+      { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardCheck },
+      { name: 'Grades', href: '/dashboard/grades', icon: BookOpen },
+      { name: 'Report Cards', href: '/dashboard/report-cards', icon: FileText },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { name: 'Deposits', href: '/dashboard/deposits', icon: Banknote },
+      { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowLeftRight },
+      { name: 'Sellers', href: '/dashboard/sellers', icon: Store },
+      { name: 'Reports', href: '/dashboard/reports', icon: BarChart3 },
+    ],
+  },
+  {
+    label: 'Communication',
+    items: [
+      { name: 'Announcements', href: '/dashboard/announcements', icon: Megaphone },
+      { name: 'Messages', href: '/dashboard/chat', icon: MessageCircle },
+    ],
+  },
 ];
 
-const teacherNavigation = [
-  { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardCheck },
-  { name: 'Grades', href: '/dashboard/grades', icon: BookOpen },
-  { name: 'Report Cards', href: '/dashboard/report-cards', icon: FileText },
+const teacherSections: NavSection[] = [
+  {
+    label: '',
+    items: [
+      { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardCheck },
+      { name: 'Grades', href: '/dashboard/grades', icon: BookOpen },
+      { name: 'Report Cards', href: '/dashboard/report-cards', icon: FileText },
+    ],
+  },
 ];
 
 export default function Sidebar() {
@@ -71,42 +107,58 @@ export default function Sidebar() {
       <SchoolSelector />
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
-        {(userRole === 'teacher' ? teacherNavigation : adminNavigation).map((item) => {
-          const isActive = pathname === item.href ||
-            (item.href !== '/dashboard' && pathname.startsWith(item.href));
-          return (
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {(userRole === 'teacher' ? teacherSections : adminSections).map((section) => (
+          <div key={section.label || 'main'} className={section.label ? 'mt-4' : ''}>
+            {section.label && (
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => {
+                const isActive = pathname === item.href ||
+                  (item.href !== '/dashboard' && pathname.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <item.icon className={`h-5 w-5 ${isActive ? 'text-blue-700' : 'text-gray-400'}`} />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Schools nav item - only for super_admin */}
+        {userRole === 'super_admin' && (
+          <div className="mt-4">
+            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
+              Platform
+            </p>
             <Link
-              key={item.name}
-              href={item.href}
+              href="/dashboard/schools"
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                isActive
+                pathname === '/dashboard/schools' || pathname.startsWith('/dashboard/schools/')
                   ? 'bg-blue-50 text-blue-700'
                   : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
               }`}
             >
-              <item.icon className={`h-5 w-5 ${isActive ? 'text-blue-700' : 'text-gray-400'}`} />
-              {item.name}
+              <School className={`h-5 w-5 ${
+                pathname === '/dashboard/schools' || pathname.startsWith('/dashboard/schools/')
+                  ? 'text-blue-700' : 'text-gray-400'
+              }`} />
+              Schools
             </Link>
-          );
-        })}
-
-        {/* Schools nav item - only for super_admin */}
-        {userRole === 'super_admin' && (
-          <Link
-            href="/dashboard/schools"
-            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              pathname === '/dashboard/schools' || pathname.startsWith('/dashboard/schools/')
-                ? 'bg-blue-50 text-blue-700'
-                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-            }`}
-          >
-            <School className={`h-5 w-5 ${
-              pathname === '/dashboard/schools' || pathname.startsWith('/dashboard/schools/')
-                ? 'text-blue-700' : 'text-gray-400'
-            }`} />
-            Schools
-          </Link>
+          </div>
         )}
       </nav>
 
