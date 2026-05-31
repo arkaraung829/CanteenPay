@@ -173,6 +173,7 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       if (email.isNotEmpty) {
         await _autoLinkParentByEmail(email);
         await _autoLinkSellerByEmail(email);
+        await _autoLinkTeacherByEmail(email);
         await _loadUserProfile();
       }
 
@@ -257,6 +258,7 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
         if (email.isNotEmpty) {
           await _autoLinkParentByEmail(email);
           await _autoLinkSellerByEmail(email);
+        await _autoLinkTeacherByEmail(email);
           await _loadUserProfile();
         }
 
@@ -456,6 +458,10 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       if (_user?.role == 'seller' && normalizedPhone.isNotEmpty) {
         _autoLinkSellerByPhone(normalizedPhone);
       }
+      // Also try teacher auto-link by phone
+      if (normalizedPhone.isNotEmpty) {
+        _autoLinkTeacherByPhone(normalizedPhone);
+      }
 
       // 6. Refresh FCM token so push notifications work
       try {
@@ -531,6 +537,40 @@ class AuthProvider extends ChangeNotifier with SafeChangeNotifierMixin {
       await _loadUserProfile();
     } catch (e) {
       debugPrint('AuthProvider: Auto-link seller by email failed: $e');
+    }
+  }
+
+  /// Auto-link teacher by matching email address.
+  Future<void> _autoLinkTeacherByEmail(String email) async {
+    try {
+      if (_user == null) return;
+      await _supabase.rpc('auto_link_teacher', params: {
+        'p_user_id': _user!.id,
+        'p_email': email.toLowerCase(),
+      });
+      await _loadUserProfile();
+    } catch (e) {
+      debugPrint('AuthProvider: Auto-link teacher by email failed: $e');
+    }
+  }
+
+  /// Auto-link teacher by matching phone number.
+  Future<void> _autoLinkTeacherByPhone(String phone) async {
+    try {
+      if (_user == null) return;
+      String normalized = phone.replaceAll(RegExp(r'\s+'), '');
+      if (normalized.startsWith('0')) {
+        normalized = '+95${normalized.substring(1)}';
+      } else if (!normalized.startsWith('+')) {
+        normalized = '+$normalized';
+      }
+      await _supabase.rpc('auto_link_teacher', params: {
+        'p_user_id': _user!.id,
+        'p_phone': normalized,
+      });
+      await _loadUserProfile();
+    } catch (e) {
+      debugPrint('AuthProvider: Auto-link teacher by phone failed: $e');
     }
   }
 

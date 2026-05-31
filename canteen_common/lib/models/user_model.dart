@@ -84,6 +84,7 @@ class UserModel {
   bool get isSeller => role == 'seller';
   bool get isStudent => role == 'student';
   bool get isCounterStaff => role == 'counter_staff';
+  bool get isTeacher => role == 'teacher';
 
   /// Copy with method
   UserModel copyWith({
