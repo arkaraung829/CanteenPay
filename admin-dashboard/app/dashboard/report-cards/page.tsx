@@ -476,52 +476,39 @@ export default function ReportCardsPage() {
     downloadCSV(filename, csv);
   }
 
-  const [studentSearch, setStudentSearch] = useState('');
-  const [searchResults, setSearchResults] = useState<ReportCard[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; student_code: string; grade: string }[]>([]);
+  const [studentReportCards, setStudentReportCards] = useState<ReportCard[]>([]);
 
-  // Search student by name/code across all report cards
-  async function handleStudentSearch() {
-    const q = studentSearch.trim();
-    if (!q || !academicYear) return;
-    setSearching(true);
-    try {
-      // Find students matching search
-      const { data: students } = await supabase
-        .from('students')
-        .select('id')
-        .or(`full_name.ilike.%${q}%,student_code.ilike.%${q}%`)
-        .eq('is_active', true)
-        .limit(10);
-
-      if (students && students.length > 0) {
-        const studentIds = students.map((s: { id: string }) => s.id);
-        let rcQuery = supabase
-          .from('report_cards')
-          .select('*, students(id, full_name, student_code)')
-          .in('student_id', studentIds)
-          .eq('academic_year', academicYear);
-        if (term) rcQuery = rcQuery.eq('term', term);
-
-        const { data: rcs } = await rcQuery.order('rank_in_class');
-        setSearchResults((rcs || []) as ReportCard[]);
-      } else {
-        setSearchResults([]);
-      }
-    } catch {
-      setSearchResults([]);
+  // Fetch all students for dropdown
+  useEffect(() => {
+    async function fetchAllStudents() {
+      let q = supabase.from('students').select('id, full_name, student_code, grade').eq('is_active', true).order('full_name');
+      if (selectedSchoolId) q = q.eq('school_id', selectedSchoolId);
+      const { data } = await q;
+      setAllStudents((data || []) as { id: string; full_name: string; student_code: string; grade: string }[]);
     }
-    setSearching(false);
+    fetchAllStudents();
+  }, [selectedSchoolId]);
+
+  // When student selected, fetch their report cards
+  async function handleStudentSelect(studentId: string) {
+    setSelectedStudentId(studentId);
+    if (!studentId || !academicYear) { setStudentReportCards([]); return; }
+
+    let rcQuery = supabase
+      .from('report_cards')
+      .select('*, students(id, full_name, student_code)')
+      .eq('student_id', studentId)
+      .eq('academic_year', academicYear);
+    if (term) rcQuery = rcQuery.eq('term', term);
+
+    const { data } = await rcQuery;
+    setStudentReportCards((data || []) as ReportCard[]);
   }
 
-  // Combine: if searching show search results, else show class report cards
-  const displayCards = studentSearch.trim() && searchResults.length > 0
-    ? searchResults
-    : studentSearch.trim() && searchResults.length === 0 && !searching
-      ? []
-      : reportCards;
-
-  const filteredReportCards = displayCards;
+  // Show individual student results or class results
+  const filteredReportCards = selectedStudentId ? studentReportCards : reportCards;
 
   const filtersReady = grade && academicYear && term;
 
@@ -621,24 +608,17 @@ export default function ReportCardsPage() {
             ))}
           </select>
         <div>
-          <label className="block text-xs font-medium text-gray-500 mb-1">Search Student</label>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={studentSearch}
-              onChange={(e) => { setStudentSearch(e.target.value); if (!e.target.value.trim()) setSearchResults([]); }}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleStudentSearch(); }}
-              placeholder="Name or code..."
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
-            />
-            <button
-              onClick={handleStudentSearch}
-              disabled={searching || !studentSearch.trim()}
-              className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {searching ? '...' : 'Search'}
-            </button>
-          </div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Individual Student</label>
+          <select
+            value={selectedStudentId}
+            onChange={(e) => handleStudentSelect(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 w-56"
+          >
+            <option value="">All Students (by class)</option>
+            {allStudents.map(s => (
+              <option key={s.id} value={s.id}>{s.full_name} ({s.student_code})</option>
+            ))}
+          </select>
         </div>
         </div>
       </div>
