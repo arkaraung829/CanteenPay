@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 /// Re-export NotificationItem from canteen_common so screens can import from
@@ -24,7 +25,7 @@ class NotificationProvider extends ChangeNotifier {
   /// Load notifications from local storage and start listening for new ones.
   Future<void> loadNotifications() async {
     _isLoading = true;
-    notifyListeners();
+    WidgetsBinding.instance.addPostFrameCallback((_) => notifyListeners());
     try {
       _notifications = await NotificationStorageService.getNotifications();
       _unreadCount = await NotificationStorageService.getUnreadCount();
