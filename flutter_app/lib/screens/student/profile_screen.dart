@@ -62,7 +62,7 @@ class ProfileScreen extends StatelessWidget {
                 const SizedBox(height: AppTheme.spacingXs),
                 Center(
                   child: Text(
-                    student != null ? 'Grade ${student.gradeAndClass}' : '',
+                    student?.gradeAndClass ?? '',
                     style: const TextStyle(
                       fontSize: 15,
                       color: AppTheme.textSecondary,
@@ -89,9 +89,7 @@ class ProfileScreen extends StatelessWidget {
                       _InfoTile(
                         icon: Icons.school_outlined,
                         label: l10n.grade,
-                        value: student != null
-                            ? 'Grade ${student.gradeAndClass}'
-                            : '-',
+                        value: student?.gradeAndClass ?? '-',
                       ),
                       const Divider(height: 1),
                       _InfoTile(

@@ -116,8 +116,8 @@ class StudentModel {
 
   /// Grade and class combined
   String get gradeAndClass {
-    if (grade != null && className != null) return '$grade - $className';
-    return grade ?? className ?? '';
+    if (className != null && className!.isNotEmpty) return className!;
+    return grade ?? '';
   }
 
   /// Copy with method

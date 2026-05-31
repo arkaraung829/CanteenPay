@@ -145,7 +145,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Grade ${student.gradeAndClass}',
+                                student.gradeAndClass,
                                 style: const TextStyle(
                                   fontSize: 15,
                                   color: AppTheme.textSecondary,

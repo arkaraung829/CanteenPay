@@ -516,7 +516,7 @@ export default function StudentDetailPage() {
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Grade</dt>
-                  <dd className="text-sm text-gray-900">{student.grade ? `Grade ${student.grade}` : '-'}</dd>
+                  <dd className="text-sm text-gray-900">{student.grade || '-'}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt className="text-sm text-gray-500">Balance</dt>
