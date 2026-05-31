@@ -292,7 +292,7 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
                 _QuickStat(
                   icon: Icons.check_circle_outline,
                   label: 'Present',
-                  value: '$presentPercent%',
+                  value: '$presentCount',
                   color: AppTheme.success,
                 ),
                 const SizedBox(width: 12),

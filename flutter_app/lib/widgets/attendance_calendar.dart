@@ -33,8 +33,7 @@ class AttendanceCalendar extends StatelessWidget {
         return AppTheme.success;
       case 'absent':
         return AppTheme.error;
-      case 'late':
-        return Colors.orange;
+      // late removed — only present/absent used
       default:
         return Colors.grey[200]!;
     }
@@ -139,7 +138,7 @@ class AttendanceCalendar extends StatelessWidget {
                   final status = isFuture ? null : attendanceMap[date];
                   final color = isFuture ? Colors.grey[200]! : _statusColor(status);
 
-                  final statusLabel = status == 'present' ? 'Present' : status == 'absent' ? 'Absent' : status == 'late' ? 'Late' : isFuture ? '' : 'No record';
+                  final statusLabel = status == 'present' ? 'Present' : status == 'absent' ? 'Absent' : isFuture ? '' : 'No record';
 
                   return Expanded(
                     child: GestureDetector(
