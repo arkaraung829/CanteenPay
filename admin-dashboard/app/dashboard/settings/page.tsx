@@ -920,16 +920,6 @@ function SubjectManagement({ schoolId, grades }: { schoolId: string; grades: Gra
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Myanmar Name</label>
-                <input
-                  type="text"
-                  value={formNameMy}
-                  onChange={(e) => setFormNameMy(e.target.value)}
-                  placeholder="Optional Myanmar name"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Grade Levels</label>
                 <div className="flex flex-wrap gap-2">
                   {activeGrades.map(g => (
@@ -1209,16 +1199,6 @@ function ExamTypeManagement({ schoolId }: { schoolId: string }) {
                   placeholder="e.g. Mid-term Exam"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                   autoFocus
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Myanmar Name</label>
-                <input
-                  type="text"
-                  value={formNameMy}
-                  onChange={(e) => setFormNameMy(e.target.value)}
-                  placeholder="Optional Myanmar name"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
