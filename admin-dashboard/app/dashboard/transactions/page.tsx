@@ -165,6 +165,11 @@ export default function TransactionsPage() {
       }
       setRefundTx(null);
       setRefundReason('');
+      if (json.pending) {
+        alert('Refund request sent to seller for approval.');
+      } else {
+        alert('Refund processed directly.');
+      }
       fetchTransactions();
     } catch {
       setRefundError('Network error');

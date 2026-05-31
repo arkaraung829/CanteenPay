@@ -95,6 +95,18 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
+          // Refund requests
+          OutlinedButton.icon(
+            onPressed: () => context.push('/seller/refunds'),
+            icon: const Icon(Icons.receipt_long),
+            label: const Text('Refund Requests'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
           // Language toggle
           Container(
             decoration: BoxDecoration(
