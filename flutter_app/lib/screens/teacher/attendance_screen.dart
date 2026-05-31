@@ -67,9 +67,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           .eq('school_id', _schoolId!)
           .eq('is_active', true);
 
-      // Filter by class if selected (not "All")
+      // Filter by class or grade
       if (_selectedClass != null && _selectedClass!.isNotEmpty) {
-        query = query.eq('class_name', _selectedClass!);
+        // Specific class selected — try both class_name and grade match
+        query = query.or('class_name.eq.$_selectedClass,grade.eq.$_selectedClass');
       }
 
       final response = await query.order('full_name');
