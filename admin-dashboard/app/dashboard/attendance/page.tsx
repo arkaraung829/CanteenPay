@@ -68,6 +68,8 @@ export default function AttendancePage() {
   const [date, setDate] = useState(() => toLocalDateStr(new Date()));
   const [grade, setGrade] = useState('');
   const [className, setClassName] = useState('');
+  const [selectedTeacher, setSelectedTeacher] = useState('');
+  const [teachers, setTeachers] = useState<{ id: string; full_name: string; assigned_grades: string[]; assigned_classes: string[] }[]>([]);
 
   // Export date range
   const [exportDateFrom, setExportDateFrom] = useState(() => toLocalDateStr(new Date()));
@@ -155,6 +157,38 @@ export default function AttendancePage() {
     fetchOptions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSchoolId, userRole, teacherRecord]);
+
+  // Fetch teachers list for admin filter
+  useEffect(() => {
+    if (userRole === 'teacher') return;
+    async function fetchTeachers() {
+      try {
+        const params = selectedSchoolId ? `?school_id=${selectedSchoolId}` : '';
+        const res = await authFetch(`/api/teachers${params}`);
+        const json = await res.json();
+        if (json.success) {
+          setTeachers((json.data || []).filter((t: { is_active: boolean }) => t.is_active));
+        }
+      } catch {}
+    }
+    fetchTeachers();
+  }, [selectedSchoolId, userRole]);
+
+  // When admin selects a teacher, auto-set grade/section from their assignments
+  useEffect(() => {
+    if (!selectedTeacher || userRole === 'teacher') return;
+    const t = teachers.find(t => t.id === selectedTeacher);
+    if (t) {
+      if (t.assigned_grades.length > 0 && !t.assigned_grades.includes(grade)) {
+        setGrade(t.assigned_grades[0]);
+      }
+      if (t.assigned_classes.length > 0) {
+        const firstClass = t.assigned_classes[0];
+        const section = firstClass.split('-').pop() || '';
+        if (section) setClassName(section);
+      }
+    }
+  }, [selectedTeacher, teachers]);
 
   // Derive the class_name filter value (matching student page pattern: "Grade X-Y")
   const classNameFilter = grade && className ? `Grade ${grade}-${className}` : '';
@@ -472,6 +506,21 @@ export default function AttendancePage() {
             ))}
           </select>
         </div>
+        {userRole !== 'teacher' && teachers.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Teacher</label>
+            <select
+              value={selectedTeacher}
+              onChange={(e) => setSelectedTeacher(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">All Teachers</option>
+              {teachers.map(t => (
+                <option key={t.id} value={t.id}>{t.full_name}</option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Summary cards */}
