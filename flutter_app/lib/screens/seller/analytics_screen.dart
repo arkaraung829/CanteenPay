@@ -282,7 +282,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           barTouchData: BarTouchData(
             touchTooltipData: BarTouchTooltipData(
               getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                final day = _dailySales[group.x.toInt()];
+                final idx = group.x.toInt();
+                if (idx < 0 || idx >= _dailySales.length) return null;
+                final day = _dailySales[idx];
                 return BarTooltipItem(
                   '${_formatDayLabel(day.date)}\n${day.amount.toLocaleString()} MMK',
                   const TextStyle(

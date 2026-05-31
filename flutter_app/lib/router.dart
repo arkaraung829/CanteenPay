@@ -331,6 +331,11 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const RefundRequestsScreen(),
       ),
+      GoRoute(
+        path: '/seller/notifications',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
     ],
   );
 }

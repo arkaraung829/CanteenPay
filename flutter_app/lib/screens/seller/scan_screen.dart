@@ -43,7 +43,7 @@ class _ScanScreenState extends State<ScanScreen> {
       _hasLoadedSales = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final auth = context.read<AuthProvider>();
-        if (auth.isAuthenticated) {
+        if (auth.isAuthenticated && auth.user != null) {
           context.read<SalesProvider>().loadTodaySales(auth.user!.id);
         }
       });
@@ -183,6 +183,11 @@ class _ScanScreenState extends State<ScanScreen> {
                           ),
                         );
                       },
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () => context.push('/seller/notifications'),
+                      child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 24),
                     ),
                   ],
                 ),

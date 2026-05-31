@@ -22,9 +22,10 @@ class PinVerifyScreen extends StatefulWidget {
 
 class _PinVerifyScreenState extends State<PinVerifyScreen> {
   String _pin = '';
+  int _attempts = 0;
   bool _isWrong = false;
   bool _isCharging = false;
-  int _attempts = 0;
+  bool _hasProcessed = false; // Prevent duplicate charges
 
   void _onDigit(String digit) {
     if (_pin.length >= 4 || _isCharging) return;
@@ -32,9 +33,7 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
       _pin += digit;
       _isWrong = false;
     });
-    if (_pin.length == 4) {
-      _verifyAndCharge();
-    }
+    if (_pin.length == 4) _verifyAndCharge();
   }
 
   void _onBackspace() {
@@ -48,7 +47,15 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
   Future<void> _verifyAndCharge() async {
     final scanner = context.read<ScannerProvider>();
     final student = scanner.scannedStudent;
-    if (student == null) return;
+    if (student == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Student data lost. Please scan again.'), backgroundColor: Colors.red),
+        );
+        context.go('/seller');
+      }
+      return;
+    }
 
     // Verify PIN
     if (_pin != student.pinCode) {
@@ -76,6 +83,10 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
       return;
     }
 
+    // Prevent duplicate charges
+    if (_hasProcessed) return;
+    _hasProcessed = true;
+
     // PIN correct — process the charge
     HapticService.success();
     setState(() => _isCharging = true);
@@ -94,7 +105,10 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
             backgroundColor: Colors.red,
           ),
         );
-        setState(() => _isCharging = false);
+        setState(() {
+          _isCharging = false;
+          _hasProcessed = false;
+        });
       }
       return;
     }
@@ -104,12 +118,23 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
       final auth = context.read<AuthProvider>();
       final wallet = scanner.scannedWallet;
 
-      if (wallet == null) return;
+      if (wallet == null || auth.user == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Session error. Please try again.'), backgroundColor: Colors.red),
+          );
+          setState(() {
+            _isCharging = false;
+            _hasProcessed = false;
+          });
+        }
+        return;
+      }
 
       final result = await SupabaseService.instance.processPurchase(
         qrData: student.qrData ?? '',
         amount: widget.amount,
-        sellerProfileId: auth.user?.id ?? '',
+        sellerProfileId: auth.user!.id,
         description: 'Canteen Purchase',
       );
 
@@ -128,8 +153,8 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
         balanceAfter: newBalance,
         description: 'Canteen Purchase',
         referenceId: referenceId,
-        performedBy: auth.user?.id,
-        sellerName: auth.user?.displayName ?? 'Seller',
+        performedBy: auth.user!.id,
+        sellerName: auth.user!.displayName ?? 'Seller',
         createdAt: DateTime.now(),
       );
 
@@ -144,15 +169,19 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
         });
       }
     } catch (e) {
-      HapticService.error();
       if (mounted) {
-        setState(() => _isCharging = false);
+        HapticService.error();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Payment failed: $e'),
+            content: Text('Payment failed: ${e.toString().replaceAll('Exception: ', '')}'),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
+        setState(() {
+          _isCharging = false;
+          _hasProcessed = false;
+        });
       }
     }
   }
@@ -164,110 +193,53 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
 
     if (student == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Confirm Payment')),
-        body: const Center(child: Text('No student data')),
+        appBar: AppBar(title: const Text('PIN Verify')),
+        body: const Center(child: Text('No student data. Please scan again.')),
       );
     }
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: AppTheme.primary,
       appBar: AppBar(
-        title: const Text('Confirm Payment'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: _isCharging ? null : () {
+            scanner.reset();
+            context.go('/seller');
+          },
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
-            const SizedBox(height: 16),
-
-            // Amount display — prominent
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                boxShadow: AppTheme.shadowMd,
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    CurrencyFormatter.formatMMK(widget.amount),
-                    style: const TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 14,
-                        backgroundColor:
-                            AppTheme.primary.withValues(alpha: 0.1),
-                        child: Text(
-                          student.displayName.isNotEmpty
-                              ? student.displayName[0].toUpperCase()
-                              : '?',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        student.displayName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    student.gradeAndClass,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Instruction for student
+            // Amount display
+            const SizedBox(height: 10),
             Text(
-              _isCharging
-                  ? 'Processing payment...'
-                  : 'Student: enter your 4-digit PIN',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: _isWrong ? AppTheme.error : AppTheme.textSecondary,
+              '${CurrencyFormatter.formatMMK(widget.amount)}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 36,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            if (_isWrong) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Wrong PIN. ${3 - _attempts} attempts remaining.',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.error,
-                ),
-              ),
-            ],
+            const SizedBox(height: 6),
+            Text(
+              student.displayName,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 16),
+            ),
+            Text(
+              student.gradeAndClass,
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 13),
+            ),
+            const SizedBox(height: 30),
 
+            // PIN label
+            Text(
+              _isCharging ? 'Processing payment...' : 'Student: enter your 4-digit PIN',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 14),
+            ),
             const SizedBox(height: 16),
 
             // PIN dots
@@ -275,99 +247,83 @@ class _PinVerifyScreenState extends State<PinVerifyScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(4, (i) {
                 final filled = i < _pin.length;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  margin: const EdgeInsets.symmetric(horizontal: 10),
-                  width: 20,
-                  height: 20,
+                return Container(
+                  width: 18,
+                  height: 18,
+                  margin: const EdgeInsets.symmetric(horizontal: 8),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: _isWrong
-                        ? AppTheme.error
-                        : filled
-                            ? AppTheme.primary
-                            : Colors.transparent,
-                    border: Border.all(
-                      color: _isWrong ? AppTheme.error : AppTheme.primary,
-                      width: 2,
-                    ),
+                    color: filled
+                        ? (_isWrong ? Colors.red : Colors.white)
+                        : Colors.white.withValues(alpha: 0.3),
                   ),
                 );
               }),
             ),
-
-            if (_isCharging) ...[
-              const SizedBox(height: 20),
-              const CircularProgressIndicator(),
-            ],
+            if (_isWrong)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Text(
+                  'Wrong PIN (${3 - _attempts} attempts left)',
+                  style: const TextStyle(color: Colors.red, fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+            if (_isCharging)
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: CircularProgressIndicator(color: Colors.white),
+              ),
 
             const Spacer(),
 
-            // Number pad
+            // Keypad
             if (!_isCharging)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 48),
+                padding: const EdgeInsets.symmetric(horizontal: 40),
                 child: Column(
                   children: [
-                    for (final row in [
-                      ['1', '2', '3'],
-                      ['4', '5', '6'],
-                      ['7', '8', '9'],
-                      ['', '0', 'del'],
-                    ])
+                    for (final row in [['1','2','3'], ['4','5','6'], ['7','8','9'], ['','0','⌫']])
                       Padding(
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: row.map((key) {
-                            if (key.isEmpty) {
-                              return const SizedBox(width: 72, height: 56);
-                            }
-                            if (key == 'del') {
-                              return SizedBox(
-                                width: 72,
-                                height: 56,
-                                child: TextButton(
-                                  onPressed: _onBackspace,
-                                  child: const Icon(
-                                    Icons.backspace_outlined,
-                                    size: 24,
-                                    color: AppTheme.textSecondary,
-                                  ),
-                                ),
-                              );
-                            }
-                            return SizedBox(
-                              width: 72,
-                              height: 56,
-                              child: TextButton(
-                                onPressed: () => _onDigit(key),
-                                style: TextButton.styleFrom(
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  backgroundColor: Colors.white,
-                                ),
-                                child: Text(
-                                  key,
-                                  style: const TextStyle(
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppTheme.textPrimary,
-                                  ),
-                                ),
-                              ),
-                            );
+                            if (key.isEmpty) return const SizedBox(width: 64);
+                            return _keypadButton(key);
                           }).toList(),
                         ),
                       ),
                   ],
                 ),
               ),
-
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _keypadButton(String key) {
+    return GestureDetector(
+      onTap: () {
+        HapticService.selection();
+        if (key == '⌫') {
+          _onBackspace();
+        } else {
+          _onDigit(key);
+        }
+      },
+      child: Container(
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.15),
+        ),
+        alignment: Alignment.center,
+        child: key == '⌫'
+            ? const Icon(Icons.backspace_outlined, color: Colors.white, size: 22)
+            : Text(key, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600)),
       ),
     );
   }
