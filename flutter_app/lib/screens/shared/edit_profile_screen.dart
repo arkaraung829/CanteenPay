@@ -160,39 +160,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         body: ListView(
           padding: const EdgeInsets.all(AppTheme.spacingMd),
           children: [
-            // Avatar with photo picker
+            // Avatar (display only, no upload)
             Center(
-              child: GestureDetector(
-                onTap: _pickPhoto,
-                child: Stack(
+              child: Stack(
                   children: [
                     CircleAvatar(
                       radius: 48,
                       backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                      backgroundImage: _pickedPhoto != null
-                          ? FileImage(_pickedPhoto!)
-                          : (_currentPhotoUrl != null && _currentPhotoUrl!.isNotEmpty)
+                      backgroundImage: (_currentPhotoUrl != null && _currentPhotoUrl!.isNotEmpty)
                               ? NetworkImage(_currentPhotoUrl!) as ImageProvider
                               : null,
-                      child: (_pickedPhoto == null && (_currentPhotoUrl == null || _currentPhotoUrl!.isEmpty))
+                      child: (_currentPhotoUrl == null || _currentPhotoUrl!.isEmpty)
                           ? Text(
                               (user?.fullName ?? 'U').isNotEmpty ? (user?.fullName ?? 'U')[0].toUpperCase() : 'U',
                               style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: AppTheme.primary),
                             )
                           : null,
-                    ),
-                    Positioned(
-                      bottom: 0,
-                      right: 0,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                        ),
-                        child: const Icon(Icons.camera_alt_rounded, size: 16, color: Colors.white),
-                      ),
                     ),
                   ],
                 ),
