@@ -150,8 +150,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final presentCount = _students.where((s) => s.status == 'present').length;
-    final absentCount = _students.where((s) => s.status == 'absent').length;
-    final lateCount = _students.where((s) => s.status == 'late').length;
+    final absentCount = _students.where((s) => s.status != 'present').length;
 
     return Scaffold(
       appBar: AppBar(
@@ -246,8 +245,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         _badge('$presentCount Present', Colors.green),
                         const SizedBox(width: 8),
                         _badge('$absentCount Absent', AppTheme.error),
-                        const SizedBox(width: 8),
-                        _badge('$lateCount Late', Colors.orange),
                         const Spacer(),
                         Text('${_students.length} students', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                       ],
@@ -302,9 +299,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                                       ),
                                       // Status buttons
                                       _statusButton(index, 'present', Icons.check_circle, Colors.green),
-                                      const SizedBox(width: 4),
-                                      _statusButton(index, 'late', Icons.schedule, Colors.orange),
-                                      const SizedBox(width: 4),
+                                      const SizedBox(width: 8),
                                       _statusButton(index, 'absent', Icons.cancel, AppTheme.error),
                                     ],
                                   ),
