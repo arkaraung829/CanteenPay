@@ -189,7 +189,7 @@ export default function AttendancePage() {
   }, [selectedTeacher, teachers]);
 
   // Derive the class_name filter value (matching student page pattern: "Grade X-Y")
-  const classNameFilter = grade && className ? `Grade ${grade}-${className}` : '';
+  const classNameFilter = grade && className ? `${grade}-${className}` : '';
 
   // Fetch students + attendance
   const fetchAttendance = useCallback(async () => {

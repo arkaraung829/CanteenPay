@@ -167,7 +167,7 @@ export default function GradesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSchoolId, userRole, teacherRecord]);
 
-  const classNameFilter = grade && className ? `Grade ${grade}-${className}` : '';
+  const classNameFilter = grade && className ? `${grade}-${className}` : '';
 
   // Fetch grades data
   const fetchGrades = useCallback(async () => {

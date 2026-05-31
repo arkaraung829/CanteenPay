@@ -108,7 +108,7 @@ export default function TeachersPage() {
     const options: string[] = [];
     for (const g of selectedGrades) {
       for (const s of sections) {
-        options.push(`Grade ${g}-${s.name}`);
+        options.push(`${g}-${s.name}`);
       }
     }
     return options;
