@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:canteen_common/canteen_common.dart';
 
@@ -52,14 +53,20 @@ class _TeacherScanScreenState extends State<TeacherScanScreen> {
 
       final wallet = await SupabaseService.instance.getWallet(student.id);
 
+      // Success haptic + sound
+      HapticFeedback.heavyImpact();
+      SystemSound.play(SystemSoundType.click);
+
       setState(() {
         _student = student;
         _wallet = wallet;
         _loading = false;
       });
     } catch (e) {
+      // Error haptic
+      HapticFeedback.vibrate();
       setState(() {
-        _error = 'Failed to look up student';
+        _error = 'Failed to look up student: $e';
         _loading = false;
       });
       _hasScanned = false;
