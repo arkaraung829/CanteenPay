@@ -1,4 +1,169 @@
-# Paynow MM — System Architecture
+# Paynow MM — Architecture & Operations Guide
+
+---
+
+# Part 1: Operations & Maintenance
+
+## Access Credentials
+
+| Service | URL | Login |
+|---------|-----|-------|
+| **Admin Dashboard** | https://admin-dashboard-ashen-mu-87.vercel.app | admin@springfield-school.com / Admin@123 |
+| **Super Admin** | Same URL | superadmin@paynowmm.com / SuperAdmin@123 |
+| **Supabase Dashboard** | https://supabase.com/dashboard/project/quwwkpbiovsaujhtkgzt | Your Supabase account |
+| **Firebase Console** | https://console.firebase.google.com/project/canteenpay-a64a1 | arkaraung829@gmail.com |
+| **Vercel Dashboard** | https://vercel.com | Your Vercel account |
+| **App Store Connect** | https://appstoreconnect.apple.com | Your Apple Developer account |
+
+## Daily Operations
+
+### Adding a New Student
+1. Admin Dashboard → Students → Add Student
+2. Enter name, grade, section, parent phone/email
+3. System auto-generates: student code (STU-YYYY-NNN), QR code (UUID), PIN code (4 digits)
+4. Print the student card (QR + PIN) → give to student
+5. When parent signs up with matching phone/email → auto-linked
+
+### Depositing Money
+1. Admin Dashboard → Students → click "+ Balance" on student row
+2. Enter amount (preset 10K/20K/30K/40K or custom)
+3. Optional: enter depositor name
+4. Click Deposit → balance updated instantly
+5. Parent receives push notification
+
+### Processing a Refund
+1. Admin Dashboard → Transactions
+2. Find the purchase → click "Refund" button
+3. Enter reason (optional) → Confirm
+4. Balance restored atomically, shown as "refund" type
+
+### Marking Attendance
+1. Admin Dashboard → Attendance (or teacher login)
+2. Select date + grade + class
+3. Click "Mark All Present" → toggle individual students to Absent/Late
+4. Click "Save" → parents see it in the app calendar
+
+### Sending Announcements
+1. Admin Dashboard → Announcements → New Announcement
+2. Enter title + message (English and Myanmar in same field)
+3. Select audience (Everyone/Parents/Students)
+4. Check "Send Push Notification" → click Send
+5. Push notification sent to all matching FCM tokens
+
+### Creating a Teacher Account
+1. Admin Dashboard → Teachers → Add Teacher
+2. Enter name, email, password, phone
+3. Assign grades + classes (multi-select)
+4. Teacher logs into same dashboard URL — only sees Attendance tab
+
+### Creating a Seller Account
+1. Admin Dashboard → Sellers → Add Seller
+2. Enter stall name, email, phone
+3. Seller signs up in the app with matching email/phone → auto-linked to stall
+
+## Troubleshooting
+
+### Push Notifications Not Arriving
+1. Check parent has FCM token: Supabase → profiles table → fcm_token column
+2. If null → parent needs to reopen the app
+3. Check webhook fired: Supabase → net._http_response table → latest rows
+4. If "No FCM tokens found" → parent not linked or no token
+5. If "BadEnvironmentKeyInToken" → parent using debug build, need TestFlight
+6. If "UNAUTHENTICATED" → FCM_SERVICE_ACCOUNT secret expired/invalid
+
+### OTP SMS Not Received
+1. Firebase Console → Authentication → Settings → SMS Region Policy → must be "Allow by default"
+2. Firebase must be on Blaze plan (pay-as-you-go)
+3. Check carrier: some Myanmar carriers block Firebase SMS
+4. On iOS debug builds: reCAPTCHA always opens (normal — use TestFlight for silent push)
+5. Add test phone numbers in Firebase Console for development
+
+### Student QR Not Scanning
+1. Check QR format: should be `paynowmm://pay/<UUID>`
+2. Check student is_active = true
+3. Check seller and student are in the same school
+4. If scanner doesn't detect: clean camera lens, ensure good lighting
+
+### Balance Mismatch
+1. Check transactions table — every balance change has before/after
+2. All mutations go through atomic RPC functions (no direct wallet updates)
+3. If mismatch found: compare wallet.balance vs last transaction.balance_after
+
+### Dashboard Slow
+1. Students API uses 30s cache for filter data (grades, classes, counts)
+2. Cache clears on student create/status change
+3. If still slow: check Supabase dashboard for query performance
+
+## Deployment
+
+### Deploy Admin Dashboard
+```bash
+cd admin-dashboard
+npx vercel --yes --prod
+```
+
+### Deploy Flutter App to TestFlight
+```bash
+cd flutter_app
+./scripts/deploy_testflight.sh --bump
+# Then in Xcode Organizer: Distribute App → TestFlight
+```
+
+### Deploy Edge Function
+```bash
+supabase functions deploy on-transaction --project-ref quwwkpbiovsaujhtkgzt
+```
+
+### Run Database Migration
+```bash
+# Via Supabase Management API:
+curl -s -X POST "https://api.supabase.com/v1/projects/quwwkpbiovsaujhtkgzt/database/query" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "<SQL HERE>"}'
+
+# Or paste SQL in Supabase Dashboard → SQL Editor
+```
+
+## Environment Variables
+
+### Admin Dashboard (Vercel)
+| Variable | Purpose |
+|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side admin key (secret) |
+| `FCM_SERVICE_ACCOUNT` | Firebase service account JSON (for announcement push) |
+
+### Edge Function (Supabase Secrets)
+| Secret | Purpose |
+|--------|---------|
+| `FCM_SERVICE_ACCOUNT` | Firebase service account JSON for FCM v1 API |
+| `SUPABASE_URL` | Auto-set by Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Auto-set by Supabase |
+
+### Flutter App
+| File | Purpose |
+|------|---------|
+| `canteen_common/lib/config/supabase_config.dart` | Supabase URL + anon key |
+| `flutter_app/ios/Runner/GoogleService-Info.plist` | Firebase iOS config |
+| `flutter_app/android/app/google-services.json` | Firebase Android config |
+
+## Backup & Recovery
+
+### Database Backup
+- Supabase automatically creates daily backups (Pro plan)
+- Manual: Supabase Dashboard → Settings → Database → Backups
+
+### Key Data to Never Lose
+1. **transactions** table — immutable financial ledger
+2. **wallets** table — current balances
+3. **students** table — student records + QR codes + PINs
+4. **parent_student_links** — parent-child relationships
+
+---
+
+# Part 2: System Architecture
 
 ## System Overview
 
@@ -39,8 +204,6 @@
 
 ## Why Both Firebase AND Supabase?
 
-The app uses **two cloud services** because each handles different things:
-
 ```
 Firebase (GoogleService-Info.plist)      Supabase (supabase_config.dart)
 ├── Phone OTP (SMS verification)         ├── Database (PostgreSQL)
@@ -52,20 +215,9 @@ Firebase (GoogleService-Info.plist)      Supabase (supabase_config.dart)
 ```
 
 **Why not just Supabase?**
-- Supabase's built-in phone auth has poor Myanmar carrier support — Firebase Phone Auth works better
+- Supabase's phone auth has poor Myanmar carrier support — Firebase Phone Auth works better
 - Supabase has no push notification service — we use Firebase Cloud Messaging (FCM)
 - Supabase has no crash reporting — Firebase Crashlytics handles this
-
-**GoogleService-Info.plist** (iOS) / **google-services.json** (Android):
-- Firebase configuration file — tells the app which Firebase project to connect to
-- Contains: App ID, API key, Project ID, GCM Sender ID, Google Sign-In Client ID
-- Loaded automatically by `FirebaseApp.configure()` in `AppDelegate.swift`
-- Not a secret — safe to include in the app (Firebase security is server-side)
-
-**supabase_config.dart:**
-- Supabase configuration — URL + anon key
-- The anon key is public by design (like Firebase API key)
-- Security is enforced by RLS policies at the database level
 
 ## How the Flutter App Connects
 
@@ -85,13 +237,10 @@ Admin Dashboard (service role key — server-side only)
     └── Vercel API Routes ──► Supabase (bypasses RLS)
 ```
 
-The **anon key** is safe to expose (like a Firebase API key). Every request includes the user's JWT token — Supabase extracts `auth.uid()` and RLS policies filter the data automatically.
-
 ## Row Level Security (RLS)
 
 RLS = database rules that control who can see/edit which rows. Every query is automatically filtered based on the logged-in user.
 
-**How it works:**
 ```
 Parent queries: SELECT * FROM students
     ↓
@@ -108,24 +257,19 @@ Result: only the parent's linked children are returned
 (other students are invisible — database blocks them)
 ```
 
-**Example policies:**
-
 | Who | Table | Can Do | Rule |
 |-----|-------|--------|------|
 | Parent | students | SELECT only | Only linked children (via parent_student_links) |
 | Parent | wallets | SELECT only | Only linked children's wallets |
 | Parent | transactions | SELECT only | Only linked children's transactions |
-| Parent | attendance | SELECT only | Only linked children's attendance |
 | Student | students | SELECT only | Only own record (profile_id = auth.uid()) |
 | Seller | students | SELECT only | Only students in same school |
 | Admin/Staff | ALL tables | Full CRUD | Everything in their school |
 | Teacher | attendance | Full CRUD | Only their school |
 
-**Why this matters:** Even if someone decompiles the app and gets the Supabase URL + anon key, they can ONLY access data their account is allowed to see. The database enforces security, not the app code.
-
 ## Supabase Realtime
 
-Realtime = live WebSocket connection. The database **pushes** changes to the app instantly — no polling or pull-to-refresh needed.
+Live WebSocket connection — database **pushes** changes instantly, no polling needed.
 
 ```
 Parent has app open (WebSocket connected)
@@ -139,80 +283,19 @@ Parent has app open (WebSocket connected)
     │   Pushes change to parent's WebSocket
     │       ↓
     └── Parent's app updates balance instantly
-        (no refresh needed, no API call)
 ```
-
-**Where we use Realtime:**
 
 | Subscription | Table | Event | Purpose |
 |-------------|-------|-------|---------|
-| `parent-wallets` | wallets | UPDATE | Balance updates instantly when purchase/deposit happens |
-| `parent-transactions` | transactions | INSERT | New transactions appear in activity list without refresh |
-| `chat:{conversationId}` | chat_messages | INSERT | Chat messages appear instantly for both sides |
-
-**How it's set up in code:**
-```dart
-// In children_provider.dart
-Supabase.instance.client
-    .channel('parent-wallets')
-    .onPostgresChanges(
-      event: PostgresChangeEvent.update,
-      table: 'wallets',
-      callback: (payload) {
-        // Update local wallet balance
-        final updatedWallet = WalletModel.fromJson(payload.newRecord);
-        _wallets[updatedWallet.studentId] = updatedWallet;
-        notifyListeners(); // UI rebuilds automatically
-      },
-    )
-    .subscribe();
-```
+| `parent-wallets` | wallets | UPDATE | Balance updates instantly |
+| `parent-transactions` | transactions | INSERT | New transactions appear without refresh |
+| `chat:{id}` | chat_messages | INSERT | Chat messages appear instantly |
 
 ## Supabase Edge Functions
 
-Edge Functions = server-side code running on Supabase's servers (Deno runtime). Used for operations that the Flutter app **can't do directly** — like sending push notifications (requires secret FCM credentials).
+Server-side code for operations the app **can't do directly** (requires secret credentials).
 
-```
-Transaction INSERT (purchase/deposit/refund)
-    │
-    ↓
-PostgreSQL trigger fires: notify_on_transaction()
-    │
-    ↓
-Trigger calls Edge Function via HTTP (pg_net extension)
-    POST https://quwwkpbiovsaujhtkgzt.supabase.co/functions/v1/on-transaction
-    │
-    ↓
-Edge Function (supabase/functions/on-transaction/index.ts):
-    │
-    ├── 1. Read transaction data from webhook payload
-    ├── 2. Look up wallet → student → parent_student_links
-    ├── 3. Get parent FCM tokens from profiles table
-    ├── 4. Sign JWT with FCM_SERVICE_ACCOUNT (secret)
-    ├── 5. Get Google OAuth2 access token
-    ├── 6. Call FCM v1 API for each parent device:
-    │       POST https://fcm.googleapis.com/v1/projects/canteenpay-a64a1/messages:send
-    │       {
-    │         "message": {
-    │           "token": "parent_fcm_token",
-    │           "notification": {
-    │             "title": "Purchase: 500 MMK",
-    │             "body": "Aung Aung spent 500 MMK at Canteen. Balance: 9,500 MMK"
-    │           }
-    │         }
-    │       }
-    │
-    └── 7. If balance < 2,000 MMK → send low balance alert too
-
-Parent's phone receives push notification
-```
-
-**Why Edge Function (not Flutter app)?**
-- FCM service account key is a **secret** — can't be in the app
-- The notification must be sent even if the **seller's app closes** after payment
-- Database trigger guarantees it runs for **every** transaction
-
-### Complete Edge Function Flow Diagram
+### Complete Edge Function Flow
 
 ```
 SELLER'S PHONE                    SUPABASE SERVER                     PARENT'S PHONE
@@ -227,7 +310,7 @@ process_purchase()  ──────►  PostgreSQL executes:
                              1. Lock wallet FOR UPDATE
                              2. Check balance ≥ 500
                              3. Check daily limit
-                             4. UPDATE wallets SET balance = balance - 500
+                             4. UPDATE wallets SET balance - 500
                              5. INSERT INTO transactions
                                      │
                                      ▼
@@ -271,76 +354,10 @@ Seller sees ✓       ◄──────  Return success
                                                                       Please top up."
 ```
 
-**Current Edge Functions:**
-
-| Function | Trigger | Purpose |
-|----------|---------|---------|
-| `on-transaction` | INSERT on `transactions` table | Send FCM push notification to linked parents |
-
-**Secrets stored in Edge Function environment:**
-
-| Secret | Purpose |
-|--------|---------|
-| `FCM_SERVICE_ACCOUNT` | Google service account JSON for FCM v1 API authentication |
-| `SUPABASE_URL` | Supabase project URL (auto-set) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Admin access to query parent tokens (auto-set) |
-
-## Project Structure
-
-```
-CanteenPay/
-├── flutter_app/                  # Unified Flutter app (all roles)
-│   ├── lib/
-│   │   ├── main.dart             # App entry, Firebase/Supabase init
-│   │   ├── router.dart           # GoRouter with role-based routing
-│   │   ├── screens/
-│   │   │   ├── auth/             # Login, onboarding, role select
-│   │   │   ├── student/          # QR card, history, profile
-│   │   │   ├── parent/           # Children, chat, notifications
-│   │   │   ├── seller/           # Scan, payment, sales history
-│   │   │   └── shared/           # Edit profile
-│   │   ├── providers/            # State management
-│   │   ├── widgets/              # Reusable UI components
-│   │   └── services/             # Haptic, etc.
-│   ├── ios/                      # iOS config, APNs, entitlements
-│   ├── android/                  # Android config, manifest
-│   └── scripts/                  # deploy_testflight.sh
-│
-├── canteen_common/               # Shared Flutter package
-│   └── lib/
-│       ├── models/               # Student, Wallet, Transaction, Attendance
-│       ├── services/             # Supabase, Notification, Phone Auth, etc.
-│       ├── providers/            # AuthProvider
-│       ├── widgets/              # TransactionTile, BalanceCard, etc.
-│       ├── l10n/                 # English + Myanmar translations
-│       └── config/               # Supabase config
-│
-├── admin-dashboard/              # Next.js web admin
-│   ├── app/
-│   │   ├── dashboard/
-│   │   │   ├── page.tsx          # Overview stats
-│   │   │   ├── students/         # Student management
-│   │   │   ├── attendance/       # Mark attendance
-│   │   │   ├── deposits/         # Deposit history
-│   │   │   ├── transactions/     # All transactions + refund
-│   │   │   ├── sellers/          # Seller management
-│   │   │   ├── teachers/         # Teacher management
-│   │   │   ├── reports/          # Sales reports + charts
-│   │   │   ├── chat/             # Parent messaging
-│   │   │   ├── announcements/    # School announcements
-│   │   │   ├── settings/         # Grades, sections
-│   │   │   └── schools/          # Multi-school (super admin)
-│   │   └── api/                  # API routes
-│   ├── components/               # Sidebar, StatCard, etc.
-│   └── lib/                      # Supabase client, auth, utils
-│
-├── database-schema/
-│   └── migrations/               # 001-026 SQL migrations
-│
-└── supabase/
-    └── functions/
-        └── on-transaction/       # Push notification edge function
-```
+**Why Edge Function (not Flutter app)?**
+- FCM service account key is a **secret** — can't be in the app
+- Notification must be sent even if the **seller's app closes** after payment
+- Database trigger guarantees it runs for **every** transaction
 
 ## Database Schema (15 Tables)
 
@@ -392,61 +409,6 @@ CanteenPay/
 | **find_student_by_code** | Search student by code (bypass RLS) | Parent link child |
 | **set_daily_spending_limit** | Parent sets child's daily limit | Parent app |
 
-## API Endpoints (Admin Dashboard)
-
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET/POST/PATCH | `/api/students` | CRUD students |
-| POST | `/api/students/import` | CSV bulk import |
-| GET | `/api/students/export` | CSV export |
-| POST | `/api/deposits` | Deposit to wallet |
-| POST | `/api/refunds` | Refund transaction |
-| GET/POST | `/api/attendance` | Mark/view attendance |
-| GET/POST/PATCH | `/api/teachers` | CRUD teachers |
-| GET/POST | `/api/chat` | Parent-school messaging |
-| GET/POST/DELETE | `/api/announcements` | School announcements |
-| GET/POST | `/api/settings/grades` | Grade configuration |
-| GET/POST | `/api/settings/sections` | Section configuration |
-
-## Flutter Screens by Role
-
-### Student (`/student`)
-| Screen | Purpose |
-|--------|---------|
-| Home | QR code display, PIN code, balance |
-| History | Transaction list with filters |
-| Profile | Edit info, language toggle, sign out |
-
-### Parent (`/parent`)
-| Screen | Purpose |
-|--------|---------|
-| Home | Children list with balances, chat button |
-| Child Detail | Balance, spending chart, attendance calendar |
-| Notifications | Merged activity + announcements list |
-| Messages | Chat conversations with school |
-| Chat | Individual conversation thread |
-| Link Child | Link by student code + PIN |
-| Spending Alerts | Set daily limits per child |
-| Profile | Edit info, language toggle, sign out |
-
-### Seller (`/seller`)
-| Screen | Purpose |
-|--------|---------|
-| Scan | "Scan Student QR" button, camera scanner |
-| Payment Confirm | Enter amount with keypad |
-| PIN Verify | Student enters 4-digit PIN to confirm |
-| Payment Success | Receipt with "Scan Next" button |
-| Sales History | Date-filterable sales list |
-| Analytics | Sales charts and trends |
-| Profile | Edit info, language toggle, sign out |
-
-### Auth (shared)
-| Screen | Purpose |
-|--------|---------|
-| Onboarding | 3-slide intro (auto-swipe, skip) |
-| Login | Phone OTP + Google Sign-In + Face ID |
-| Profile Setup | Name + role selection (first login) |
-
 ## Key User Flows
 
 ### Purchase Flow
@@ -464,20 +426,9 @@ Seller taps "Scan Student QR"
         → Check daily spending limit
         → Deduct balance
         → Insert transaction
-    → Success screen
-    → DB trigger fires → Edge function → FCM push to parent
-    → Parent app: realtime update + push notification
-```
-
-### Deposit Flow
-```
-Admin opens Students page
-    → Clicks "+ Balance" on student row
-    → Enters amount (preset: 10K/20K/30K/40K or custom)
-    → Optional depositor name
-    → Clicks "Deposit"
-    → admin_process_deposit RPC (atomic)
-    → DB trigger → FCM push to parent
+    → Success screen → "Scan Next" opens scanner
+    → DB trigger → Edge function → FCM push to parent
+    → Parent app: realtime balance update + push notification
 ```
 
 ### Notification Flow
@@ -485,85 +436,61 @@ Admin opens Students page
 Transaction INSERT
     → PostgreSQL trigger: notify_on_transaction()
     → pg_net.http_post → Supabase Edge Function
-    → Edge function:
-        → Lookup wallet → student → parent_student_links
-        → Get parent FCM tokens from profiles
-        → Sign JWT with FCM service account
-        → Send FCM v1 API to all parent devices
-        → If balance < 2000 MMK → send low balance alert
-    → Parent device receives push
-    → Foreground: show local notification + save to storage
-    → Background: save to storage via background handler
-    → Tap: navigate to notifications screen
+    → Edge function: lookup parents → get FCM tokens → send push
+    → Parent: foreground = local notification, background = saved to storage
+    → Tap notification → opens notifications screen
 ```
 
 ### Parent Auto-Link Flow
 ```
 Admin creates student with parent_phone or parent_email
     → Parent signs up with matching phone/email
-    → AuthProvider calls auto_link_parent_by_phone/email RPC
-    → SECURITY DEFINER function bypasses RLS
-    → Finds matching students
-    → Creates parent_student_links rows
-    → Parent sees children on home screen
+    → auto_link_parent_by_phone/email RPC (SECURITY DEFINER)
+    → Creates parent_student_links row
+    → Parent sees child on home screen
+```
+
+## Project Structure
+
+```
+CanteenPay/
+├── flutter_app/                  # Unified Flutter app (all roles)
+│   ├── lib/
+│   │   ├── main.dart             # App entry, Firebase/Supabase init
+│   │   ├── router.dart           # GoRouter with role-based routing
+│   │   ├── screens/              # auth/, student/, parent/, seller/
+│   │   ├── providers/            # State management
+│   │   └── widgets/              # Reusable UI components
+│   ├── ios/                      # iOS config, APNs, entitlements
+│   ├── android/                  # Android config, manifest
+│   └── scripts/                  # deploy_testflight.sh
+│
+├── canteen_common/               # Shared Flutter package
+│   └── lib/
+│       ├── models/               # Student, Wallet, Transaction, Attendance
+│       ├── services/             # Supabase, Notification, Phone Auth
+│       ├── providers/            # AuthProvider
+│       ├── widgets/              # TransactionTile, BalanceCard
+│       └── l10n/                 # English + Myanmar translations
+│
+├── admin-dashboard/              # Next.js web admin
+│   ├── app/dashboard/            # 10 pages
+│   ├── app/api/                  # API routes
+│   ├── components/               # Sidebar, StatCard
+│   └── lib/                      # Supabase client, auth
+│
+├── database-schema/migrations/   # 001-026 SQL migrations
+└── supabase/functions/           # Edge functions
 ```
 
 ## Security Architecture
 
-### Row Level Security (RLS)
-- **25+ policies** across all tables
-- Staff (admin/counter_staff) have full access to their school
-- Parents can only read data for linked children
-- Students can only read their own data
-- Sellers can read students in their school (for QR scan)
-- Teachers can manage attendance for their school
-
-### Authentication
-- **Phone OTP**: Firebase Auth → Supabase session
-- **Google Sign-In**: Native GoogleSignIn → Supabase signInWithIdToken
-- **Face ID/Touch ID**: Biometric lock with session persistence
-- **Silent Push**: APNs silent notification for phone verification (no reCAPTCHA)
-
-### Transaction Safety
-- All monetary operations use `SECURITY DEFINER` PL/pgSQL functions
-- `FOR UPDATE` row locks prevent race conditions
-- Atomic: balance update + transaction insert in single DB transaction
-- Daily spending limits checked at purchase time
-
-### API Security
-- Admin dashboard: `verifyAdmin()` middleware checks Supabase auth token
-- Teacher endpoints: `verifyAdminOrTeacher()` allows teacher role
-- Service role key: server-side only, never exposed to client
-- FCM service account: stored as Supabase Edge Function secret
-
-## Deployment
-
-| Component | Platform | URL |
-|-----------|----------|-----|
-| Admin Dashboard | Vercel | admin-dashboard-ashen-mu-87.vercel.app |
-| Database | Supabase | quwwkpbiovsaujhtkgzt.supabase.co |
-| Edge Functions | Supabase | (same project) |
-| iOS App | TestFlight → App Store | com.canteenpay.canteenPay |
-| Firebase | Firebase Console | canteenpay-a64a1 |
-
-## Build Commands
-
-```bash
-# Flutter app
-cd flutter_app
-flutter pub get && flutter run
-
-# TestFlight build
-./scripts/deploy_testflight.sh --bump
-
-# Admin dashboard
-cd admin-dashboard
-npm install && npm run dev         # Development
-npx vercel --prod                  # Deploy
-
-# Database migrations
-# Run in Supabase SQL Editor (001-026)
-```
+- **RLS**: 25+ policies — database enforces access per user role
+- **Atomic transactions**: PL/pgSQL with `FOR UPDATE` row locks — no race conditions
+- **PIN verification**: 4-digit PIN for payments and parent linking
+- **Biometric**: Face ID/Touch ID for app unlock
+- **Service role key**: server-side only, never in app
+- **Anon key**: safe to expose — RLS protects data
 
 ## Localization
 
@@ -572,4 +499,4 @@ npx vercel --prod                  # Deploy
 | English | en | Full |
 | Myanmar (Burmese) | my | Full (90+ strings) |
 
-Language toggle available on all profile screens.
+Language toggle on all profile screens.
