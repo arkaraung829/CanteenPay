@@ -74,7 +74,7 @@ export async function verifyAdmin(request: Request): Promise<AuthResult | null> 
       .single();
 
     const role = profile?.role || 'unknown';
-    if (!['admin', 'counter_staff'].includes(role)) return null;
+    if (!['admin', 'counter_staff', 'super_admin'].includes(role)) return null;
 
     return { userId: user.id, role };
   } catch {
@@ -139,7 +139,7 @@ export async function verifyAdminOrTeacher(request: Request): Promise<AuthResult
       .single();
 
     const role = profile?.role || 'unknown';
-    if (!['admin', 'counter_staff', 'teacher'].includes(role)) return null;
+    if (!['admin', 'counter_staff', 'super_admin', 'teacher'].includes(role)) return null;
 
     return { userId: user.id, role };
   } catch {
