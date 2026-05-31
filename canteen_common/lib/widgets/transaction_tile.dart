@@ -121,7 +121,7 @@ class TransactionTile extends StatelessWidget {
   /// Simple time ago formatter.
   String _timeAgo(DateTime? dateTime) {
     if (dateTime == null) return '';
-    final diff = DateTime.now().difference(dateTime);
+    final diff = DateTime.now().difference(dateTime.toLocal());
     if (diff.inMinutes < 1) return 'Just now';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';

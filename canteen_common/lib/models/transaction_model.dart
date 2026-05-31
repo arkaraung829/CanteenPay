@@ -87,10 +87,10 @@ class TransactionModel {
     return '$prefix${formatter.format(amount)} MMK';
   }
 
-  /// Formatted date string
+  /// Formatted date string (converted to local timezone)
   String get formattedDate {
     if (createdAt == null) return '';
-    return DateFormat('dd MMM yyyy, hh:mm a').format(createdAt!);
+    return DateFormat('dd MMM yyyy, hh:mm a').format(createdAt!.toLocal());
   }
 
   /// Copy with method
