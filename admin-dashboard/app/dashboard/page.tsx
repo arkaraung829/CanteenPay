@@ -255,8 +255,39 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Quick Actions - top priority for daily tasks */}
+      <div className="mt-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3">Quick Actions</h3>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          <Link href="/dashboard/attendance" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-green-50 hover:border-green-300 transition-all hover:shadow-sm">
+            <ClipboardCheck className="h-7 w-7 text-green-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Attendance</span>
+          </Link>
+          <Link href="/dashboard/students" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-blue-50 hover:border-blue-300 transition-all hover:shadow-sm">
+            <UserPlus className="h-7 w-7 text-blue-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Students</span>
+          </Link>
+          <Link href="/dashboard/grades" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-indigo-50 hover:border-indigo-300 transition-all hover:shadow-sm">
+            <GraduationCap className="h-7 w-7 text-indigo-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Grades</span>
+          </Link>
+          <Link href="/dashboard/reports" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-rose-50 hover:border-rose-300 transition-all hover:shadow-sm">
+            <TrendingUp className="h-7 w-7 text-rose-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Reports</span>
+          </Link>
+          <Link href="/dashboard/announcements" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-purple-50 hover:border-purple-300 transition-all hover:shadow-sm">
+            <Megaphone className="h-7 w-7 text-purple-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Announce</span>
+          </Link>
+          <Link href="/dashboard/chat" className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 hover:bg-amber-50 hover:border-amber-300 transition-all hover:shadow-sm">
+            <MessageCircle className="h-7 w-7 text-amber-600" />
+            <span className="text-xs font-medium text-gray-700 text-center">Messages</span>
+          </Link>
+        </div>
+      </div>
+
       {/* Today's Summary */}
-      <div className="mt-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-xl border border-gray-200 bg-white p-6">
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-green-500" />
@@ -300,41 +331,9 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Quick Actions + Recent Transactions */}
-      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Quick Actions */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900 mb-4">Quick Actions</h3>
-          <div className="grid grid-cols-2 gap-3">
-            <Link href="/dashboard/students" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-blue-50 hover:border-blue-200 transition-colors">
-              <UserPlus className="h-6 w-6 text-blue-600" />
-              <span className="text-xs font-medium text-gray-700">Add Student</span>
-            </Link>
-            <Link href="/dashboard/attendance" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-green-50 hover:border-green-200 transition-colors">
-              <ClipboardCheck className="h-6 w-6 text-green-600" />
-              <span className="text-xs font-medium text-gray-700">Attendance</span>
-            </Link>
-            <Link href="/dashboard/announcements" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-purple-50 hover:border-purple-200 transition-colors">
-              <Megaphone className="h-6 w-6 text-purple-600" />
-              <span className="text-xs font-medium text-gray-700">Announce</span>
-            </Link>
-            <Link href="/dashboard/chat" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-amber-50 hover:border-amber-200 transition-colors">
-              <MessageCircle className="h-6 w-6 text-amber-600" />
-              <span className="text-xs font-medium text-gray-700">Messages</span>
-            </Link>
-            <Link href="/dashboard/grades" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-indigo-50 hover:border-indigo-200 transition-colors">
-              <GraduationCap className="h-6 w-6 text-indigo-600" />
-              <span className="text-xs font-medium text-gray-700">Grades</span>
-            </Link>
-            <Link href="/dashboard/reports" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-rose-50 hover:border-rose-200 transition-colors">
-              <TrendingUp className="h-6 w-6 text-rose-600" />
-              <span className="text-xs font-medium text-gray-700">Reports</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* Recent Transactions */}
-        <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white shadow-sm">
+      {/* Recent Transactions */}
+      <div className="mt-6">
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <h3 className="text-sm font-semibold text-gray-900">Recent Transactions</h3>
             <Link href="/dashboard/transactions" className="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</Link>
