@@ -282,20 +282,30 @@ export default function ReportCardsPage() {
     setEditingCommentId(null);
 
     try {
-      // Fetch student grades for this student/year
-      const { data: gradesData } = await supabase
-        .from('student_grades')
-        .select('score, full_marks, letter_grade, subjects(name)')
-        .eq('student_id', reportCard.student_id)
-        .eq('academic_year', reportCard.academic_year);
+      // Fetch student grades via API (uses service role, bypasses RLS)
+      const res = await authFetch(`/api/student-grades?student_id=${reportCard.student_id}&academic_year=${reportCard.academic_year}`);
+      const json = await res.json();
 
-      const details: StudentGradeDetail[] = (gradesData || []).map((g: { score: number | null; full_marks: number; letter_grade: string | null; subjects: { name: string } | { name: string }[] | null }) => ({
-        subject_name: Array.isArray(g.subjects) ? g.subjects[0]?.name : g.subjects?.name || 'Unknown',
-        score: g.score,
-        full_marks: g.full_marks,
-        letter_grade: g.letter_grade,
-      }));
-      setExpandedDetails(details);
+      if (json.success && json.data) {
+        // Flatten: data is students with scores per subject
+        const details: StudentGradeDetail[] = [];
+        for (const student of json.data) {
+          if (student.scores) {
+            for (const [subjectName, scoreData] of Object.entries(student.scores)) {
+              const sd = scoreData as { score: number | null; full_marks: number; letter_grade: string | null };
+              details.push({
+                subject_name: subjectName,
+                score: sd.score,
+                full_marks: sd.full_marks,
+                letter_grade: sd.letter_grade,
+              });
+            }
+          }
+        }
+        setExpandedDetails(details);
+      } else {
+        setExpandedDetails([]);
+      }
     } catch {
       setExpandedDetails([]);
     }

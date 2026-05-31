@@ -52,6 +52,24 @@ export async function GET(request: NextRequest) {
   const examTypeId = searchParams.get('exam_type_id') || '';
   const academicYear = searchParams.get('academic_year') || '';
   const schoolId = searchParams.get('school_id') || '';
+  const studentId = searchParams.get('student_id') || '';
+
+  // Individual student grades lookup (for report card expand)
+  if (studentId && academicYear) {
+    const { data: gradesData } = await supabase
+      .from('student_grades')
+      .select('score, full_marks, letter_grade, subjects(name)')
+      .eq('student_id', studentId)
+      .eq('academic_year', academicYear);
+
+    const scores: Record<string, { score: number | null; full_marks: number; letter_grade: string | null }> = {};
+    for (const g of (gradesData || []) as Array<{ score: number | null; full_marks: number; letter_grade: string | null; subjects: { name: string } | { name: string }[] | null }>) {
+      const subName = Array.isArray(g.subjects) ? g.subjects[0]?.name : g.subjects?.name || 'Unknown';
+      scores[subName] = { score: g.score, full_marks: g.full_marks, letter_grade: g.letter_grade };
+    }
+
+    return NextResponse.json({ success: true, data: [{ student_id: studentId, scores }] });
+  }
 
   if (!grade || !examTypeId || !academicYear) {
     return Response.json(
