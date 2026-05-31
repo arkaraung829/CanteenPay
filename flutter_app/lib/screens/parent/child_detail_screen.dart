@@ -96,7 +96,7 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
     }).toList();
     final presentCount = currentMonthAttendance.where((r) => r.status == 'present').length;
     final absentCount = currentMonthAttendance.where((r) => r.status == 'absent').length;
-    final lateCount = currentMonthAttendance.where((r) => r.status == 'late').length;
+    // final lateCount removed — only present/absent used
     final totalRecorded = currentMonthAttendance.length;
     final presentPercent = totalRecorded > 0 ? (presentCount * 100 / totalRecorded).round() : 0;
 
@@ -301,13 +301,6 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
                   label: 'Absent',
                   value: '$absentCount',
                   color: AppTheme.error,
-                ),
-                const SizedBox(width: 12),
-                _QuickStat(
-                  icon: Icons.schedule,
-                  label: 'Late',
-                  value: '$lateCount',
-                  color: Colors.orange,
                 ),
               ],
             ),
