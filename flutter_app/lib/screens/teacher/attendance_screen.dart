@@ -105,7 +105,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             name: s['full_name'] ?? '',
             nameMy: s['full_name_my'],
             code: s['student_code'] ?? '',
-            status: existingAttendance[id] ?? 'present',
+            status: existingAttendance[id] ?? '',
           );
         }).toList();
         _loading = false;
@@ -124,8 +124,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final userId = _supabase.auth.currentUser?.id;
       final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
 
-      // Upsert attendance records
-      final records = _students.map((s) => {
+      // Only save students that have been marked (not empty)
+      final markedStudents = _students.where((s) => s.status.isNotEmpty).toList();
+      if (markedStudents.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No students marked yet'), backgroundColor: Colors.orange),
+          );
+        }
+        setState(() => _saving = false);
+        return;
+      }
+
+      final records = markedStudents.map((s) => {
         'student_id': s.id,
         'school_id': _schoolId!,
         'date': dateStr,
@@ -213,7 +224,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final presentCount = _students.where((s) => s.status == 'present').length;
-    final absentCount = _students.where((s) => s.status != 'present').length;
+    final absentCount = _students.where((s) => s.status == 'absent').length;
+    final unmarkedCount = _students.where((s) => s.status.isEmpty).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -314,6 +326,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         _badge('$presentCount Present', Colors.green),
                         const SizedBox(width: 8),
                         _badge('$absentCount Absent', AppTheme.error),
+                        if (unmarkedCount > 0) ...[
+                          const SizedBox(width: 8),
+                          _badge('$unmarkedCount Unmarked', Colors.grey),
+                        ],
                         const Spacer(),
                         Text('${_students.length} students', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
                       ],
