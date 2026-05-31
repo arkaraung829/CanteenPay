@@ -19,12 +19,16 @@ import {
   LogOut,
   School,
   GraduationCap,
+  BookOpen,
+  FileText,
 } from 'lucide-react';
 
 const adminNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Students', href: '/dashboard/students', icon: Users },
   { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardCheck },
+  { name: 'Grades', href: '/dashboard/grades', icon: BookOpen },
+  { name: 'Report Cards', href: '/dashboard/report-cards', icon: FileText },
   { name: 'Teachers', href: '/dashboard/teachers', icon: GraduationCap },
   { name: 'Deposits', href: '/dashboard/deposits', icon: Banknote },
   { name: 'Transactions', href: '/dashboard/transactions', icon: ArrowLeftRight },
@@ -36,6 +40,8 @@ const adminNavigation = [
 
 const teacherNavigation = [
   { name: 'Attendance', href: '/dashboard/attendance', icon: ClipboardCheck },
+  { name: 'Grades', href: '/dashboard/grades', icon: BookOpen },
+  { name: 'Report Cards', href: '/dashboard/report-cards', icon: FileText },
 ];
 
 export default function Sidebar() {

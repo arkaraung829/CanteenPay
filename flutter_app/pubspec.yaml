@@ -55,6 +55,8 @@ dependencies:
 
   # Image picker for photo upload
   image_picker: ^1.1.2
+  pdf: ^3.12.0
+  printing: ^5.14.3
 
 dev_dependencies:
   flutter_test:

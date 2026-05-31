@@ -29,6 +29,29 @@ interface SectionItem {
   is_active: boolean;
 }
 
+interface SubjectItem {
+  id: string;
+  school_id: string;
+  name: string;
+  name_my: string | null;
+  grade_levels: string[];
+  full_marks: number;
+  pass_marks: number;
+  display_order: number;
+  is_active: boolean;
+}
+
+interface ExamTypeItem {
+  id: string;
+  school_id: string;
+  name: string;
+  name_my: string | null;
+  weight: number;
+  term: string | null;
+  display_order: number;
+  is_active: boolean;
+}
+
 interface UserItem {
   id: string;
   email: string;
@@ -661,6 +684,590 @@ function ManageableList({
   );
 }
 
+// --- Subject Management Component ---
+function SubjectManagement({ schoolId, grades }: { schoolId: string; grades: GradeItem[] }) {
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<SubjectItem | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  // Form state
+  const [formName, setFormName] = useState('');
+  const [formNameMy, setFormNameMy] = useState('');
+  const [formGradeLevels, setFormGradeLevels] = useState<string[]>([]);
+  const [formFullMarks, setFormFullMarks] = useState('100');
+  const [formPassMarks, setFormPassMarks] = useState('40');
+  const [formSaving, setFormSaving] = useState(false);
+
+  const fetchSubjects = useCallback(async () => {
+    try {
+      const params = schoolId ? `?school_id=${schoolId}` : '';
+      const res = await authFetch(`/api/subjects${params}`);
+      const json = await res.json();
+      if (json.success) setSubjects(json.data);
+    } catch { /* silently fail */ }
+    setLoading(false);
+  }, [schoolId]);
+
+  useEffect(() => { fetchSubjects(); }, [fetchSubjects]);
+
+  function resetForm() {
+    setFormName('');
+    setFormNameMy('');
+    setFormGradeLevels([]);
+    setFormFullMarks('100');
+    setFormPassMarks('40');
+    setEditingSubject(null);
+  }
+
+  function openEdit(subject: SubjectItem) {
+    setEditingSubject(subject);
+    setFormName(subject.name);
+    setFormNameMy(subject.name_my || '');
+    setFormGradeLevels(subject.grade_levels || []);
+    setFormFullMarks(String(subject.full_marks));
+    setFormPassMarks(String(subject.pass_marks));
+    setShowAddModal(true);
+  }
+
+  function toggleGradeLevel(gradeName: string) {
+    setFormGradeLevels(prev =>
+      prev.includes(gradeName)
+        ? prev.filter(g => g !== gradeName)
+        : [...prev, gradeName]
+    );
+  }
+
+  async function handleSaveSubject() {
+    if (!formName.trim()) return;
+    setFormSaving(true);
+    setError('');
+    try {
+      if (editingSubject) {
+        await authFetch('/api/subjects', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingSubject.id,
+            name: formName.trim(),
+            name_my: formNameMy.trim() || null,
+            grade_levels: formGradeLevels,
+            full_marks: parseInt(formFullMarks) || 100,
+            pass_marks: parseInt(formPassMarks) || 40,
+          }),
+        });
+      } else {
+        await authFetch('/api/subjects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            school_id: schoolId,
+            name: formName.trim(),
+            name_my: formNameMy.trim() || null,
+            grade_levels: formGradeLevels,
+            full_marks: parseInt(formFullMarks) || 100,
+            pass_marks: parseInt(formPassMarks) || 40,
+          }),
+        });
+      }
+      setShowAddModal(false);
+      resetForm();
+      await fetchSubjects();
+    } catch {
+      setError('Failed to save subject');
+    }
+    setFormSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this subject? Existing grade records referencing it may be affected.')) return;
+    setActionLoading(id);
+    await authFetch('/api/subjects', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    await fetchSubjects();
+    setActionLoading(null);
+  }
+
+  async function handleToggleActive(id: string, isActive: boolean) {
+    setActionLoading(id);
+    await authFetch('/api/subjects', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, is_active: !isActive }),
+    });
+    await fetchSubjects();
+    setActionLoading(null);
+  }
+
+  const activeGrades = grades.filter(g => g.is_active);
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+        <h2 className="text-lg font-semibold text-gray-900">Subjects</h2>
+        <span className="text-sm text-gray-500">{subjects.length} subjects</span>
+      </div>
+
+      {error && (
+        <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+          <button onClick={() => setError('')} className="ml-2 font-medium hover:underline">Dismiss</button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {subjects.length === 0 && (
+            <div className="px-6 py-8 text-center text-sm text-gray-400">
+              No subjects yet. Add one below.
+            </div>
+          )}
+          {subjects.map((subject) => (
+            <div
+              key={subject.id}
+              className={`px-6 py-3 flex items-center gap-3 transition-colors hover:bg-gray-50 ${!subject.is_active ? 'opacity-50' : ''}`}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-gray-900">{subject.name}</span>
+                  {subject.name_my && <span className="text-xs text-gray-500">({subject.name_my})</span>}
+                </div>
+                <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  {(subject.grade_levels || []).map(gl => (
+                    <span key={gl} className="inline-block rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                      {gl}
+                    </span>
+                  ))}
+                  <span className="text-xs text-gray-400 ml-1">
+                    Full: {subject.full_marks} | Pass: {subject.pass_marks}
+                  </span>
+                </div>
+              </div>
+
+              {/* Active toggle */}
+              <button
+                onClick={() => handleToggleActive(subject.id, subject.is_active)}
+                disabled={actionLoading === subject.id}
+                className="shrink-0"
+              >
+                <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  subject.is_active ? 'bg-green-500' : 'bg-gray-300'
+                }`}>
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    subject.is_active ? 'translate-x-4' : 'translate-x-1'
+                  }`} />
+                </div>
+              </button>
+
+              {/* Edit */}
+              <button
+                onClick={() => openEdit(subject)}
+                className="shrink-0 rounded p-1.5 text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+
+              {/* Delete */}
+              <button
+                onClick={() => handleDelete(subject.id)}
+                disabled={actionLoading === subject.id}
+                className="shrink-0 rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                {actionLoading === subject.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add button */}
+      <div className="border-t border-gray-200 px-6 py-4">
+        <button
+          onClick={() => { resetForm(); setShowAddModal(true); }}
+          className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+        >
+          <Plus className="h-4 w-4" />
+          Add Subject
+        </button>
+      </div>
+
+      {/* Add/Edit Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {editingSubject ? 'Edit Subject' : 'Add Subject'}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subject Name</label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. Mathematics"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Myanmar Name</label>
+                <input
+                  type="text"
+                  value={formNameMy}
+                  onChange={(e) => setFormNameMy(e.target.value)}
+                  placeholder="Optional Myanmar name"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Grade Levels</label>
+                <div className="flex flex-wrap gap-2">
+                  {activeGrades.map(g => (
+                    <label key={g.id} className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formGradeLevels.includes(g.name)}
+                        onChange={() => toggleGradeLevel(g.name)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{g.name}</span>
+                    </label>
+                  ))}
+                  {activeGrades.length === 0 && (
+                    <span className="text-xs text-gray-400">No grades configured. Add grades first.</span>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Full Marks</label>
+                  <input
+                    type="number"
+                    value={formFullMarks}
+                    onChange={(e) => setFormFullMarks(e.target.value)}
+                    min="1"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pass Marks</label>
+                  <input
+                    type="number"
+                    value={formPassMarks}
+                    onChange={(e) => setFormPassMarks(e.target.value)}
+                    min="0"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center gap-2 justify-end">
+              <button
+                onClick={() => { setShowAddModal(false); resetForm(); }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveSubject}
+                disabled={formSaving || !formName.trim()}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {formSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingSubject ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// --- Exam Type Management Component ---
+function ExamTypeManagement({ schoolId }: { schoolId: string }) {
+  const [examTypes, setExamTypes] = useState<ExamTypeItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingExamType, setEditingExamType] = useState<ExamTypeItem | null>(null);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  // Form state
+  const [formName, setFormName] = useState('');
+  const [formNameMy, setFormNameMy] = useState('');
+  const [formWeight, setFormWeight] = useState('100');
+  const [formTerm, setFormTerm] = useState('');
+  const [formSaving, setFormSaving] = useState(false);
+
+  const fetchExamTypes = useCallback(async () => {
+    try {
+      const params = schoolId ? `?school_id=${schoolId}` : '';
+      const res = await authFetch(`/api/exam-types${params}`);
+      const json = await res.json();
+      if (json.success) setExamTypes(json.data);
+    } catch { /* silently fail */ }
+    setLoading(false);
+  }, [schoolId]);
+
+  useEffect(() => { fetchExamTypes(); }, [fetchExamTypes]);
+
+  function resetForm() {
+    setFormName('');
+    setFormNameMy('');
+    setFormWeight('100');
+    setFormTerm('');
+    setEditingExamType(null);
+  }
+
+  function openEdit(examType: ExamTypeItem) {
+    setEditingExamType(examType);
+    setFormName(examType.name);
+    setFormNameMy(examType.name_my || '');
+    setFormWeight(String(examType.weight));
+    setFormTerm(examType.term || '');
+    setShowAddModal(true);
+  }
+
+  async function handleSaveExamType() {
+    if (!formName.trim()) return;
+    setFormSaving(true);
+    setError('');
+    try {
+      if (editingExamType) {
+        await authFetch('/api/exam-types', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingExamType.id,
+            name: formName.trim(),
+            name_my: formNameMy.trim() || null,
+            weight: parseFloat(formWeight) || 100,
+            term: formTerm.trim() || null,
+          }),
+        });
+      } else {
+        await authFetch('/api/exam-types', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            school_id: schoolId,
+            name: formName.trim(),
+            name_my: formNameMy.trim() || null,
+            weight: parseFloat(formWeight) || 100,
+            term: formTerm.trim() || null,
+          }),
+        });
+      }
+      setShowAddModal(false);
+      resetForm();
+      await fetchExamTypes();
+    } catch {
+      setError('Failed to save exam type');
+    }
+    setFormSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this exam type? Existing grade records referencing it may be affected.')) return;
+    setActionLoading(id);
+    await authFetch('/api/exam-types', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id }),
+    });
+    await fetchExamTypes();
+    setActionLoading(null);
+  }
+
+  async function handleToggleActive(id: string, isActive: boolean) {
+    setActionLoading(id);
+    await authFetch('/api/exam-types', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, is_active: !isActive }),
+    });
+    await fetchExamTypes();
+    setActionLoading(null);
+  }
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+        <h2 className="text-lg font-semibold text-gray-900">Exam Types</h2>
+        <span className="text-sm text-gray-500">{examTypes.length} types</span>
+      </div>
+
+      {error && (
+        <div className="mx-6 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+          <button onClick={() => setError('')} className="ml-2 font-medium hover:underline">Dismiss</button>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-100">
+          {examTypes.length === 0 && (
+            <div className="px-6 py-8 text-center text-sm text-gray-400">
+              No exam types yet. Add one below.
+            </div>
+          )}
+          {examTypes.map((et) => (
+            <div
+              key={et.id}
+              className={`px-6 py-3 flex items-center gap-3 transition-colors hover:bg-gray-50 ${!et.is_active ? 'opacity-50' : ''}`}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900">{et.name}</span>
+                  {et.name_my && <span className="text-xs text-gray-500">({et.name_my})</span>}
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-gray-400">Weight: {et.weight}%</span>
+                  {et.term && (
+                    <span className="inline-block rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-700">
+                      {et.term}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Active toggle */}
+              <button
+                onClick={() => handleToggleActive(et.id, et.is_active)}
+                disabled={actionLoading === et.id}
+                className="shrink-0"
+              >
+                <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  et.is_active ? 'bg-green-500' : 'bg-gray-300'
+                }`}>
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                    et.is_active ? 'translate-x-4' : 'translate-x-1'
+                  }`} />
+                </div>
+              </button>
+
+              {/* Edit */}
+              <button
+                onClick={() => openEdit(et)}
+                className="shrink-0 rounded p-1.5 text-gray-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+
+              {/* Delete */}
+              <button
+                onClick={() => handleDelete(et.id)}
+                disabled={actionLoading === et.id}
+                className="shrink-0 rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+              >
+                {actionLoading === et.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add button */}
+      <div className="border-t border-gray-200 px-6 py-4">
+        <button
+          onClick={() => { resetForm(); setShowAddModal(true); }}
+          className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800"
+        >
+          <Plus className="h-4 w-4" />
+          Add Exam Type
+        </button>
+      </div>
+
+      {/* Add/Edit Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              {editingExamType ? 'Edit Exam Type' : 'Add Exam Type'}
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Exam Type Name</label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. Mid-term Exam"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Myanmar Name</label>
+                <input
+                  type="text"
+                  value={formNameMy}
+                  onChange={(e) => setFormNameMy(e.target.value)}
+                  placeholder="Optional Myanmar name"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Weight (%)</label>
+                  <input
+                    type="number"
+                    value={formWeight}
+                    onChange={(e) => setFormWeight(e.target.value)}
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Term</label>
+                  <input
+                    type="text"
+                    value={formTerm}
+                    onChange={(e) => setFormTerm(e.target.value)}
+                    placeholder="e.g. Term 1"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center gap-2 justify-end">
+              <button
+                onClick={() => { setShowAddModal(false); resetForm(); }}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveExamType}
+                disabled={formSaving || !formName.trim()}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {formSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : editingExamType ? 'Update' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- User Management Component ---
 function UserManagement() {
   const [users, setUsers] = useState<UserItem[]>([]);
@@ -1262,6 +1869,14 @@ export default function SettingsPage() {
               addPlaceholder="e.g. Section F"
             />
           </div>
+
+          {/* Subjects & Exam Types */}
+          {selectedSchoolId && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <SubjectManagement schoolId={selectedSchoolId} grades={grades} />
+              <ExamTypeManagement schoolId={selectedSchoolId} />
+            </div>
+          )}
         </div>
       )}
 

@@ -9,6 +9,7 @@ class ChildrenProvider extends ChangeNotifier {
   final Map<String, WalletModel> _wallets = {};
   final Map<String, List<TransactionModel>> _transactions = {};
   final Map<String, List<AttendanceModel>> _attendance = {};
+  final Map<String, List<ReportCardModel>> _reportCards = {};
   bool _isLoading = false;
   String? _error;
   RealtimeChannel? _realtimeChannel;
@@ -117,6 +118,55 @@ class ChildrenProvider extends ChangeNotifier {
   /// Get attendance records for a child.
   List<AttendanceModel> getAttendance(String childId) {
     return _attendance[childId] ?? [];
+  }
+
+  /// Get report cards for a child.
+  List<ReportCardModel> getReportCards(String childId) {
+    return _reportCards[childId] ?? [];
+  }
+
+  /// Load report cards and subject scores for a child.
+  Future<void> loadReportCards(String childId) async {
+    try {
+      final data = await Supabase.instance.client
+          .from('report_cards')
+          .select()
+          .eq('student_id', childId)
+          .order('academic_year', ascending: false)
+          .order('term');
+
+      final cards = <ReportCardModel>[];
+      for (final rc in (data as List)) {
+        // Load subject scores for this report card
+        final gradesData = await Supabase.instance.client
+            .from('student_grades')
+            .select('*, subjects(name, name_my, full_marks, pass_marks), exam_types(name)')
+            .eq('student_id', childId)
+            .eq('academic_year', rc['academic_year']);
+
+        final subjects = (gradesData as List).map((g) {
+          final sub = g['subjects'] as Map<String, dynamic>?;
+          final exam = g['exam_types'] as Map<String, dynamic>?;
+          return SubjectScoreModel(
+            id: g['id'],
+            subjectName: sub?['name'] ?? '',
+            subjectNameMy: sub?['name_my'],
+            score: g['score'] != null ? (g['score'] as num).toDouble() : null,
+            fullMarks: sub?['full_marks'] ?? 100,
+            passMark: sub?['pass_marks'] ?? 40,
+            letterGrade: g['letter_grade'],
+            examTypeName: exam?['name'],
+            remarks: g['remarks'],
+          );
+        }).toList();
+
+        cards.add(ReportCardModel.fromJson(rc, subjects: subjects));
+      }
+      _reportCards[childId] = cards;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('ChildrenProvider: failed to load report cards: $e');
+    }
   }
 
   /// Subscribe to realtime wallet balance updates.

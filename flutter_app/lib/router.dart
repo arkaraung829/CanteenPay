@@ -21,6 +21,7 @@ import 'screens/parent/child_detail_screen.dart';
 import 'screens/parent/transaction_history_screen.dart' as parent_history;
 import 'screens/parent/link_child_screen.dart';
 import 'screens/parent/spending_alerts_screen.dart';
+import 'screens/parent/report_card_screen.dart';
 import 'screens/parent/notifications_screen.dart';
 import 'screens/parent/chat_screen.dart';
 import 'screens/parent/messages_screen.dart';
@@ -178,6 +179,14 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
         builder: (context, state) {
           final childId = state.pathParameters['id']!;
           return ChildDetailScreen(childId: childId);
+        },
+      ),
+      GoRoute(
+        path: '/parent/child/:id/report-card',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) {
+          final childId = state.pathParameters['id']!;
+          return ReportCardScreen(childId: childId);
         },
       ),
       GoRoute(

@@ -321,6 +321,18 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
             ),
             const SizedBox(height: 24),
 
+            // -- Report Card Button --
+            OutlinedButton.icon(
+              onPressed: () => context.push('/parent/child/$childId/report-card'),
+              icon: const Icon(Icons.assignment, size: 18),
+              label: const Text('Report Card'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // -- Today's Activity --
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

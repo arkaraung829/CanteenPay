@@ -46,6 +46,7 @@ export 'models/seller_model.dart';
 export 'models/announcement_model.dart';
 export 'models/parent_student_link_model.dart';
 export 'models/attendance_model.dart';
+export 'models/report_card_model.dart';
 
 // ============================================================================
 // PROVIDERS
