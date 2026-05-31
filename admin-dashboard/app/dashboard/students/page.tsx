@@ -372,7 +372,7 @@ export default function StudentsPage() {
     setAddError('');
 
     try {
-      const className = `Grade ${newGrade}-${newSection}`;
+      const className = `${newGrade}-${newSection}`;
 
       const res = await authFetch('/api/students', {
         method: 'POST',

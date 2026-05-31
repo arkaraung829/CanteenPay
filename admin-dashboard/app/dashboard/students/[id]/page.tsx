@@ -466,7 +466,7 @@ export default function StudentDetailPage() {
                       <option value="">-</option>
                       {dynamicSections.length > 0
                         ? dynamicSections.map(s => <option key={s.id} value={`${editForm.grade}-${s.name}`}>{editForm.grade ? `${editForm.grade}-${s.name}` : s.name}</option>)
-                        : ['A', 'B', 'C', 'D', 'E', 'F'].map(s => <option key={s} value={`Grade ${editForm.grade}-${s}`}>Grade {editForm.grade}-{s}</option>)
+                        : ['A', 'B', 'C', 'D', 'E', 'F'].map(s => <option key={s} value={`${editForm.grade}-${s}`}>{editForm.grade}-{s}</option>)
                       }
                     </select>
                   </div>

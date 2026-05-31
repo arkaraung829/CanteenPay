@@ -67,10 +67,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           .eq('school_id', _schoolId!)
           .eq('is_active', true);
 
-      // Filter by class or grade
+      // Filter by class
       if (_selectedClass != null && _selectedClass!.isNotEmpty) {
-        // Specific class selected — try both class_name and grade match
-        query = query.or('class_name.eq.$_selectedClass,grade.eq.$_selectedClass');
+        query = query.eq('class_name', _selectedClass!);
+      } else if (_assignedClasses.isNotEmpty) {
+        // "All Classes" — only teacher's assigned classes
+        query = query.inFilter('class_name', _assignedClasses);
       }
 
       final response = await query.order('full_name');
