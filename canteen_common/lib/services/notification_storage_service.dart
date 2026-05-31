@@ -89,18 +89,16 @@ class NotificationStorageService {
       final prefs = await SharedPreferences.getInstance();
       final stored = prefs.getStringList(_storageKey) ?? [];
 
-      // Dedup: skip if identical title+body within last 30 seconds
-      if (stored.isNotEmpty) {
+      // Dedup: skip if same transaction_id already stored (prevents double-save)
+      final txnId = data?['transaction_id']?.toString();
+      if (txnId != null && stored.isNotEmpty) {
         try {
-          final recent =
-              Map<String, dynamic>.from(jsonDecode(stored.first) as Map);
-          final recentTime =
-              DateTime.tryParse((recent['timestamp'] as String?) ?? '');
-          if (recent['title'] == title &&
-              recent['body'] == body &&
-              recentTime != null &&
-              DateTime.now().difference(recentTime).inSeconds < 30) {
-            return; // duplicate
+          for (final item in stored.take(5)) {
+            final existing = Map<String, dynamic>.from(jsonDecode(item) as Map);
+            final existingData = existing['data'] as Map<String, dynamic>?;
+            if (existingData?['transaction_id']?.toString() == txnId) {
+              return; // duplicate transaction
+            }
           }
         } catch (_) {}
       }

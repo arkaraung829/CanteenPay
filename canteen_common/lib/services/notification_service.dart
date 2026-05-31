@@ -100,11 +100,12 @@ class NotificationService {
         onDidReceiveNotificationResponse: _onLocalNotificationTapped,
       );
 
-      // 4. Enable iOS foreground notification presentation
+      // 4. Disable iOS automatic foreground presentation
+      // We show local notifications manually to avoid duplicates
       await _messaging?.setForegroundNotificationPresentationOptions(
-        alert: true,
-        badge: true,
-        sound: true,
+        alert: false,
+        badge: false,
+        sound: false,
       );
 
       // 5. Get FCM token and send to backend

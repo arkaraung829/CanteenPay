@@ -184,6 +184,7 @@ async function sendPushToAudience(
       .from('profiles')
       .select('fcm_token')
       .eq('school_id', schoolId)
+      .eq('is_active', true)
       .in('role', roles)
       .not('fcm_token', 'is', null);
 
