@@ -37,6 +37,36 @@
 | Shared Code | canteen_common Flutter package |
 | Deploy | Vercel (dashboard), TestFlight/App Store (mobile) |
 
+## Why Both Firebase AND Supabase?
+
+The app uses **two cloud services** because each handles different things:
+
+```
+Firebase (GoogleService-Info.plist)      Supabase (supabase_config.dart)
+├── Phone OTP (SMS verification)         ├── Database (PostgreSQL)
+├── Push Notifications (FCM)             ├── Auth sessions (JWT tokens)
+├── Google Sign-In (OAuth)               ├── Realtime (WebSocket)
+├── Crashlytics (error reporting)        ├── Row Level Security (RLS)
+└── Analytics (usage tracking)           ├── Edge Functions (webhooks)
+                                         └── Storage (photos, files)
+```
+
+**Why not just Supabase?**
+- Supabase's built-in phone auth has poor Myanmar carrier support — Firebase Phone Auth works better
+- Supabase has no push notification service — we use Firebase Cloud Messaging (FCM)
+- Supabase has no crash reporting — Firebase Crashlytics handles this
+
+**GoogleService-Info.plist** (iOS) / **google-services.json** (Android):
+- Firebase configuration file — tells the app which Firebase project to connect to
+- Contains: App ID, API key, Project ID, GCM Sender ID, Google Sign-In Client ID
+- Loaded automatically by `FirebaseApp.configure()` in `AppDelegate.swift`
+- Not a secret — safe to include in the app (Firebase security is server-side)
+
+**supabase_config.dart:**
+- Supabase configuration — URL + anon key
+- The anon key is public by design (like Firebase API key)
+- Security is enforced by RLS policies at the database level
+
 ## How the Flutter App Connects
 
 The Flutter app connects **directly to Supabase** (no middleware server). Security is enforced by RLS at the database level.
