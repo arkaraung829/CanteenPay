@@ -182,6 +182,65 @@ Parent's phone receives push notification
 - The notification must be sent even if the **seller's app closes** after payment
 - Database trigger guarantees it runs for **every** transaction
 
+### Complete Edge Function Flow Diagram
+
+```
+SELLER'S PHONE                    SUPABASE SERVER                     PARENT'S PHONE
+─────────────────               ──────────────────                  ─────────────────
+
+Seller scans QR
+Enters 500 MMK
+Student enters PIN
+    │
+    ▼
+process_purchase()  ──────►  PostgreSQL executes:
+                             1. Lock wallet FOR UPDATE
+                             2. Check balance ≥ 500
+                             3. Check daily limit
+                             4. UPDATE wallets SET balance = balance - 500
+                             5. INSERT INTO transactions
+                                     │
+                                     ▼
+Seller sees ✓       ◄──────  Return success
+(can close app now)                  │
+                                     ▼
+                             TRIGGER fires automatically:
+                             notify_on_transaction()
+                                     │
+                                     ▼
+                             pg_net.http_post() ──► Edge Function
+                                                        │
+                                                        ▼
+                                                   1. Get wallet_id
+                                                   2. Find student
+                                                   3. Find parents
+                                                      (parent_student_links)
+                                                   4. Get FCM tokens
+                                                      (profiles.fcm_token)
+                                                   5. Sign JWT with
+                                                      FCM_SERVICE_ACCOUNT
+                                                      (SECRET - server only)
+                                                   6. POST to FCM API
+                                                        │
+                                                        ▼
+                                                   Firebase Cloud
+                                                   Messaging
+                                                        │
+                                                        ▼
+                                                                 ──► Push notification
+                                                                     "Purchase: 500 MMK"
+                                                                     "Aung Aung spent 500
+                                                                      MMK at Canteen.
+                                                                      Balance: 9,500 MMK"
+
+                                                   If balance < 2000:
+                                                        │
+                                                        ▼
+                                                                 ──► "Low Balance Alert"
+                                                                     "Balance is 1,500 MMK.
+                                                                      Please top up."
+```
+
 **Current Edge Functions:**
 
 | Function | Trigger | Purpose |
