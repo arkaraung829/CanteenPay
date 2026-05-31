@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import StatCard from '@/components/StatCard';
-import { Users, Banknote, ArrowLeftRight, Store, TrendingUp, TrendingDown } from 'lucide-react';
+import Link from 'next/link';
+import { Users, Banknote, ArrowLeftRight, Store, TrendingUp, TrendingDown, ClipboardCheck, GraduationCap, MessageCircle, Plus, UserPlus, Megaphone } from 'lucide-react';
 import { formatMMK } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 import { useSchoolContext } from '@/lib/school-context';
@@ -253,52 +254,89 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Transactions */}
-      <div className="mt-8">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900">Recent Transactions</h2>
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Student</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Type</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Seller/Source</th>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Time</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {recentTransactions.length === 0 ? (
+      {/* Quick Actions + Recent Transactions */}
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Quick Actions */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-gray-900 mb-4">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <Link href="/dashboard/students" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-blue-50 hover:border-blue-200 transition-colors">
+              <UserPlus className="h-6 w-6 text-blue-600" />
+              <span className="text-xs font-medium text-gray-700">Add Student</span>
+            </Link>
+            <Link href="/dashboard/attendance" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-green-50 hover:border-green-200 transition-colors">
+              <ClipboardCheck className="h-6 w-6 text-green-600" />
+              <span className="text-xs font-medium text-gray-700">Attendance</span>
+            </Link>
+            <Link href="/dashboard/announcements" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-purple-50 hover:border-purple-200 transition-colors">
+              <Megaphone className="h-6 w-6 text-purple-600" />
+              <span className="text-xs font-medium text-gray-700">Announce</span>
+            </Link>
+            <Link href="/dashboard/chat" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-amber-50 hover:border-amber-200 transition-colors">
+              <MessageCircle className="h-6 w-6 text-amber-600" />
+              <span className="text-xs font-medium text-gray-700">Messages</span>
+            </Link>
+            <Link href="/dashboard/grades" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-indigo-50 hover:border-indigo-200 transition-colors">
+              <GraduationCap className="h-6 w-6 text-indigo-600" />
+              <span className="text-xs font-medium text-gray-700">Grades</span>
+            </Link>
+            <Link href="/dashboard/reports" className="flex flex-col items-center gap-2 rounded-lg border border-gray-200 p-4 hover:bg-rose-50 hover:border-rose-200 transition-colors">
+              <TrendingUp className="h-6 w-6 text-rose-600" />
+              <span className="text-xs font-medium text-gray-700">Reports</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Recent Transactions */}
+        <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900">Recent Transactions</h3>
+            <Link href="/dashboard/transactions" className="text-xs font-medium text-blue-600 hover:text-blue-800">View all →</Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-400">No transactions yet</td>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Student</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Source</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Time</th>
                 </tr>
-              ) : (
-                recentTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900">{tx.student}</td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        tx.type === 'deposit' ? 'bg-green-100 text-green-700' :
-                        tx.type === 'purchase' ? 'bg-red-100 text-red-700' :
-                        'bg-amber-100 text-amber-700'
-                      }`}>
-                        {tx.type}
-                      </span>
-                    </td>
-                    <td className={`whitespace-nowrap px-6 py-4 text-sm font-medium ${
-                      tx.type === 'deposit' ? 'text-green-600' :
-                      tx.type === 'refund' ? 'text-amber-600' :
-                      'text-red-600'
-                    }`}>
-                      {tx.type === 'purchase' ? '-' : '+'}{formatMMK(tx.amount)}
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{tx.seller}</td>
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{tx.time}</td>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {recentTransactions.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-400">No transactions yet today</td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  recentTransactions.map((tx) => (
+                    <tr key={tx.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-6 py-3 text-sm font-medium text-gray-900">{tx.student}</td>
+                      <td className="whitespace-nowrap px-6 py-3">
+                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          tx.type === 'deposit' ? 'bg-green-100 text-green-700' :
+                          tx.type === 'purchase' ? 'bg-red-100 text-red-700' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>
+                          {tx.type}
+                        </span>
+                      </td>
+                      <td className={`whitespace-nowrap px-6 py-3 text-sm font-medium ${
+                        tx.type === 'deposit' ? 'text-green-600' :
+                        tx.type === 'refund' ? 'text-amber-600' :
+                        'text-red-600'
+                      }`}>
+                        {tx.type === 'purchase' ? '-' : '+'}{formatMMK(tx.amount)}
+                      </td>
+                      <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-500">{tx.seller}</td>
+                      <td className="whitespace-nowrap px-6 py-3 text-sm text-gray-400">{tx.time}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
