@@ -86,11 +86,23 @@ class _LoginScreenState extends State<LoginScreen>
         return;
       }
 
-      // Check if there's an existing session
+      // Check if there's an existing valid session
       final session = Supabase.instance.client.auth.currentSession;
       if (session == null) {
         setState(() => _checkingBiometric = false);
         return;
+      }
+
+      // Check if session is expired
+      if (session.isExpired) {
+        // Try to refresh, if fails clear it
+        try {
+          await Supabase.instance.client.auth.refreshSession();
+        } catch (_) {
+          await Supabase.instance.client.auth.signOut();
+          if (mounted) setState(() => _checkingBiometric = false);
+          return;
+        }
       }
 
       // Device supports biometric?
