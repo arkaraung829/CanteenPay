@@ -136,7 +136,6 @@ export default function AttendancePage() {
             active = active.filter((g: GradeOption) => teacherRecord.assigned_grades.includes(g.name));
           }
           setGrades(active);
-          if (active.length > 0 && !grade) setGrade(active[0].name);
         }
         if (sectionsJson.success) {
           let active = (sectionsJson.data || []).filter((s: SectionOption) => s.is_active);
@@ -148,7 +147,6 @@ export default function AttendancePage() {
             });
           }
           setSections(active);
-          if (active.length > 0 && !className) setClassName(active[0].name);
         }
       } catch {
         // Fall back gracefully
@@ -195,12 +193,13 @@ export default function AttendancePage() {
 
   // Fetch students + attendance
   const fetchAttendance = useCallback(async () => {
-    if (!grade || !className) return;
     setLoading(true);
     setError('');
     setSuccessMsg('');
     try {
-      const params = new URLSearchParams({ date, grade, class_name: classNameFilter });
+      const params = new URLSearchParams({ date });
+      if (grade) params.set('grade', grade);
+      if (classNameFilter) params.set('class_name', classNameFilter);
       if (selectedSchoolId) params.set('school_id', selectedSchoolId);
       const res = await authFetch(`/api/attendance?${params}`);
       const json = await res.json();
@@ -487,7 +486,7 @@ export default function AttendancePage() {
             onChange={(e) => setGrade(e.target.value)}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <option value="">Select Grade</option>
+            <option value="">All Grades</option>
             {grades.map(g => (
               <option key={g.id} value={g.name}>{g.name}</option>
             ))}
@@ -500,7 +499,7 @@ export default function AttendancePage() {
             onChange={(e) => setClassName(e.target.value)}
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <option value="">Select Section</option>
+            <option value="">All Sections</option>
             {sections.map(s => (
               <option key={s.id} value={s.name}>{s.name}</option>
             ))}

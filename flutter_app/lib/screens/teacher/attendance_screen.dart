@@ -43,12 +43,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         setState(() {
           _assignedClasses = classes;
           _schoolId = teacher['school_id'];
-          if (classes.isNotEmpty) {
-            _selectedClass = classes.first;
-          }
+          _selectedClass = '';
           _loading = false;
         });
-        if (_selectedClass != null) _loadStudents();
+        _loadStudents();
       } else {
         setState(() => _loading = false);
       }
@@ -59,19 +57,23 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _loadStudents() async {
-    if (_selectedClass == null || _schoolId == null) return;
+    if (_schoolId == null) return;
     setState(() => _loading = true);
 
     try {
-      // Parse class name to get grade and section
-      // Format: "Grade X-Section" or just the class_name
-      final response = await _supabase
+      var query = _supabase
           .from('students')
           .select('id, full_name, full_name_my, student_code, class_name, grade, is_active')
           .eq('school_id', _schoolId!)
-          .eq('class_name', _selectedClass!)
           .eq('is_active', true)
           .order('full_name');
+
+      // Filter by class if selected (not "All")
+      if (_selectedClass != null && _selectedClass!.isNotEmpty) {
+        query = query.eq('class_name', _selectedClass!);
+      }
+
+      final response = await query;
 
       // Load existing attendance for selected date
       final dateStr = '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
@@ -239,14 +241,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             border: Border.all(color: Colors.grey[300]!),
                           ),
                           child: DropdownButtonHideUnderline(
-                            child: DropdownButton<String>(
+                            child: DropdownButton<String?>(
                               value: _selectedClass,
                               isExpanded: true,
-                              hint: const Text('Select class'),
-                              items: _assignedClasses.map((c) => DropdownMenuItem(
-                                value: c,
-                                child: Text(c, style: const TextStyle(fontSize: 14)),
-                              )).toList(),
+                              hint: const Text('All Classes'),
+                              items: [
+                                const DropdownMenuItem<String?>(
+                                  value: '',
+                                  child: Text('All Classes', style: TextStyle(fontSize: 14)),
+                                ),
+                                ..._assignedClasses.map((c) => DropdownMenuItem<String?>(
+                                  value: c,
+                                  child: Text(c, style: const TextStyle(fontSize: 14)),
+                                )),
+                              ],
                               onChanged: (v) {
                                 setState(() => _selectedClass = v);
                                 _loadStudents();
