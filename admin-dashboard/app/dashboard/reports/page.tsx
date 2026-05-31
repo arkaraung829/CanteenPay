@@ -73,6 +73,17 @@ export default function ReportsPage() {
   const [sellerDailyLoading, setSellerDailyLoading] = useState(false);
   const [sellerDailyTotal, setSellerDailyTotal] = useState(0);
   const [sellerDailyTotalCount, setSellerDailyTotalCount] = useState(0);
+  const [schoolName, setSchoolName] = useState('');
+
+  // Fetch school name
+  useEffect(() => {
+    async function fetchSchoolName() {
+      if (!selectedSchoolId) return;
+      const { data } = await supabase.from('schools').select('name').eq('id', selectedSchoolId).single();
+      if (data) setSchoolName(data.name);
+    }
+    fetchSchoolName();
+  }, [selectedSchoolId]);
 
   // Fetch seller options for the filter dropdown
   useEffect(() => {
@@ -285,34 +296,78 @@ export default function ReportsPage() {
   }, [sellerDateFrom, sellerDateTo, sellerFilter, selectedSchoolId]);
 
   // Export seller report as CSV
+  function getDateRange() {
+    return sellerDateFrom === sellerDateTo ? sellerDateFrom : `${sellerDateFrom} to ${sellerDateTo}`;
+  }
+
   function exportSellerCSV() {
     if (sellerDailySales.length === 0) return;
-
-    const dateRange = sellerDateFrom === sellerDateTo
-      ? sellerDateFrom
-      : `${sellerDateFrom} to ${sellerDateTo}`;
-
+    const dateRange = getDateRange();
     const lines: string[] = [];
-    lines.push('Date Range,Seller Name,Sales Count,Total Amount (MMK),Average Per Sale (MMK)');
+
+    if (schoolName) lines.push(`"${schoolName}"`);
+    lines.push(`"Seller Sales Report — ${dateRange}"`);
+    lines.push('');
+    lines.push('Seller Name,Sales Count,Total Amount (MMK),Average Per Sale (MMK)');
 
     sellerDailySales.forEach((s) => {
-      lines.push(`"${dateRange}","${s.name}",${s.count},${s.sales},${s.avg}`);
+      lines.push(`"${s.name}",${s.count},${s.sales},${s.avg}`);
     });
 
-    // Totals row
     const grandAvg = sellerDailyTotalCount > 0 ? Math.round(sellerDailyTotal / sellerDailyTotalCount) : 0;
-    lines.push(`"${dateRange}","GRAND TOTAL",${sellerDailyTotalCount},${sellerDailyTotal},${grandAvg}`);
-
-    // Summary section
+    lines.push(`"GRAND TOTAL",${sellerDailyTotalCount},${sellerDailyTotal},${grandAvg}`);
     lines.push('');
-    lines.push('--- Summary ---');
-    lines.push(`Grand Total Amount,${sellerDailyTotal} MMK`);
-    lines.push(`Date Range,"${dateRange}"`);
     lines.push(`Generated,${new Date().toLocaleString()}`);
 
     const csv = lines.join('\n');
     const filename = `seller-report-${sellerDateFrom}${sellerDateFrom !== sellerDateTo ? '-to-' + sellerDateTo : ''}.csv`;
     downloadCSV(filename, csv);
+  }
+
+  function exportSellerPDF() {
+    if (sellerDailySales.length === 0) return;
+    const dateRange = getDateRange();
+    const grandAvg = sellerDailyTotalCount > 0 ? Math.round(sellerDailyTotal / sellerDailyTotalCount) : 0;
+
+    // Build HTML for PDF
+    const html = `
+      <html><head><style>
+        body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+        h1 { font-size: 22px; margin: 0; }
+        h2 { font-size: 16px; color: #666; margin: 4px 0 20px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        th { background: #f3f4f6; text-align: left; padding: 10px 12px; font-size: 13px; border-bottom: 2px solid #e5e7eb; }
+        td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #e5e7eb; }
+        .total td { font-weight: bold; background: #f9fafb; border-top: 2px solid #e5e7eb; }
+        .right { text-align: right; }
+        .footer { margin-top: 40px; font-size: 11px; color: #999; }
+        .signature { margin-top: 60px; display: flex; justify-content: space-between; }
+        .sig-line { border-top: 1px solid #333; width: 200px; text-align: center; padding-top: 4px; font-size: 12px; }
+      </style></head><body>
+        <h1>${schoolName || 'Paynow MM'}</h1>
+        <h2>Seller Sales Report — ${dateRange}</h2>
+        <table>
+          <tr><th>#</th><th>Seller Name</th><th class="right">Sales Count</th><th class="right">Total Amount</th><th class="right">Avg / Sale</th></tr>
+          ${sellerDailySales.map((s, i) => `
+            <tr><td>${i + 1}</td><td>${s.name}</td><td class="right">${s.count}</td><td class="right">${s.sales.toLocaleString()} MMK</td><td class="right">${s.avg.toLocaleString()} MMK</td></tr>
+          `).join('')}
+          <tr class="total"><td></td><td>Grand Total</td><td class="right">${sellerDailyTotalCount}</td><td class="right">${sellerDailyTotal.toLocaleString()} MMK</td><td class="right">${grandAvg.toLocaleString()} MMK</td></tr>
+        </table>
+        <div class="signature">
+          <div class="sig-line">Prepared By</div>
+          <div class="sig-line">Approved By</div>
+          <div class="sig-line">Received By (Seller)</div>
+        </div>
+        <div class="footer">Generated: ${new Date().toLocaleString()}</div>
+      </body></html>
+    `;
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(html);
+      printWindow.document.close();
+      printWindow.print();
+    }
   }
 
   const totalDeposits = dailyData.reduce((sum, d) => sum + d.deposits, 0);
@@ -397,7 +452,13 @@ export default function ReportsPage() {
                 onClick={exportSellerCSV}
                 className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
               >
-                <Download className="h-4 w-4" /> Export CSV
+                <Download className="h-4 w-4" /> CSV
+              </button>
+              <button
+                onClick={exportSellerPDF}
+                className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                <Download className="h-4 w-4" /> PDF
               </button>
             )}
             {sellerDailySales.length > 0 && (
