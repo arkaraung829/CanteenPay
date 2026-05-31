@@ -223,7 +223,7 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
           }
 
           try {
-            NotificationService.instance.onNotificationTapped = (data) {
+            void handleTap(Map<String, dynamic> data) {
               final type = data['type']?.toString();
               final studentId = data['student_id']?.toString();
               if ((type == 'purchase' || type == 'deposit') && studentId != null) {
@@ -236,7 +236,15 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
               } else {
                 router.go('/parent/notifications');
               }
-            };
+            }
+
+            NotificationService.instance.onNotificationTapped = handleTap;
+
+            // Process any pending tap from cold start
+            final pending = NotificationService.instance.consumePendingTap();
+            if (pending != null && authProvider.isAuthenticated) {
+              Future.delayed(const Duration(milliseconds: 500), () => handleTap(pending));
+            }
           } catch (_) {
             // NotificationService unavailable (no Firebase)
           }

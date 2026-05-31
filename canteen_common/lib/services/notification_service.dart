@@ -384,12 +384,27 @@ class NotificationService {
   // Notification tap handling
   // ---------------------------------------------------------------------------
 
+  /// Pending tap data — stored when onNotificationTapped is not yet set (cold start)
+  Map<String, dynamic>? _pendingTapData;
+
+  /// Get and clear pending tap data (called from main.dart after setting onNotificationTapped)
+  Map<String, dynamic>? consumePendingTap() {
+    final data = _pendingTapData;
+    _pendingTapData = null;
+    return data;
+  }
+
   void _handleNotificationTap(Map<String, dynamic> data) {
     try {
       if (kDebugMode) {
         debugPrint('NotificationService: notification tapped, data: $data');
       }
-      onNotificationTapped?.call(data);
+      if (onNotificationTapped != null) {
+        onNotificationTapped!.call(data);
+      } else {
+        // Store for later — callback not set yet (cold start)
+        _pendingTapData = data;
+      }
     } catch (e) {
       if (kDebugMode) {
         debugPrint('NotificationService: error handling tap: $e');
