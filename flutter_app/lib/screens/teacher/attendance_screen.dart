@@ -14,6 +14,7 @@ class AttendanceScreen extends StatefulWidget {
 class _AttendanceScreenState extends State<AttendanceScreen> {
   final _supabase = Supabase.instance.client;
   List<String> _assignedClasses = [];
+  List<String> _assignedGrades = [];
   String? _selectedClass;
   List<_StudentAttendance> _students = [];
   bool _loading = true;
@@ -34,14 +35,16 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     try {
       final teacher = await _supabase
           .from('teachers')
-          .select('assigned_classes, school_id')
+          .select('assigned_grades, assigned_classes, school_id')
           .eq('profile_id', userId)
           .maybeSingle();
 
       if (teacher != null && mounted) {
         final classes = List<String>.from(teacher['assigned_classes'] ?? []);
+        final grades = List<String>.from(teacher['assigned_grades'] ?? []);
         setState(() {
           _assignedClasses = classes;
+          _assignedGrades = grades;
           _schoolId = teacher['school_id'];
           _selectedClass = '';
           _loading = false;
@@ -67,12 +70,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           .eq('school_id', _schoolId!)
           .eq('is_active', true);
 
-      // Filter by class
+      // Filter by class or grades
       if (_selectedClass != null && _selectedClass!.isNotEmpty) {
         query = query.eq('class_name', _selectedClass!);
-      } else if (_assignedClasses.isNotEmpty) {
-        // "All Classes" — only teacher's assigned classes
-        query = query.inFilter('class_name', _assignedClasses);
+      } else if (_assignedGrades.isNotEmpty) {
+        // "All Classes" — filter by teacher's assigned grades
+        query = query.inFilter('grade', _assignedGrades);
       }
 
       final response = await query.order('full_name');
