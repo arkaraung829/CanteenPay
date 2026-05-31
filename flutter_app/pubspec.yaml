@@ -1,7 +1,7 @@
 name: canteen_pay
 description: Paynow MM - School Cashless Payment System
 publish_to: 'none'
-version: 1.0.0+21
+version: 1.0.0+22
 
 environment:
   sdk: ^3.10.4
