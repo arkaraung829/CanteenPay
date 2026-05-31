@@ -225,17 +225,12 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
           try {
             void handleTap(Map<String, dynamic> data) {
               final type = data['type']?.toString();
-              final studentId = data['student_id']?.toString();
-              if ((type == 'purchase' || type == 'deposit') && studentId != null) {
-                router.go('/parent/child/$studentId');
-              } else if (type == 'low_balance') {
-                router.go('/parent/alerts');
-              } else if (type == 'announcement') {
+              if (type == 'announcement') {
                 NotificationsScreen.openAnnouncements = true;
-                router.go('/parent/notifications');
-              } else {
-                router.go('/parent/notifications');
               }
+              // All notifications go to notifications screen
+              // Announcements → announcements tab, everything else → activity tab
+              router.go('/parent/notifications');
             }
 
             NotificationService.instance.onNotificationTapped = handleTap;
