@@ -1,37 +1,36 @@
--- Refund requests table + approval RPC
+-- Refund requests table for seller approval workflow
+
 CREATE TABLE IF NOT EXISTS refund_requests (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  transaction_id UUID REFERENCES transactions(id) NOT NULL,
-  student_id UUID REFERENCES students(id) NOT NULL,
-  seller_id UUID NOT NULL,
-  amount INT NOT NULL,
-  reason TEXT,
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-  requested_by UUID REFERENCES profiles(id),
-  responded_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_id UUID NOT NULL REFERENCES transactions(id),
+    student_id UUID NOT NULL REFERENCES students(id),
+    seller_id UUID REFERENCES canteen_sellers(id),
+    amount BIGINT NOT NULL,
+    reason TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    requested_by UUID REFERENCES profiles(id),
+    responded_by UUID REFERENCES profiles(id),
+    responded_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_refund_transaction UNIQUE (transaction_id)
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_refund_req_unique_pending ON refund_requests(transaction_id) WHERE status = 'pending';
-CREATE INDEX IF NOT EXISTS idx_refund_req_seller ON refund_requests(seller_id);
-CREATE INDEX IF NOT EXISTS idx_refund_req_status ON refund_requests(status);
+CREATE INDEX IF NOT EXISTS idx_refund_requests_seller ON refund_requests(seller_id);
+CREATE INDEX IF NOT EXISTS idx_refund_requests_status ON refund_requests(status);
 
 ALTER TABLE refund_requests ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS refund_req_staff_select ON refund_requests;
-CREATE POLICY refund_req_staff_select ON refund_requests FOR SELECT USING (is_staff(auth.uid()));
+DROP POLICY IF EXISTS refund_staff_all ON refund_requests;
+CREATE POLICY refund_staff_all ON refund_requests FOR ALL USING (is_staff(auth.uid()));
 
-DROP POLICY IF EXISTS refund_req_seller_select ON refund_requests;
-CREATE POLICY refund_req_seller_select ON refund_requests FOR SELECT USING (
-  EXISTS (SELECT 1 FROM canteen_sellers cs WHERE cs.id = seller_id AND cs.profile_id = auth.uid())
+DROP POLICY IF EXISTS refund_seller_select ON refund_requests;
+CREATE POLICY refund_seller_select ON refund_requests FOR SELECT USING (
+    EXISTS (SELECT 1 FROM canteen_sellers cs WHERE cs.id = refund_requests.seller_id AND cs.profile_id = auth.uid())
 );
 
-DROP POLICY IF EXISTS refund_req_staff_insert ON refund_requests;
-CREATE POLICY refund_req_staff_insert ON refund_requests FOR INSERT WITH CHECK (is_staff(auth.uid()));
-
-DROP POLICY IF EXISTS refund_req_seller_update ON refund_requests;
-CREATE POLICY refund_req_seller_update ON refund_requests FOR UPDATE USING (
-  EXISTS (SELECT 1 FROM canteen_sellers cs WHERE cs.id = seller_id AND cs.profile_id = auth.uid())
+DROP POLICY IF EXISTS refund_seller_update ON refund_requests;
+CREATE POLICY refund_seller_update ON refund_requests FOR UPDATE USING (
+    EXISTS (SELECT 1 FROM canteen_sellers cs WHERE cs.id = refund_requests.seller_id AND cs.profile_id = auth.uid())
 );
 
 -- RPC: Seller approves refund
@@ -73,7 +72,7 @@ BEGIN
   RETURNING id INTO v_refund_tx_id;
 
   -- Update request status
-  UPDATE refund_requests SET status = 'approved', responded_at = now() WHERE id = p_request_id;
+  UPDATE refund_requests SET status = 'approved', responded_by = auth.uid(), responded_at = now() WHERE id = p_request_id;
 
   RETURN jsonb_build_object('success', true, 'transaction_id', v_refund_tx_id, 'new_balance', v_new_balance);
 END;
@@ -94,10 +93,8 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Not authorized');
   END IF;
 
-  UPDATE refund_requests SET status = 'rejected', responded_at = now() WHERE id = p_request_id;
+  UPDATE refund_requests SET status = 'rejected', responded_by = auth.uid(), responded_at = now() WHERE id = p_request_id;
 
   RETURN jsonb_build_object('success', true);
 END;
 $func$;
-
-ALTER PUBLICATION supabase_realtime ADD TABLE refund_requests;

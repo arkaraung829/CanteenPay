@@ -71,16 +71,15 @@ export async function POST(request: NextRequest) {
       return Response.json({ success: false, error: 'Wallet not found' }, { status: 404 });
     }
 
-    // Check for existing pending request
+    // Check for existing refund request (unique constraint on transaction_id)
     const { data: existing } = await supabase
       .from('refund_requests')
-      .select('id')
+      .select('id, status')
       .eq('transaction_id', transaction_id)
-      .eq('status', 'pending')
       .maybeSingle();
 
     if (existing) {
-      return Response.json({ success: false, error: 'A refund request already exists for this transaction' }, { status: 400 });
+      return Response.json({ success: false, error: `A refund request already exists for this transaction (status: ${existing.status})` }, { status: 400 });
     }
 
     // If no seller (e.g. admin-created purchase), process refund directly

@@ -225,6 +225,10 @@ class _CanteenPayAppState extends State<CanteenPayApp> {
           try {
             void handleTap(Map<String, dynamic> data) {
               final type = data['type']?.toString();
+              if (type == 'refund_request') {
+                router.go('/seller/refunds');
+                return;
+              }
               if (type == 'announcement') {
                 NotificationsScreen.openAnnouncements = true;
               }

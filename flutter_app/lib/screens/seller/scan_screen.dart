@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:canteen_common/canteen_common.dart';
 
 import '../../providers/scanner_provider.dart';
@@ -26,6 +27,7 @@ class _ScanScreenState extends State<ScanScreen> {
   bool _hasLoadedSales = false;
   bool _scannerActive = false;
   String? _scanError;
+  int _pendingRefundCount = 0;
 
   @override
   void initState() {
@@ -45,8 +47,37 @@ class _ScanScreenState extends State<ScanScreen> {
         final auth = context.read<AuthProvider>();
         if (auth.isAuthenticated && auth.user != null) {
           context.read<SalesProvider>().loadTodaySales(auth.user!.id);
+          _loadPendingRefundCount();
         }
       });
+    }
+  }
+
+  Future<void> _loadPendingRefundCount() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final seller = await supabase
+          .from('canteen_sellers')
+          .select('id')
+          .eq('profile_id', userId)
+          .maybeSingle();
+
+      if (seller == null) return;
+
+      final data = await supabase
+          .from('refund_requests')
+          .select('id')
+          .eq('seller_id', seller['id'])
+          .eq('status', 'pending');
+
+      if (mounted) {
+        setState(() => _pendingRefundCount = (data as List).length);
+      }
+    } catch (e) {
+      debugPrint('ScanScreen: failed to load refund count: $e');
     }
   }
 
@@ -183,6 +214,42 @@ class _ScanScreenState extends State<ScanScreen> {
                           ),
                         );
                       },
+                    ),
+                    const SizedBox(width: 8),
+                    // Refund requests badge
+                    GestureDetector(
+                      onTap: () async {
+                        await context.push('/seller/refunds');
+                        if (mounted) _loadPendingRefundCount();
+                      },
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.receipt_long_outlined, color: Colors.white, size: 24),
+                          if (_pendingRefundCount > 0)
+                            Positioned(
+                              right: -6,
+                              top: -4,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.orange,
+                                  shape: BoxShape.circle,
+                                ),
+                                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                                child: Text(
+                                  '$_pendingRefundCount',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(

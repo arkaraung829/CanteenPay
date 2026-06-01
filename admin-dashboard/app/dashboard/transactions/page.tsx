@@ -22,6 +22,12 @@ interface TxRow {
   created_at: string;
 }
 
+interface RefundRequest {
+  id: string;
+  transaction_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+}
+
 export default function TransactionsPage() {
   const { selectedSchoolId } = useSchoolContext();
   const [transactions, setTransactions] = useState<TxRow[]>([]);
@@ -41,6 +47,7 @@ export default function TransactionsPage() {
   const [refundReason, setRefundReason] = useState('');
   const [refundLoading, setRefundLoading] = useState(false);
   const [refundError, setRefundError] = useState('');
+  const [refundRequests, setRefundRequests] = useState<RefundRequest[]>([]);
 
   const fetchTransactions = useCallback(async () => {
     setLoading(true);
@@ -140,9 +147,26 @@ export default function TransactionsPage() {
     setTransactions(mapped.slice(0, PAGE_SIZE));
   }
 
+  const fetchRefundRequests = useCallback(async () => {
+    try {
+      const res = await authFetch('/api/refunds');
+      const json = await res.json();
+      if (json.success && json.data) {
+        setRefundRequests(json.data.map((r: Record<string, unknown>) => ({
+          id: r.id as string,
+          transaction_id: r.transaction_id as string,
+          status: r.status as 'pending' | 'approved' | 'rejected',
+        })));
+      }
+    } catch {
+      // Silent fail — badges just won't show
+    }
+  }, []);
+
   useEffect(() => {
     fetchTransactions();
-  }, [fetchTransactions]);
+    fetchRefundRequests();
+  }, [fetchTransactions, fetchRefundRequests]);
 
   async function handleRefund() {
     if (!refundTx) return;
@@ -166,11 +190,12 @@ export default function TransactionsPage() {
       setRefundTx(null);
       setRefundReason('');
       if (json.pending) {
-        alert('Refund request sent to seller for approval.');
+        alert('Refund requested — waiting for seller approval.');
       } else {
         alert('Refund processed directly.');
       }
       fetchTransactions();
+      fetchRefundRequests();
     } catch {
       setRefundError('Network error');
     }
@@ -293,14 +318,38 @@ export default function TransactionsPage() {
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{tx.seller_name}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-xs text-gray-400 font-mono">{tx.id.substring(0, 8)}</td>
                     <td className="whitespace-nowrap px-6 py-4">
-                      {tx.type === 'purchase' && (
-                        <button
-                          onClick={() => { setRefundTx(tx); setRefundReason(''); setRefundError(''); }}
-                          className="text-xs font-medium text-orange-600 hover:text-orange-800"
-                        >
-                          Refund
-                        </button>
-                      )}
+                      {tx.type === 'purchase' && (() => {
+                        const refundReq = refundRequests.find(r => r.transaction_id === tx.id);
+                        if (refundReq?.status === 'pending') {
+                          return (
+                            <span className="inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800">
+                              Pending Refund
+                            </span>
+                          );
+                        }
+                        if (refundReq?.status === 'approved') {
+                          return (
+                            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                              Refunded
+                            </span>
+                          );
+                        }
+                        if (refundReq?.status === 'rejected') {
+                          return (
+                            <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
+                              Refund Rejected
+                            </span>
+                          );
+                        }
+                        return (
+                          <button
+                            onClick={() => { setRefundTx(tx); setRefundReason(''); setRefundError(''); }}
+                            className="text-xs font-medium text-orange-600 hover:text-orange-800"
+                          >
+                            Refund
+                          </button>
+                        );
+                      })()}
                     </td>
                   </tr>
                 ))
@@ -367,7 +416,7 @@ export default function TransactionsPage() {
                 disabled={refundLoading}
                 className="flex-1 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
               >
-                {refundLoading ? 'Processing...' : 'Confirm Refund'}
+                {refundLoading ? 'Processing...' : 'Request Refund'}
               </button>
             </div>
           </div>

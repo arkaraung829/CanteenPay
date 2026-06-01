@@ -16,6 +16,7 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
   List<Map<String, dynamic>> _requests = [];
   bool _loading = true;
   String? _sellerId;
+  String? _processingId;
 
   @override
   void initState() {
@@ -44,7 +45,7 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
 
       final data = await _supabase
           .from('refund_requests')
-          .select('id, amount, reason, status, created_at, students(full_name, student_code)')
+          .select('id, amount, reason, status, created_at, transaction_id, students(full_name, student_code)')
           .eq('seller_id', _sellerId!)
           .order('created_at', ascending: false);
 
@@ -58,18 +59,27 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
     }
   }
 
-  Future<void> _approve(String requestId) async {
+  Future<void> _respond(String requestId, String action) async {
+    final isApprove = action == 'approve';
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Approve Refund'),
-        content: const Text('Money will be returned to the student. Are you sure?'),
+        title: Text(isApprove ? 'Approve Refund' : 'Reject Refund'),
+        content: Text(isApprove
+            ? 'Money will be returned to the student. Are you sure?'
+            : 'The refund will be rejected and no money will be moved.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            child: const Text('Approve'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isApprove ? Colors.green : AppTheme.error,
+            ),
+            child: Text(isApprove ? 'Approve' : 'Reject'),
           ),
         ],
       ),
@@ -77,16 +87,26 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
 
     if (confirmed != true) return;
 
+    setState(() => _processingId = requestId);
+
     try {
-      final result = await _supabase.rpc('approve_refund_request', params: {
-        'p_request_id': requestId,
+      final result = await _supabase.rpc('respond_to_refund', params: {
+        'p_refund_id': requestId,
+        'p_action': action,
       });
 
       if (result is Map && result['success'] == true) {
-        HapticFeedback.heavyImpact();
+        if (isApprove) {
+          HapticFeedback.heavyImpact();
+        } else {
+          HapticFeedback.mediumImpact();
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Refund approved'), backgroundColor: Colors.green),
+            SnackBar(
+              content: Text(isApprove ? 'Refund approved' : 'Refund rejected'),
+              backgroundColor: isApprove ? Colors.green : null,
+            ),
           );
         }
         _load();
@@ -104,48 +124,8 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
           SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.error),
         );
       }
-    }
-  }
-
-  Future<void> _reject(String requestId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Reject Refund'),
-        content: const Text('The refund will be rejected and no money will be moved.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
-            child: const Text('Reject'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    try {
-      final result = await _supabase.rpc('reject_refund_request', params: {
-        'p_request_id': requestId,
-      });
-
-      if (result is Map && result['success'] == true) {
-        HapticFeedback.mediumImpact();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Refund rejected')),
-          );
-        }
-        _load();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppTheme.error),
-        );
-      }
+    } finally {
+      if (mounted) setState(() => _processingId = null);
     }
   }
 
@@ -174,8 +154,18 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
               child: Center(
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(12)),
-                  child: Text('${pending.length} pending', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white)),
+                  decoration: BoxDecoration(
+                    color: Colors.orange,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${pending.length} pending',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -190,23 +180,37 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
                     children: [
                       Icon(Icons.receipt_long_outlined, size: 48, color: AppTheme.textHint),
                       SizedBox(height: 12),
-                      Text('No refund requests', style: TextStyle(color: AppTheme.textSecondary)),
+                      Text(
+                        'No pending refund requests',
+                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 15),
+                      ),
                     ],
                   ),
                 )
               : RefreshIndicator(
+                  color: AppTheme.primary,
                   onRefresh: _load,
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
                       if (pending.isNotEmpty) ...[
-                        const Text('Pending Approval', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                        const Text(
+                          'Pending Approval',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
                         const SizedBox(height: 8),
                         ...pending.map((r) => _buildCard(r, isPending: true)),
                         const SizedBox(height: 24),
                       ],
                       if (processed.isNotEmpty) ...[
-                        Text('History', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey[600])),
+                        Text(
+                          'History',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey[600],
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         ...processed.map((r) => _buildCard(r, isPending: false)),
                       ],
@@ -223,8 +227,13 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
     final amount = r['amount'] as int;
     final status = r['status'] as String;
     final reason = r['reason'] as String?;
+    final isProcessing = _processingId == r['id'];
 
-    final statusColor = status == 'approved' ? Colors.green : status == 'rejected' ? AppTheme.error : Colors.orange;
+    final statusColor = status == 'approved'
+        ? Colors.green
+        : status == 'rejected'
+            ? AppTheme.error
+            : Colors.orange;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -232,7 +241,9 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: isPending ? Border.all(color: Colors.orange.withValues(alpha: 0.4)) : null,
+        border: isPending
+            ? Border.all(color: Colors.orange.withValues(alpha: 0.4))
+            : null,
         boxShadow: isPending ? AppTheme.shadowSm : null,
       ),
       child: Column(
@@ -247,8 +258,13 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(
-                  isPending ? Icons.pending : status == 'approved' ? Icons.check_circle : Icons.cancel,
-                  color: statusColor, size: 20,
+                  isPending
+                      ? Icons.pending
+                      : status == 'approved'
+                          ? Icons.check_circle
+                          : Icons.cancel,
+                  color: statusColor,
+                  size: 20,
                 ),
               ),
               const SizedBox(width: 12),
@@ -256,31 +272,60 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(studentName, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
-                    Text(studentCode, style: TextStyle(fontSize: 11, color: Colors.grey[500])),
+                    Text(
+                      studentName,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      studentCode,
+                      style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                    ),
                   ],
                 ),
               ),
               Text(
-                '${amount.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')} MMK',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: statusColor),
+                CurrencyFormatter.formatMMK(amount),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor,
+                ),
               ),
             ],
           ),
           if (reason != null && reason.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Text('Reason: $reason', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+            Text(
+              'Reason: $reason',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
           ],
           const SizedBox(height: 4),
           Row(
             children: [
-              Text(_timeAgo(r['created_at']), style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+              Text(
+                _timeAgo(r['created_at']),
+                style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+              ),
               const Spacer(),
               if (!isPending)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(6)),
-                  child: Text(status.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: statusColor)),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    status.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: statusColor,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -290,11 +335,13 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: () => _reject(r['id']),
+                    onPressed: isProcessing ? null : () => _respond(r['id'], 'reject'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppTheme.error,
                       side: const BorderSide(color: AppTheme.error),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: const Text('Reject'),
                   ),
@@ -302,13 +349,24 @@ class _RefundRequestsScreenState extends State<RefundRequestsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _approve(r['id']),
+                    onPressed: isProcessing ? null : () => _respond(r['id'], 'approve'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    child: const Text('Approve'),
+                    child: isProcessing
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Approve'),
                   ),
                 ),
               ],
