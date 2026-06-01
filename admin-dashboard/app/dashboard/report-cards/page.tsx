@@ -777,7 +777,7 @@ export default function ReportCardsPage() {
                           </button>
                           <button
                             onClick={async () => {
-                              if (!confirm(`Delete report card for ${rc.student_name}?`)) return;
+                              if (!confirm(`Delete report card for ${rc.students.full_name}?`)) return;
                               try {
                                 await authFetch('/api/report-cards', {
                                   method: 'DELETE',
