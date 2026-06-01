@@ -17,6 +17,7 @@ class ReportCardScreen extends StatefulWidget {
 
 class _ReportCardScreenState extends State<ReportCardScreen> {
   String? _selectedTerm;
+  String? _selectedYear;
   bool _isLoading = true;
 
   @override
@@ -91,11 +92,26 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
         fullName: 'Unknown',
       ),
     );
-    final reportCards = provider.getReportCards(widget.childId);
+    final allReportCards = provider.getReportCards(widget.childId);
 
-    // Collect unique terms
+    // Collect unique academic years
+    final years = allReportCards.map((rc) => rc.academicYear).toSet().toList()..sort();
+    if (_selectedYear == null && years.isNotEmpty) {
+      _selectedYear = years.last; // default to latest year
+    }
+
+    // Filter by selected year
+    final reportCards = _selectedYear != null
+        ? allReportCards.where((rc) => rc.academicYear == _selectedYear).toList()
+        : allReportCards;
+
+    // Collect unique terms for selected year
     final terms = reportCards.map((rc) => rc.term).toSet().toList();
     if (_selectedTerm == null && terms.isNotEmpty) {
+      _selectedTerm = terms.first;
+    }
+    // Reset term if not in current year's terms
+    if (_selectedTerm != null && !terms.contains(_selectedTerm) && terms.isNotEmpty) {
       _selectedTerm = terms.first;
     }
 
@@ -129,6 +145,34 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   children: [
                     const SizedBox(height: 16),
+
+                    // -- Academic Year Selector --
+                    if (years.isNotEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _selectedYear,
+                            isExpanded: true,
+                            items: years.map((y) => DropdownMenuItem(
+                              value: y,
+                              child: Text('Academic Year: $y', style: const TextStyle(fontSize: 14)),
+                            )).toList(),
+                            onChanged: (y) => setState(() {
+                              _selectedYear = y;
+                              _selectedTerm = null; // reset term for new year
+                            }),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
 
                     // -- Term Selector --
                     if (terms.length > 1) ...[
