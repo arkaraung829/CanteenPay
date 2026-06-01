@@ -24,9 +24,11 @@ function generateAcademicYears(currentAcademicYear: string): string[] {
   const parts = currentAcademicYear.split('-');
   const startYear = parseInt(parts[0], 10);
   return [
+    `${startYear - 2}-${startYear - 1}`,
     `${startYear - 1}-${startYear}`,
     `${startYear}-${startYear + 1}`,
     `${startYear + 1}-${startYear + 2}`,
+    `${startYear + 2}-${startYear + 3}`,
   ];
 }
 
