@@ -6,7 +6,7 @@ import { useSchoolContext } from '@/lib/school-context';
 import { supabase } from '@/lib/supabase';
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Loader2, FileText, Download, ChevronDown, ChevronUp, Save, RefreshCw,
+  Loader2, FileText, Download, ChevronDown, ChevronUp, Save, RefreshCw, Trash2,
 } from 'lucide-react';
 
 interface GradeOption {
@@ -460,15 +460,43 @@ export default function ReportCardsPage() {
     if (w) { w.document.write(html); w.document.close(); w.print(); }
   }
 
-  // Export CSV
-  function handleExportCSV() {
+  // Export CSV with subject scores
+  async function handleExportCSV() {
     if (reportCards.length === 0) return;
+
+    // Fetch all student grades for this class/year
+    const studentIds = reportCards.map(rc => rc.student_id);
+    const { data: allGrades } = await supabase
+      .from('student_grades')
+      .select('student_id, score, full_marks, letter_grade, subjects(name)')
+      .in('student_id', studentIds)
+      .eq('academic_year', academicYear);
+
+    // Get unique subjects
+    const subjectNames = [...new Set((allGrades || []).map((g: Record<string, unknown>) => {
+      const sub = g.subjects as { name: string } | { name: string }[] | null;
+      return Array.isArray(sub) ? sub[0]?.name : sub?.name || '';
+    }).filter(Boolean))];
+
+    // Build student → subject → score map
+    const scoreMap: Record<string, Record<string, string>> = {};
+    (allGrades || []).forEach((g: Record<string, unknown>) => {
+      const sid = g.student_id as string;
+      const sub = g.subjects as { name: string } | { name: string }[] | null;
+      const subName = Array.isArray(sub) ? sub[0]?.name : sub?.name || '';
+      if (!scoreMap[sid]) scoreMap[sid] = {};
+      scoreMap[sid][subName] = `${g.score ?? '-'}/${g.full_marks} (${g.letter_grade || '-'})`;
+    });
+
     const lines: string[] = [];
-    lines.push('Student Name,Student Code,Total Score,Total Full Marks,Percentage,Rank,Grade,Result,Teacher Comment');
+    const header = ['Student Name', 'Student Code', ...subjectNames, 'Total Score', 'Total Full Marks', 'Percentage', 'Rank', 'Grade', 'Result', 'Comment'];
+    lines.push(header.map(h => `"${h}"`).join(','));
+
     reportCards.forEach(rc => {
       const s = rc.students;
+      const scores = subjectNames.map(sub => `"${scoreMap[rc.student_id]?.[sub] || '-'}"`);
       lines.push(
-        `"${s.full_name}","${s.student_code}",${rc.total_score ?? ''},${rc.total_full_marks ?? ''},${rc.percentage ?? ''},${rc.rank_in_class ?? ''},"${rc.overall_grade || ''}","${rc.result || ''}","${(rc.teacher_comment || '').replace(/"/g, '""')}"`
+        `"${s.full_name}","${s.student_code}",${scores.join(',')},${rc.total_score ?? ''},${rc.total_full_marks ?? ''},${rc.percentage ?? ''},${rc.rank_in_class ?? ''},"${rc.overall_grade || ''}","${rc.result || ''}","${(rc.teacher_comment || '').replace(/"/g, '""')}"`
       );
     });
     const csv = lines.join('\n');
@@ -746,6 +774,23 @@ export default function ReportCardsPage() {
                             ) : (
                               <ChevronDown className="h-5 w-5" />
                             )}
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Delete report card for ${rc.student_name}?`)) return;
+                              try {
+                                await authFetch('/api/report-cards', {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: rc.id }),
+                                });
+                                fetchReportCards();
+                              } catch { /* silent */ }
+                            }}
+                            className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                            title="Delete report card"
+                          >
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       </td>

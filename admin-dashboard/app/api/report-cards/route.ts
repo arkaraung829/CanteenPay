@@ -219,3 +219,36 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+// DELETE: delete a report card
+export async function DELETE(request: NextRequest) {
+  const auth = await verifyAdmin(request);
+  if (!auth) return unauthorizedResponse();
+
+  const supabase = createAdminClient();
+
+  try {
+    const body = await request.json();
+    const { id } = body;
+
+    if (!id) {
+      return Response.json({ success: false, error: 'Report card ID required' }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from('report_cards')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      return Response.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    return Response.json({ success: true });
+  } catch (err) {
+    return Response.json(
+      { success: false, error: err instanceof Error ? err.message : 'Invalid request' },
+      { status: 400 }
+    );
+  }
+}
