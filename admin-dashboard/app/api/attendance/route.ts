@@ -8,7 +8,11 @@ export async function GET(request: NextRequest) {
 
   const supabase = createAdminClient();
   const searchParams = request.nextUrl.searchParams;
-  const date = searchParams.get('date') || new Date().toISOString().split('T')[0];
+  // Use Myanmar timezone (UTC+6:30) for default date
+  const now = new Date();
+  const myanmarTime = new Date(now.getTime() + 6.5 * 60 * 60 * 1000);
+  const defaultDate = `${myanmarTime.getUTCFullYear()}-${String(myanmarTime.getUTCMonth() + 1).padStart(2, '0')}-${String(myanmarTime.getUTCDate()).padStart(2, '0')}`;
+  const date = searchParams.get('date') || defaultDate;
   const grade = searchParams.get('grade') || '';
   const className = searchParams.get('class_name') || '';
   const schoolId = searchParams.get('school_id') || '';

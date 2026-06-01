@@ -79,9 +79,9 @@ Deno.serve(async (req) => {
     const payload: WebhookPayload = await req.json();
     const record = payload.record;
 
-    // Only notify on present (scanned attendance)
-    if (record.status !== 'present') {
-      return new Response(JSON.stringify({ message: 'Skipped: not present' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    // Only notify on INSERT + present (not UPDATE — prevents duplicate notifications)
+    if (payload.type !== 'INSERT' || record.status !== 'present') {
+      return new Response(JSON.stringify({ message: 'Skipped: not new present record' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
 
     if (!fcmServiceAccountJson) {
