@@ -272,6 +272,37 @@ class SupabaseService {
     }
   }
 
+  // ============================================================================
+  // PARENT VISIBILITY
+  // ============================================================================
+
+  /// Get parent visibility settings for a specific grade within a school.
+  /// Returns a map with keys: report_cards, attendance, spending (all bool).
+  /// Falls back to 'default' grade settings, then to all-true.
+  Future<Map<String, bool>> getParentVisibility(String schoolId, String grade) async {
+    try {
+      final response = await _client
+          .from('schools')
+          .select('settings')
+          .eq('id', schoolId)
+          .single();
+
+      final settings = response['settings'] as Map<String, dynamic>? ?? {};
+      final visibility = settings['parent_visibility'] as Map<String, dynamic>? ?? {};
+      final gradeSettings = visibility[grade] as Map<String, dynamic>? ??
+                            visibility['default'] as Map<String, dynamic>? ?? {};
+
+      return {
+        'report_cards': gradeSettings['report_cards'] as bool? ?? true,
+        'attendance': gradeSettings['attendance'] as bool? ?? true,
+        'spending': gradeSettings['spending'] as bool? ?? true,
+      };
+    } catch (e) {
+      debugPrint('SupabaseService: getParentVisibility failed: $e');
+      return {'report_cards': true, 'attendance': true, 'spending': true};
+    }
+  }
+
   /// Search students by name or student code within a school
   Future<List<StudentModel>> searchStudents(
     String query,

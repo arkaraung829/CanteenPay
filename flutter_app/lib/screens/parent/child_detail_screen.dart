@@ -28,6 +28,13 @@ class _ChildDetailScreenState extends State<ChildDetailScreen>
   late DateTime _attendanceMonth = DateTime(DateTime.now().year, DateTime.now().month);
   late final TabController _tabController;
 
+  // Parent visibility controls
+  Map<String, bool> _visibility = {
+    'report_cards': true,
+    'attendance': true,
+    'spending': true,
+  };
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +54,29 @@ class _ChildDetailScreenState extends State<ChildDetailScreen>
       _hasRefreshed = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         context.read<ChildrenProvider>().refreshChildTransactions(childId);
+        _loadVisibility();
+      });
+    }
+  }
+
+  Future<void> _loadVisibility() async {
+    final provider = context.read<ChildrenProvider>();
+    final child = provider.children.firstWhere(
+      (c) => c.id == childId,
+      orElse: () => StudentModel(
+        id: childId,
+        profileId: '',
+        schoolId: '',
+        studentCode: '',
+        fullName: 'Unknown',
+      ),
+    );
+    if (child.schoolId.isEmpty) return;
+    final grade = child.grade ?? '';
+    final vis = await SupabaseService.instance.getParentVisibility(child.schoolId, grade);
+    if (mounted) {
+      setState(() {
+        _visibility = vis;
       });
     }
   }
@@ -371,79 +401,9 @@ class _ChildDetailScreenState extends State<ChildDetailScreen>
               children: [
                 const SizedBox(height: 16),
 
-                // -- Weekly Spending Chart with navigation --
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Weekly Spending',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.chevron_left, size: 22),
-                          onPressed: () => setState(() => _weekOffset--),
-                          visualDensity: VisualDensity.compact,
-                          tooltip: 'Previous week',
-                        ),
-                        GestureDetector(
-                          onTap: _weekOffset != 0 ? () => setState(() => _weekOffset = 0) : null,
-                          child: Text(
-                            _weekLabel(_weekOffset),
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: _weekOffset == 0 ? AppTheme.primary : AppTheme.textSecondary,
-                            ),
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.chevron_right, size: 22),
-                          onPressed: _weekOffset < 0 ? () => setState(() => _weekOffset++) : null,
-                          visualDensity: VisualDensity.compact,
-                          tooltip: 'Next week',
-                          color: _weekOffset < 0 ? null : Colors.grey[300],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: AppTheme.shadowSm,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: SpendingChart(
-                      weeklyData: provider.getWeeklySpending(childId, weekOffset: _weekOffset),
-                      weekOffset: _weekOffset,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // -- Transaction History --
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Transaction History',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                    ),
-                    TextButton(
-                      onPressed: () => context.push('/parent/child/$childId/history'),
-                      child: const Text('See All', style: TextStyle(fontSize: 13)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                if (transactions.isEmpty)
+                if (_visibility['spending'] == false) ...[
                   Container(
-                    padding: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
@@ -452,29 +412,120 @@ class _ChildDetailScreenState extends State<ChildDetailScreen>
                     child: const Center(
                       child: Column(
                         children: [
-                          Icon(Icons.receipt_long_outlined, size: 32, color: AppTheme.textHint),
+                          Icon(Icons.visibility_off_outlined, size: 32, color: AppTheme.textHint),
                           SizedBox(height: 8),
-                          Text('No transactions yet',
+                          Text('Spending data is not available yet',
                               style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
                         ],
                       ),
                     ),
-                  )
-                else
+                  ),
+                ] else ...[
+                  // -- Weekly Spending Chart with navigation --
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Weekly Spending',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left, size: 22),
+                            onPressed: () => setState(() => _weekOffset--),
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Previous week',
+                          ),
+                          GestureDetector(
+                            onTap: _weekOffset != 0 ? () => setState(() => _weekOffset = 0) : null,
+                            child: Text(
+                              _weekLabel(_weekOffset),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: _weekOffset == 0 ? AppTheme.primary : AppTheme.textSecondary,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right, size: 22),
+                            onPressed: _weekOffset < 0 ? () => setState(() => _weekOffset++) : null,
+                            visualDensity: VisualDensity.compact,
+                            tooltip: 'Next week',
+                            color: _weekOffset < 0 ? null : Colors.grey[300],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       boxShadow: AppTheme.shadowSm,
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      children: transactions
-                          .take(10)
-                          .map((tx) => TransactionTile(transaction: tx))
-                          .toList(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SpendingChart(
+                        weeklyData: provider.getWeeklySpending(childId, weekOffset: _weekOffset),
+                        weekOffset: _weekOffset,
+                      ),
                     ),
                   ),
+                  const SizedBox(height: 24),
+
+                  // -- Transaction History --
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Transaction History',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      ),
+                      TextButton(
+                        onPressed: () => context.push('/parent/child/$childId/history'),
+                        child: const Text('See All', style: TextStyle(fontSize: 13)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  if (transactions.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: AppTheme.shadowSm,
+                      ),
+                      child: const Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.receipt_long_outlined, size: 32, color: AppTheme.textHint),
+                            SizedBox(height: 8),
+                            Text('No transactions yet',
+                                style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: AppTheme.shadowSm,
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: transactions
+                            .take(10)
+                            .map((tx) => TransactionTile(transaction: tx))
+                            .toList(),
+                      ),
+                    ),
+                ],
                 const SizedBox(height: 32),
               ],
             ),
@@ -485,49 +536,98 @@ class _ChildDetailScreenState extends State<ChildDetailScreen>
               children: [
                 const SizedBox(height: 16),
 
-                // -- Attendance Summary --
-                const Text(
-                  'Attendance',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _QuickStat(
-                      icon: Icons.check_circle_outline,
-                      label: 'Present',
-                      value: '$presentCount',
-                      color: AppTheme.success,
+                // -- Attendance Section --
+                if (_visibility['attendance'] == false) ...[
+                  const Text(
+                    'Attendance',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: AppTheme.shadowSm,
                     ),
-                    const SizedBox(width: 12),
-                    _QuickStat(
-                      icon: Icons.cancel_outlined,
-                      label: 'Absent',
-                      value: '$absentCount',
-                      color: AppTheme.error,
+                    child: const Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.visibility_off_outlined, size: 32, color: AppTheme.textHint),
+                          SizedBox(height: 8),
+                          Text('Attendance is not available yet',
+                              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
+                  ),
+                ] else ...[
+                  // -- Attendance Summary --
+                  const Text(
+                    'Attendance',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _QuickStat(
+                        icon: Icons.check_circle_outline,
+                        label: 'Present',
+                        value: '$presentCount',
+                        color: AppTheme.success,
+                      ),
+                      const SizedBox(width: 12),
+                      _QuickStat(
+                        icon: Icons.cancel_outlined,
+                        label: 'Absent',
+                        value: '$absentCount',
+                        color: AppTheme.error,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
 
-                // -- Attendance Calendar --
-                AttendanceCalendar(
-                  attendanceMap: attendanceMap,
-                  selectedMonth: _attendanceMonth,
-                  onMonthChanged: (month) => setState(() => _attendanceMonth = month),
-                ),
+                  // -- Attendance Calendar --
+                  AttendanceCalendar(
+                    attendanceMap: attendanceMap,
+                    selectedMonth: _attendanceMonth,
+                    onMonthChanged: (month) => setState(() => _attendanceMonth = month),
+                  ),
+                ],
                 const SizedBox(height: 24),
 
-                // -- Report Card Button --
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/parent/child/$childId/report-card'),
-                  icon: const Icon(Icons.assignment, size: 18),
-                  label: const Text('Report Card'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                // -- Report Card Section --
+                if (_visibility['report_cards'] == false) ...[
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: AppTheme.shadowSm,
+                    ),
+                    child: const Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.visibility_off_outlined, size: 32, color: AppTheme.textHint),
+                          SizedBox(height: 8),
+                          Text('Report cards are not available yet',
+                              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ] else ...[
+                  // -- Report Card Button --
+                  OutlinedButton.icon(
+                    onPressed: () => context.push('/parent/child/$childId/report-card'),
+                    icon: const Icon(Icons.assignment, size: 18),
+                    label: const Text('Report Card'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 32),
               ],
             ),

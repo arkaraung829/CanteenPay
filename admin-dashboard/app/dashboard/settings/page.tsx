@@ -105,6 +105,21 @@ function normalizeGradingScale(raw: unknown): GradeScaleEntry[] {
   return DEFAULT_GRADING_SCALE;
 }
 
+// --- Parent Visibility Types ---
+interface ParentVisibilityEntry {
+  report_cards: boolean;
+  attendance: boolean;
+  spending: boolean;
+}
+
+type ParentVisibilityMap = Record<string, ParentVisibilityEntry>;
+
+const DEFAULT_VISIBILITY: ParentVisibilityEntry = {
+  report_cards: false,
+  attendance: true,
+  spending: true,
+};
+
 // --- School Settings Types ---
 interface SchoolSettingsData {
   // Direct school columns
@@ -125,6 +140,8 @@ interface SchoolSettingsData {
   low_balance_alert_threshold: string;
   // Grading scale (new array format)
   grading_scale: GradeScaleEntry[];
+  // Parent visibility per grade
+  parent_visibility: ParentVisibilityMap;
 }
 
 const DEFAULT_SETTINGS: SchoolSettingsData = {
@@ -143,6 +160,7 @@ const DEFAULT_SETTINGS: SchoolSettingsData = {
   default_daily_spending_limit: '5000',
   low_balance_alert_threshold: '1000',
   grading_scale: DEFAULT_GRADING_SCALE,
+  parent_visibility: { default: { ...DEFAULT_VISIBILITY } },
 };
 
 const MONTHS = [
@@ -194,7 +212,7 @@ function SettingsSection({
 }
 
 // --- School Settings Component ---
-function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
+function SchoolSettingsPanel({ schoolId, grades }: { schoolId: string; grades: GradeItem[] }) {
   const [settings, setSettings] = useState<SchoolSettingsData>(DEFAULT_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -226,6 +244,9 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
           default_daily_spending_limit: s.default_daily_spending_limit?.toString() || DEFAULT_SETTINGS.default_daily_spending_limit,
           low_balance_alert_threshold: s.low_balance_alert_threshold?.toString() || DEFAULT_SETTINGS.low_balance_alert_threshold,
           grading_scale: normalizeGradingScale(s.grading_scale),
+          parent_visibility: s.parent_visibility && typeof s.parent_visibility === 'object'
+            ? (s.parent_visibility as ParentVisibilityMap)
+            : { default: { ...DEFAULT_VISIBILITY } },
         });
       }
     } catch {
@@ -273,6 +294,7 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
             default_daily_spending_limit: parseInt(settings.default_daily_spending_limit) || 0,
             low_balance_alert_threshold: parseInt(settings.low_balance_alert_threshold) || 0,
             grading_scale: settings.grading_scale,
+            parent_visibility: settings.parent_visibility,
           },
         }),
       });
@@ -547,6 +569,108 @@ function SchoolSettingsPanel({ schoolId }: { schoolId: string }) {
           <Plus className="h-4 w-4" />
           Add Grade
         </button>
+      </SettingsSection>
+
+      {/* Parent Visibility */}
+      <SettingsSection icon={Eye} title="Parent Visibility">
+        <p className="text-sm text-gray-500 mb-4">
+          Control what parents can see for each grade level. The &quot;Default&quot; row applies to any grade not explicitly configured.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th className="py-2 pr-4 text-left font-medium text-gray-700">Grade</th>
+                <th className="py-2 px-4 text-center font-medium text-gray-700">Report Cards</th>
+                <th className="py-2 px-4 text-center font-medium text-gray-700">Attendance</th>
+                <th className="py-2 px-4 text-center font-medium text-gray-700">Spending</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Default row */}
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <td className="py-3 pr-4 font-medium text-gray-900">Default</td>
+                {(['report_cards', 'attendance', 'spending'] as const).map((field) => (
+                  <td key={field} className="py-3 px-4 text-center">
+                    <button
+                      onClick={() => {
+                        setSettings(prev => ({
+                          ...prev,
+                          parent_visibility: {
+                            ...prev.parent_visibility,
+                            default: {
+                              ...(prev.parent_visibility.default || DEFAULT_VISIBILITY),
+                              [field]: !(prev.parent_visibility.default || DEFAULT_VISIBILITY)[field],
+                            },
+                          },
+                        }));
+                      }}
+                      className="inline-flex"
+                    >
+                      <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        (settings.parent_visibility.default || DEFAULT_VISIBILITY)[field] ? 'bg-green-500' : 'bg-gray-300'
+                      }`}>
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                          (settings.parent_visibility.default || DEFAULT_VISIBILITY)[field] ? 'translate-x-4' : 'translate-x-1'
+                        }`} />
+                      </div>
+                    </button>
+                  </td>
+                ))}
+              </tr>
+              {/* Grade rows */}
+              {grades.filter(g => g.is_active).map((grade) => {
+                const gradeVis = settings.parent_visibility[grade.name];
+                const effectiveVis = gradeVis || settings.parent_visibility.default || DEFAULT_VISIBILITY;
+                const isCustomized = !!gradeVis;
+                return (
+                  <tr key={grade.id} className="border-b border-gray-100">
+                    <td className="py-3 pr-4">
+                      <span className="font-medium text-gray-900">{grade.name}</span>
+                      {!isCustomized && (
+                        <span className="ml-2 text-xs text-gray-400">(using default)</span>
+                      )}
+                    </td>
+                    {(['report_cards', 'attendance', 'spending'] as const).map((field) => (
+                      <td key={field} className="py-3 px-4 text-center">
+                        <button
+                          onClick={() => {
+                            setSettings(prev => {
+                              const currentVis = prev.parent_visibility[grade.name] ||
+                                { ...(prev.parent_visibility.default || DEFAULT_VISIBILITY) };
+                              return {
+                                ...prev,
+                                parent_visibility: {
+                                  ...prev.parent_visibility,
+                                  [grade.name]: {
+                                    ...currentVis,
+                                    [field]: !currentVis[field],
+                                  },
+                                },
+                              };
+                            });
+                          }}
+                          className="inline-flex"
+                        >
+                          <div className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                            effectiveVis[field] ? 'bg-green-500' : 'bg-gray-300'
+                          }`}>
+                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                              effectiveVis[field] ? 'translate-x-4' : 'translate-x-1'
+                            }`} />
+                          </div>
+                        </button>
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {grades.filter(g => g.is_active).length === 0 && (
+          <p className="mt-2 text-xs text-gray-400">No grades configured. Add grades in the Grades section below.</p>
+        )}
       </SettingsSection>
 
       {/* Financial Settings */}
@@ -1956,7 +2080,7 @@ export default function SettingsPage() {
       {activeTab === 'school' && (
         <div className="space-y-8">
           {/* School Settings */}
-          {selectedSchoolId && <SchoolSettingsPanel schoolId={selectedSchoolId} />}
+          {selectedSchoolId && <SchoolSettingsPanel schoolId={selectedSchoolId} grades={grades} />}
           {!selectedSchoolId && (
             <div className="rounded-xl border border-yellow-200 bg-yellow-50 px-6 py-4 text-sm text-yellow-800">
               Please select a school to configure settings.
