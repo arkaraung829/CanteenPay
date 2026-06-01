@@ -505,6 +505,42 @@ export default function ReportCardsPage() {
   }
 
   const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  function toggleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === filteredReportCards.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredReportCards.map(rc => rc.id)));
+    }
+  }
+
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Delete ${selectedIds.size} report card(s)?`)) return;
+    setBulkDeleting(true);
+    try {
+      await Promise.all([...selectedIds].map(id =>
+        authFetch('/api/report-cards', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id }),
+        })
+      ));
+      setSelectedIds(new Set());
+      fetchReportCards();
+    } catch { /* silent */ }
+    setBulkDeleting(false);
+  }
   const [allStudents, setAllStudents] = useState<{ id: string; full_name: string; student_code: string; grade: string }[]>([]);
   const [studentReportCards, setStudentReportCards] = useState<ReportCard[]>([]);
 
@@ -709,10 +745,37 @@ export default function ReportCardsPage() {
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          {selectedIds.size > 0 && (
+            <div className="flex items-center gap-3 border-b border-gray-200 bg-blue-50 px-4 py-2">
+              <span className="text-sm font-medium text-blue-700">{selectedIds.size} selected</span>
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {bulkDeleting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                Delete Selected
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="text-xs text-gray-500 hover:text-gray-700"
+              >
+                Clear
+              </button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-3 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.size === filteredReportCards.length && filteredReportCards.length > 0}
+                      onChange={toggleSelectAll}
+                      className="rounded border-gray-300"
+                    />
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Student</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Total Score</th>
                   <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-gray-500">Percentage</th>
@@ -726,6 +789,14 @@ export default function ReportCardsPage() {
                 {filteredReportCards.map((rc) => (
                   <React.Fragment key={rc.id}>
                     <tr className="hover:bg-gray-50">
+                      <td className="px-3 py-4 w-8">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(rc.id)}
+                          onChange={() => toggleSelect(rc.id)}
+                          className="rounded border-gray-300"
+                        />
+                      </td>
                       <td className="whitespace-nowrap px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-700">
