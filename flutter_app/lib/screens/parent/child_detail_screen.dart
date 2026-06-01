@@ -154,9 +154,9 @@ class _ChildDetailScreenState extends State<ChildDetailScreen>
         title: Text(child.displayName),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppTheme.primary,
-          labelColor: AppTheme.primary,
-          unselectedLabelColor: AppTheme.textSecondary,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
           tabs: const [
             Tab(text: 'Overview'),
             Tab(text: 'Spending'),
