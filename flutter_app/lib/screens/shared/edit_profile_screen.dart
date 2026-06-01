@@ -45,22 +45,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (changed != _hasChanges) setState(() => _hasChanges = changed);
   }
 
-  Future<void> _pickPhoto() async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 512,
-      maxHeight: 512,
-      imageQuality: 80,
-    );
-    if (picked != null) {
-      setState(() {
-        _pickedPhoto = File(picked.path);
-        _hasChanges = true;
-      });
-    }
-  }
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -162,23 +146,18 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           children: [
             // Avatar (display only, no upload)
             Center(
-              child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 48,
-                      backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                      backgroundImage: (_currentPhotoUrl != null && _currentPhotoUrl!.isNotEmpty)
-                              ? NetworkImage(_currentPhotoUrl!) as ImageProvider
-                              : null,
-                      child: (_currentPhotoUrl == null || _currentPhotoUrl!.isEmpty)
-                          ? Text(
-                              (user?.fullName ?? 'U').isNotEmpty ? (user?.fullName ?? 'U')[0].toUpperCase() : 'U',
-                              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: AppTheme.primary),
-                            )
-                          : null,
-                    ),
-                  ],
-                ),
+              child: CircleAvatar(
+                radius: 48,
+                backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                backgroundImage: (_currentPhotoUrl != null && _currentPhotoUrl!.isNotEmpty)
+                    ? NetworkImage(_currentPhotoUrl!) as ImageProvider
+                    : null,
+                child: (_currentPhotoUrl == null || _currentPhotoUrl!.isEmpty)
+                    ? Text(
+                        (user?.fullName ?? 'U').isNotEmpty ? (user?.fullName ?? 'U')[0].toUpperCase() : 'U',
+                        style: const TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: AppTheme.primary),
+                      )
+                    : null,
               ),
             ),
             const SizedBox(height: 8),
