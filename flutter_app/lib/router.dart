@@ -36,6 +36,7 @@ import 'screens/seller/sales_history_screen.dart';
 import 'screens/seller/analytics_screen.dart';
 import 'screens/seller/profile_screen.dart' as seller_profile;
 import 'screens/seller/refund_requests_screen.dart';
+import 'screens/seller/payout_screen.dart';
 import 'screens/teacher/home_screen.dart' as teacher;
 import 'screens/teacher/scan_screen.dart' as teacher_scan;
 import 'screens/teacher/profile_screen.dart' as teacher_profile;
@@ -330,6 +331,11 @@ GoRouter createRouter(AuthProvider authProvider, {bool initialOnboarding = false
         path: '/seller/refunds',
         parentNavigatorKey: _rootNavigatorKey,
         builder: (context, state) => const RefundRequestsScreen(),
+      ),
+      GoRoute(
+        path: '/seller/payouts',
+        parentNavigatorKey: _rootNavigatorKey,
+        builder: (context, state) => const PayoutScreen(),
       ),
       GoRoute(
         path: '/seller/notifications',

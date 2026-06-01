@@ -95,6 +95,20 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
+          // Payout
+          ElevatedButton.icon(
+            onPressed: () => context.push('/seller/payouts'),
+            icon: const Icon(Icons.account_balance_wallet, size: 18),
+            label: const Text('Request Payout'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSm)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
           // Refund requests
           OutlinedButton.icon(
             onPressed: () => context.push('/seller/refunds'),
