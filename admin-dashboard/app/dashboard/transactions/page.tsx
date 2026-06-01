@@ -255,13 +255,14 @@ export default function TransactionsPage() {
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Balance After</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Description</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Seller</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Txn ID</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-8 text-center text-sm text-gray-400">
+                  <td colSpan={10} className="px-6 py-8 text-center text-sm text-gray-400">
                     No transactions found
                   </td>
                 </tr>
@@ -290,6 +291,7 @@ export default function TransactionsPage() {
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{formatMMK(tx.balance_after)}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{tx.description}</td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-400">{tx.seller_name}</td>
+                    <td className="whitespace-nowrap px-6 py-4 text-xs text-gray-400 font-mono">{tx.id.substring(0, 8)}</td>
                     <td className="whitespace-nowrap px-6 py-4">
                       {tx.type === 'purchase' && (
                         <button
