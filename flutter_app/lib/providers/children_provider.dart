@@ -145,18 +145,21 @@ class ChildrenProvider extends ChangeNotifier {
             .eq('academic_year', rc['academic_year']);
 
         final subjects = (gradesData as List).map((g) {
-          final sub = g['subjects'] as Map<String, dynamic>?;
-          final exam = g['exam_types'] as Map<String, dynamic>?;
+          // Handle both object and array join results
+          final subRaw = g['subjects'];
+          final examRaw = g['exam_types'];
+          final sub = subRaw is List ? (subRaw.isNotEmpty ? subRaw[0] as Map<String, dynamic> : null) : subRaw as Map<String, dynamic>?;
+          final exam = examRaw is List ? (examRaw.isNotEmpty ? examRaw[0] as Map<String, dynamic> : null) : examRaw as Map<String, dynamic>?;
           return SubjectScoreModel(
-            id: g['id'],
-            subjectName: sub?['name'] ?? '',
-            subjectNameMy: sub?['name_my'],
+            id: g['id']?.toString() ?? '',
+            subjectName: sub?['name']?.toString() ?? '',
+            subjectNameMy: sub?['name_my']?.toString(),
             score: g['score'] != null ? (g['score'] as num).toDouble() : null,
-            fullMarks: sub?['full_marks'] ?? 100,
-            passMark: sub?['pass_marks'] ?? 40,
-            letterGrade: g['letter_grade'],
-            examTypeName: exam?['name'],
-            remarks: g['remarks'],
+            fullMarks: (sub?['full_marks'] as num?)?.toInt() ?? 100,
+            passMark: (sub?['pass_marks'] as num?)?.toInt() ?? 40,
+            letterGrade: g['letter_grade']?.toString(),
+            examTypeName: exam?['name']?.toString(),
+            remarks: g['remarks']?.toString(),
           );
         }).toList();
 
