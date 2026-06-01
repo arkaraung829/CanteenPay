@@ -283,8 +283,8 @@ class _ScanScreenState extends State<ScanScreen> {
             ],
           ),
 
-          // Today's sales summary card
-          Positioned(
+          // Today's sales summary card — only show when scanner is active (not covering the scan button)
+          if (_scannerActive) Positioned(
             bottom: 88,
             left: 24,
             right: 24,
