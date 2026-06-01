@@ -20,11 +20,25 @@ class ChildDetailScreen extends StatefulWidget {
   State<ChildDetailScreen> createState() => _ChildDetailScreenState();
 }
 
-class _ChildDetailScreenState extends State<ChildDetailScreen> {
+class _ChildDetailScreenState extends State<ChildDetailScreen>
+    with SingleTickerProviderStateMixin {
   String get childId => widget.childId;
   bool _hasRefreshed = false;
   int _weekOffset = 0; // 0 = this week, -1 = last week, etc.
   late DateTime _attendanceMonth = DateTime(DateTime.now().year, DateTime.now().month);
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
   @override
   void didChangeDependencies() {
@@ -117,7 +131,20 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
 
     if (provider.isLoading && wallet == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(child.displayName)),
+        appBar: AppBar(
+          title: Text(child.displayName),
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: AppTheme.primary,
+            labelColor: AppTheme.primary,
+            unselectedLabelColor: AppTheme.textSecondary,
+            tabs: const [
+              Tab(text: 'Overview'),
+              Tab(text: 'Spending'),
+              Tab(text: 'Academic'),
+            ],
+          ),
+        ),
         body: _buildLoadingSkeleton(),
       );
     }
@@ -125,301 +152,385 @@ class _ChildDetailScreenState extends State<ChildDetailScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(child.displayName),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppTheme.primary,
+          labelColor: AppTheme.primary,
+          unselectedLabelColor: AppTheme.textSecondary,
+          tabs: const [
+            Tab(text: 'Overview'),
+            Tab(text: 'Spending'),
+            Tab(text: 'Academic'),
+          ],
+        ),
       ),
       body: AnimatedFadeIn(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: TabBarView(
+          controller: _tabController,
           children: [
-            const SizedBox(height: 16),
-
-            // -- Balance Card --
-            if (wallet != null) BalanceCard(wallet: wallet),
-            const SizedBox(height: 16),
-
-            // -- Quick Stats Row --
-            Row(
+            // ===== Tab 1: Overview =====
+            ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
-                _QuickStat(
-                  icon: Icons.today,
-                  label: "Today's Spent",
-                  value: CurrencyFormatter.formatMMK(todaySpent),
-                  color: todaySpent > 0 ? AppTheme.error : AppTheme.textSecondary,
-                ),
-                const SizedBox(width: 12),
-                _QuickStat(
-                  icon: Icons.receipt_long,
-                  label: 'Transactions',
-                  value: '${todayTxns.length} today',
-                  color: AppTheme.primary,
-                ),
-                if (child.dailySpendingLimit != null) ...[
-                  const SizedBox(width: 12),
-                  _QuickStat(
-                    icon: Icons.tune,
-                    label: 'Daily Limit',
-                    value: CurrencyFormatter.formatMMK(child.dailySpendingLimit!),
-                    color: Colors.orange,
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-            // -- Student Info --
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: AppTheme.shadowSm,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 22,
-                        backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                        backgroundImage: child.photoUrl != null && child.photoUrl!.isNotEmpty
-                            ? NetworkImage(child.photoUrl!) : null,
-                        child: child.photoUrl == null || child.photoUrl!.isEmpty
-                            ? Text(child.displayName[0],
-                                style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary))
-                            : null,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(child.displayName,
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                                overflow: TextOverflow.ellipsis),
-                            Text(
-                              '${child.gradeAndClass} · ${child.studentCode}',
-                              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (child.schoolName != null) ...[
-                    const SizedBox(height: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        child.schoolName!,
-                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+                // -- Balance Card --
+                if (wallet != null) BalanceCard(wallet: wallet),
+                const SizedBox(height: 16),
 
-            // -- Weekly Spending Chart with navigation --
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Weekly Spending',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
+                // -- Quick Stats Row --
                 Row(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left, size: 22),
-                      onPressed: () => setState(() => _weekOffset--),
-                      visualDensity: VisualDensity.compact,
-                      tooltip: 'Previous week',
+                    _QuickStat(
+                      icon: Icons.today,
+                      label: "Today's Spent",
+                      value: CurrencyFormatter.formatMMK(todaySpent),
+                      color: todaySpent > 0 ? AppTheme.error : AppTheme.textSecondary,
                     ),
-                    GestureDetector(
-                      onTap: _weekOffset != 0 ? () => setState(() => _weekOffset = 0) : null,
-                      child: Text(
-                        _weekLabel(_weekOffset),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: _weekOffset == 0 ? AppTheme.primary : AppTheme.textSecondary,
-                        ),
+                    const SizedBox(width: 12),
+                    _QuickStat(
+                      icon: Icons.receipt_long,
+                      label: 'Transactions',
+                      value: '${todayTxns.length} today',
+                      color: AppTheme.primary,
+                    ),
+                    if (child.dailySpendingLimit != null) ...[
+                      const SizedBox(width: 12),
+                      _QuickStat(
+                        icon: Icons.tune,
+                        label: 'Daily Limit',
+                        value: CurrencyFormatter.formatMMK(child.dailySpendingLimit!),
+                        color: Colors.orange,
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right, size: 22),
-                      onPressed: _weekOffset < 0 ? () => setState(() => _weekOffset++) : null,
-                      visualDensity: VisualDensity.compact,
-                      tooltip: 'Next week',
-                      color: _weekOffset < 0 ? null : Colors.grey[300],
-                    ),
+                    ],
                   ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: AppTheme.shadowSm,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: SpendingChart(
-                  weeklyData: provider.getWeeklySpending(childId, weekOffset: _weekOffset),
-                  weekOffset: _weekOffset,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-            // -- Attendance Summary --
-            const Text(
-              'Attendance',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _QuickStat(
-                  icon: Icons.check_circle_outline,
-                  label: 'Present',
-                  value: '$presentCount',
-                  color: AppTheme.success,
-                ),
-                const SizedBox(width: 12),
-                _QuickStat(
-                  icon: Icons.cancel_outlined,
-                  label: 'Absent',
-                  value: '$absentCount',
-                  color: AppTheme.error,
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            // -- Attendance Calendar --
-            AttendanceCalendar(
-              attendanceMap: attendanceMap,
-              selectedMonth: _attendanceMonth,
-              onMonthChanged: (month) => setState(() => _attendanceMonth = month),
-            ),
-            const SizedBox(height: 24),
-
-            // -- Report Card Button --
-            OutlinedButton.icon(
-              onPressed: () => context.push('/parent/child/$childId/report-card'),
-              icon: const Icon(Icons.assignment, size: 18),
-              label: const Text('Report Card'),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // -- Today's Activity --
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Today's Activity (${todayTxns.length})",
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                if (transactions.isNotEmpty)
-                  TextButton(
-                    onPressed: () => context.push('/parent/child/$childId/history'),
-                    child: const Text('See All', style: TextStyle(fontSize: 13)),
+                // -- Student Info --
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: AppTheme.shadowSm,
                   ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            if (todayTxns.isEmpty)
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: AppTheme.shadowSm,
-                ),
-                child: const Center(
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.receipt_long_outlined, size: 32, color: AppTheme.textHint),
-                      SizedBox(height: 8),
-                      Text('No transactions today',
-                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 22,
+                            backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                            backgroundImage: child.photoUrl != null && child.photoUrl!.isNotEmpty
+                                ? NetworkImage(child.photoUrl!) : null,
+                            child: child.photoUrl == null || child.photoUrl!.isEmpty
+                                ? Text(child.displayName[0],
+                                    style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primary))
+                                : null,
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(child.displayName,
+                                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                                    overflow: TextOverflow.ellipsis),
+                                Text(
+                                  '${child.gradeAndClass} · ${child.studentCode}',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (child.schoolName != null) ...[
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            child.schoolName!,
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-              )
-            else
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: AppTheme.shadowSm,
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: Column(
-                  children: todayTxns.map((tx) => TransactionTile(transaction: tx)).toList(),
-                ),
-              ),
-            const SizedBox(height: 16),
+                const SizedBox(height: 24),
 
-            // -- Action Buttons --
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => context.push('/parent/alerts'),
-                    icon: const Icon(Icons.tune, size: 18),
-                    label: const Text('Daily Limit'),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                // -- Today's Activity --
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      "Today's Activity (${todayTxns.length})",
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    if (transactions.isNotEmpty)
+                      TextButton(
+                        onPressed: () => context.push('/parent/child/$childId/history'),
+                        child: const Text('See All', style: TextStyle(fontSize: 13)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (todayTxns.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: AppTheme.shadowSm,
+                    ),
+                    child: const Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.receipt_long_outlined, size: 32, color: AppTheme.textHint),
+                          SizedBox(height: 8),
+                          Text('No transactions today',
+                              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: AppTheme.shadowSm,
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: todayTxns.map((tx) => TransactionTile(transaction: tx)).toList(),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => context.push('/parent/child/$childId/history'),
-                    icon: const Icon(Icons.history, size: 18),
-                    label: const Text('Full History'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                const SizedBox(height: 16),
+
+                // -- Action Buttons --
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/parent/alerts'),
+                        icon: const Icon(Icons.tune, size: 18),
+                        label: const Text('Daily Limit'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
                     ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => context.push('/parent/child/$childId/history'),
+                        icon: const Icon(Icons.history, size: 18),
+                        label: const Text('Full History'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // -- Unlink Child --
+                OutlinedButton.icon(
+                  onPressed: () => _confirmUnlink(context, child, provider),
+                  icon: const Icon(Icons.link_off, size: 18),
+                  label: const Text('Unlink Child'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppTheme.error,
+                    side: const BorderSide(color: AppTheme.error),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
+                const SizedBox(height: 32),
               ],
             ),
-            const SizedBox(height: 16),
 
-            // -- Unlink Child --
-            OutlinedButton.icon(
-              onPressed: () => _confirmUnlink(context, child, provider),
-              icon: const Icon(Icons.link_off, size: 18),
-              label: const Text('Unlink Child'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.error,
-                side: const BorderSide(color: AppTheme.error),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              ),
+            // ===== Tab 2: Spending =====
+            ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                const SizedBox(height: 16),
+
+                // -- Weekly Spending Chart with navigation --
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Weekly Spending',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left, size: 22),
+                          onPressed: () => setState(() => _weekOffset--),
+                          visualDensity: VisualDensity.compact,
+                          tooltip: 'Previous week',
+                        ),
+                        GestureDetector(
+                          onTap: _weekOffset != 0 ? () => setState(() => _weekOffset = 0) : null,
+                          child: Text(
+                            _weekLabel(_weekOffset),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: _weekOffset == 0 ? AppTheme.primary : AppTheme.textSecondary,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right, size: 22),
+                          onPressed: _weekOffset < 0 ? () => setState(() => _weekOffset++) : null,
+                          visualDensity: VisualDensity.compact,
+                          tooltip: 'Next week',
+                          color: _weekOffset < 0 ? null : Colors.grey[300],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: AppTheme.shadowSm,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SpendingChart(
+                      weeklyData: provider.getWeeklySpending(childId, weekOffset: _weekOffset),
+                      weekOffset: _weekOffset,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                // -- Transaction History --
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Transaction History',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/parent/child/$childId/history'),
+                      child: const Text('See All', style: TextStyle(fontSize: 13)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                if (transactions.isEmpty)
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: AppTheme.shadowSm,
+                    ),
+                    child: const Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.receipt_long_outlined, size: 32, color: AppTheme.textHint),
+                          SizedBox(height: 8),
+                          Text('No transactions yet',
+                              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: AppTheme.shadowSm,
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: transactions
+                          .take(10)
+                          .map((tx) => TransactionTile(transaction: tx))
+                          .toList(),
+                    ),
+                  ),
+                const SizedBox(height: 32),
+              ],
             ),
-            const SizedBox(height: 32),
+
+            // ===== Tab 3: Academic =====
+            ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: [
+                const SizedBox(height: 16),
+
+                // -- Attendance Summary --
+                const Text(
+                  'Attendance',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    _QuickStat(
+                      icon: Icons.check_circle_outline,
+                      label: 'Present',
+                      value: '$presentCount',
+                      color: AppTheme.success,
+                    ),
+                    const SizedBox(width: 12),
+                    _QuickStat(
+                      icon: Icons.cancel_outlined,
+                      label: 'Absent',
+                      value: '$absentCount',
+                      color: AppTheme.error,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+
+                // -- Attendance Calendar --
+                AttendanceCalendar(
+                  attendanceMap: attendanceMap,
+                  selectedMonth: _attendanceMonth,
+                  onMonthChanged: (month) => setState(() => _attendanceMonth = month),
+                ),
+                const SizedBox(height: 24),
+
+                // -- Report Card Button --
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/parent/child/$childId/report-card'),
+                  icon: const Icon(Icons.assignment, size: 18),
+                  label: const Text('Report Card'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
           ],
         ),
       ),
