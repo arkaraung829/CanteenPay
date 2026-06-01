@@ -65,6 +65,7 @@ const adminSections: NavSection[] = [
     items: [
       { name: 'Announcements', href: '/dashboard/announcements', icon: Megaphone },
       { name: 'Messages', href: '/dashboard/chat', icon: MessageCircle },
+      { name: 'Payouts', href: '/dashboard/payouts', icon: Banknote },
     ],
   },
 ];

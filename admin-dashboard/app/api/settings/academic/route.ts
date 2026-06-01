@@ -90,6 +90,28 @@ export async function GET(request: NextRequest) {
       .filter((t): t is string => !!t)
   )];
 
+  // Check which academic years have actual grade data
+  const { data: gradeYears } = await supabase
+    .from('student_grades')
+    .select('academic_year')
+    .limit(100);
+  const yearsWithGrades = [...new Set((gradeYears || []).map((g: { academic_year: string }) => g.academic_year))];
+
+  // Check which academic years have report cards
+  const { data: rcYears } = await supabase
+    .from('report_cards')
+    .select('academic_year, term')
+    .limit(100);
+  const yearsWithReportCards = [...new Set((rcYears || []).map((r: { academic_year: string }) => r.academic_year))];
+
+  // Build enriched academic years list
+  const enrichedYears = academicYears.map(y => ({
+    year: y,
+    isCurrent: y === currentAcademicYear,
+    hasGrades: yearsWithGrades.includes(y),
+    hasReportCards: yearsWithReportCards.includes(y),
+  }));
+
   return NextResponse.json({
     success: true,
     data: {
@@ -98,6 +120,7 @@ export async function GET(request: NextRequest) {
       academic_year_start: academicYearStart,
       academic_year_end: academicYearEnd,
       academic_years: academicYears,
+      academic_years_detail: enrichedYears,
       terms: distinctTerms,
     },
   });

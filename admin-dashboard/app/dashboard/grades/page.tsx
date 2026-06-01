@@ -408,7 +408,7 @@ export default function GradesPage() {
           >
             <option value="">Select Year</option>
             {academicYears.map(y => (
-              <option key={y} value={y}>{y}</option>
+              <option key={y} value={y}>{y}{y === academicYear ? ' (current)' : ''}</option>
             ))}
           </select>
         </div>
