@@ -109,12 +109,15 @@ class _PaymentConfirmScreenState extends State<PaymentConfirmScreen> {
                               color: AppTheme.secondary,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              'Daily limit: ${CurrencyFormatter.formatMMK(student.dailySpendingLimit!)}',
-                              style: const TextStyle(
-                                color: AppTheme.secondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
+                            Flexible(
+                              child: Text(
+                                'Limit: ${CurrencyFormatter.formatMMK(student.dailySpendingLimit!)}',
+                                style: const TextStyle(
+                                  color: AppTheme.secondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
