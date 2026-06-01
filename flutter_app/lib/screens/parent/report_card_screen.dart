@@ -235,63 +235,22 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
           ),
           const SizedBox(height: 16),
 
-          // Percentage (big, bold, color-coded)
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              // Percentage
-              Column(
-                children: [
-                  Text(
-                    card.percentage != null ? '${card.percentage!.toStringAsFixed(1)}%' : '--',
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w800,
-                      color: _percentageColor(card.percentage),
-                    ),
-                  ),
-                  const Text('Percentage', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                ],
+          // Overall Grade (big)
+          if (card.overallGrade != null)
+            Text(
+              card.overallGrade!,
+              style: TextStyle(
+                fontSize: 48,
+                fontWeight: FontWeight.w800,
+                color: card.resultColor,
               ),
+            ),
+          const SizedBox(height: 8),
 
-              // Divider
-              Container(height: 50, width: 1, color: Colors.grey[200]),
-
-              // Rank
-              Column(
-                children: [
-                  Text(
-                    card.rankInClass != null ? _ordinal(card.rankInClass!) : '--',
-                    style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppTheme.primary),
-                  ),
-                  const Text('Class Rank', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Total score + Result badge
+          // Result badge
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Total score
-              if (card.totalScore != null && card.totalFullMarks != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[100],
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${card.totalScore!.toStringAsFixed(0)} / ${card.totalFullMarks}',
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(width: 12),
-              ],
-
-              // Result badge
               if (card.result != null)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
@@ -308,26 +267,6 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
                     ),
                   ),
                 ),
-
-              // Overall grade
-              if (card.overallGrade != null) ...[
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _gradeColor(card.overallGrade).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    'Grade ${card.overallGrade}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: _gradeColor(card.overallGrade),
-                    ),
-                  ),
-                ),
-              ],
             ],
           ),
         ],
@@ -359,75 +298,38 @@ class _ReportCardScreenState extends State<ReportCardScreen> {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          // Header
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            color: AppTheme.primary.withValues(alpha: 0.06),
-            child: const Row(
-              children: [
-                Expanded(flex: 3, child: Text('Subject', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600))),
-                Expanded(flex: 2, child: Text('Score', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
-                SizedBox(width: 36, child: Text('Grade', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
-                SizedBox(width: 28),
-              ],
-            ),
-          ),
-          // Rows
+          // Rows — subject name + grade only (no scores for parents)
           ...card.subjects.asMap().entries.map((entry) {
             final idx = entry.key;
             final subject = entry.value;
             final isEven = idx % 2 == 0;
             return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               color: isEven ? Colors.white : Colors.grey[50],
               child: Row(
                 children: [
                   Expanded(
-                    flex: 3,
                     child: Text(
                       subject.subjectName,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  Expanded(
-                    flex: 2,
-                    child: Text(
-                      subject.score != null
-                          ? '${subject.score!.toStringAsFixed(0)} / ${subject.fullMarks}'
-                          : '--',
-                      style: const TextStyle(fontSize: 13),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                  SizedBox(
+                  Container(
                     width: 36,
-                    child: Center(
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _gradeColor(subject.letterGrade).withValues(alpha: 0.15),
-                        ),
-                        alignment: Alignment.center,
-                        child: Text(
-                          subject.letterGrade ?? '-',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: _gradeColor(subject.letterGrade),
-                          ),
-                        ),
-                      ),
+                    height: 36,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _gradeColor(subject.letterGrade).withValues(alpha: 0.15),
                     ),
-                  ),
-                  SizedBox(
-                    width: 28,
-                    child: Icon(
-                      subject.isPassed ? Icons.check_circle : Icons.cancel,
-                      size: 18,
-                      color: subject.isPassed ? const Color(0xFF4CAF50) : const Color(0xFFF44336),
+                    alignment: Alignment.center,
+                    child: Text(
+                      subject.letterGrade ?? '-',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: _gradeColor(subject.letterGrade),
+                      ),
                     ),
                   ),
                 ],
